@@ -1,0 +1,50 @@
+# NOVA Documentation
+
+This documentation is the persistent source of truth for NOVA. Conversation history is
+not. Every document here has a distinct purpose; nothing is duplicated between them.
+
+---
+
+## Read in This Order
+
+| # | Document | Purpose |
+| --- | --- | --- |
+| 1 | [`CONSTITUTION.md`](./CONSTITUTION.md) | Golden Rules, what NOVA is, authority hierarchy, isolation principle, context lock, human control, source of truth. |
+| 2 | [`DOMAIN_MODEL.md`](./DOMAIN_MODEL.md) | Business → Client → Project → Environment, KAIRO, client isolation, credentials. |
+| 3 | [`ai/AI_TERMINOLOGY.md`](./ai/AI_TERMINOLOGY.md) | Canonical definitions of NOVA's AI vocabulary. |
+| 4 | [`ai/AGENT_PRINCIPLES.md`](./ai/AGENT_PRINCIPLES.md) | When agents may exist, what they must declare, what they may never do. |
+| 5 | [`development/DEVELOPMENT_RULES.md`](./development/DEVELOPMENT_RULES.md) | Priority order, scope discipline, secrets, dependencies. |
+| 6 | [`development/CHANGE_MANAGEMENT.md`](./development/CHANGE_MANAGEMENT.md) | How changes are proposed, approved, made, and documented. |
+| 7 | [`design/DESIGN_PRINCIPLES.md`](./design/DESIGN_PRINCIPLES.md) | Interface principles. The design system itself is Section 15. |
+| 8 | [`decisions/README.md`](./decisions/README.md) | How architectural decisions are recorded. |
+| 9 | [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md) | What is deliberately unresolved, and where it will be resolved. |
+| 10 | [`ROADMAP.md`](./ROADMAP.md) | The 46 architectural domains and current progress. |
+
+Coding-agent governance lives at the repository root: [`../AGENTS.md`](../AGENTS.md)
+(provider-neutral) and [`../CLAUDE.md`](../CLAUDE.md) (Claude Code adapter).
+
+---
+
+## Documentation Standards
+
+Documentation must be precise, internally consistent, concise where possible, readable by
+humans, parseable by AI coding agents, free of contradictory terminology, and free of
+unnecessary duplication.
+
+- Every document has one clear purpose. Documents are not created to increase the file
+  count.
+- A concept is defined in exactly one place and linked to from elsewhere.
+- Terminology follows [`ai/AI_TERMINOLOGY.md`](./ai/AI_TERMINOLOGY.md) exactly.
+- KAIRO is always spelled K-A-I-R-O.
+- Documentation that a change makes stale is updated as part of that change.
+- What is not yet decided is marked **Deferred — to be resolved in a future section**, not
+  guessed.
+
+---
+
+## Current Status
+
+Section 01 (Constitution & Project Foundation) is complete. NOVA contains documentation
+only — no application code, dependencies, infrastructure, or technology commitments.
+
+Next: **Section 02 — System Architecture & Master Blueprint.**

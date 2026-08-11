@@ -1,0 +1,34 @@
+# NOVA — .gitignore
+#
+# Secrets must never be committed. This file is a safety net, not the control:
+# the rule in docs/development/DEVELOPMENT_RULES.md is the control.
+#
+# NOVA currently contains documentation only. Ecosystem-specific ignores are added
+# when a technology is actually chosen (see docs/decisions/DEFERRED_DECISIONS.md),
+# not speculatively.
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+*.secret
+*.secrets
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Logs and temporary files
+*.log
+tmp/
+.cache/
