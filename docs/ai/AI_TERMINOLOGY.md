@@ -121,6 +121,67 @@ table below.
 
 ---
 
+## Terms Added in Section 03
+
+Defined in full in [`../architecture/`](../architecture/README.md).
+
+### Scope Kind
+What a scope *is* — `business`, `client`, `project`, `environment`, `area`, `thread`,
+`holding`. Kinds differ in what may attach to them, never in how access works. New kinds must
+satisfy the scope contract. → [ADR 0015](../decisions/0015-extensible-scope-kinds.md)
+
+### Ownership
+The scope a resource belongs to. **Not** an identity, and not its creator — the creator is
+provenance. An agent never owns anything.
+
+### Execution Identity
+The ephemeral, single-context identity that authorization actually evaluates. Derived by
+*intersection* of agent definition, granting identity, token, and risk ceiling — never union.
+
+### Credential Binding
+A scoped, stateful **reference** to an external secret. What NOVA stores. The secret itself is
+never in the data model. → [ADR 0009](../decisions/0009-credentials-are-references.md)
+
+### Classification
+The handling level of an item — PUBLIC, INTERNAL, CONFIDENTIAL, CLIENT-CONFIDENTIAL,
+SENSITIVE-PERSONAL, SECURITY-CRITICAL — controlling storage, access, memory, logging, model
+exposure, transmission, retention, deletion, and export.
+
+### Provenance
+Immutable record of where information came from. Distinct from **trust** (revisable weight of
+the source) and from **epistemic status** (fact / inference / assumption / unknown).
+
+### Trust
+The weight a source earns, evaluated at use time and revisable without rewriting history.
+
+### Lineage
+The complete set of items an item was derived from. The precondition for classification
+inheritance, deletion cascade, and leak diagnosis.
+
+### Derived Item
+Anything produced from other items — summary, aggregate, embedding, index entry, report.
+Inherits the strictest classification and narrowest scope among its sources.
+→ [ADR 0010](../decisions/0010-derived-data-inheritance.md)
+
+### Supersession
+Replacing an item with a new version while retaining the old as history. NOVA does not update
+meaningful information in place.
+
+### Tombstone
+The record left by deletion: identity, scope, classification, time, authorization — **never
+content**.
+
+### Grant / Denial
+A **grant** is an explicit right for a subject over a scope. A **denial** is an explicit
+refusal that overrides any grant. The *absence* of a grant is not a denial — it is default
+deny.
+
+### Invariant
+A property every implementation must satisfy, written to be testable.
+→ [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md)
+
+---
+
 ## Distinctions That Are Frequently Confused
 
 | Do not conflate | With | Because |
@@ -138,6 +199,13 @@ table below.
 | **Context** | **Context Token** | Context is the concept; the token is the enforceable object carrying it. |
 | **Context Token** | **Work Order** | A token confers authority inside NOVA; a work order confers none. |
 | **Scope** | **Context** | A scope is a fixed node in the tree; a context is one operation's position in it. |
+| **Ownership** | **Access** | A resource is owned by a scope; access requires a grant over that scope. |
+| **Credential** | **Credential binding** | The secret versus the reference NOVA stores. NOVA holds only the binding. |
+| **Provenance** | **Trust** | Where it came from versus how much weight the source earns. |
+| **Trust** | **Epistemic status** | A property of the source versus a property of the claim. |
+| **Classification** | **Scope** | *What may be done* with an item versus *where* it lives. Both are required. |
+| **Grant absent** | **Explicit denial** | Absence is default deny; an explicit denial additionally overrides any grant. |
+| **Session identity** | **Execution identity** | Continuity versus the identity authorization evaluates. |
 
 ---
 

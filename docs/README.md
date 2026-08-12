@@ -26,6 +26,7 @@ Then the architecture (Section 02):
 | --- | --- | --- |
 | 11 | [`architecture/README.md`](./architecture/README.md) | Index and reading order for the blueprint. |
 | 12 | [`architecture/MASTER_ARCHITECTURE.md`](./architecture/MASTER_ARCHITECTURE.md) | **The canonical blueprint.** Start here for how NOVA works. |
+| 13 | [`architecture/INVARIANTS.md`](./architecture/INVARIANTS.md) | The fifty testable properties every implementation must satisfy. |
 
 Coding-agent governance lives at the repository root: [`../AGENTS.md`](../AGENTS.md)
 (provider-neutral) and [`../CLAUDE.md`](../CLAUDE.md) (Claude Code adapter).
@@ -51,12 +52,14 @@ unnecessary duplication.
 
 ## Current Status
 
-Sections 01 (Constitution & Project Foundation) and 02 (System Architecture & Master
-Blueprint) are complete. NOVA contains documentation only — no application code,
+Sections 01 (Constitution & Project Foundation), 02 (System Architecture & Master
+Blueprint), and 03 (Data, Scope, Identity & Memory Architecture) are complete. NOVA contains documentation only — no application code,
 dependencies, infrastructure, or technology commitments.
 
 The Section 02 architecture is **Active** — ADRs `0001`–`0008` were accepted by James on
 2026-08-12, with clarifications recorded on 0002 (shared resources) and 0005 (NOVA-generated
 Work Orders).
 
-Next: **Section 03 — Data Architecture & Information Model.**
+The Section 03 model is **Proposed**, pending James's approval of ADRs `0009`–`0015`.
+
+Next: **Section 04 — Security, Identity & Permissions.**

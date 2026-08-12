@@ -90,6 +90,21 @@ their ADRs rather than as new records, because neither changed a core decision:
 - **0005** — NOVA should eventually generate precise Work Orders from high-level requests.
   The security boundary is unchanged.
 
+### Section 03 — Proposed, awaiting James
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0009](./0009-credentials-are-references.md) | Credentials are references, never data | Proposed |
+| [0010](./0010-derived-data-inheritance.md) | Derived data inherits the strictest source | Proposed |
+| [0011](./0011-provenance-trust-epistemic-separation.md) | Provenance, trust, and epistemic status are three axes | Proposed |
+| [0012](./0012-data-classification-model.md) | Six-level data classification | Proposed |
+| [0013](./0013-deletion-and-forgetting.md) | Deletion cascades through lineage, leaving tombstones | Proposed |
+| [0014](./0014-authorization-decision-model.md) | Ordered authorization decision, fail-closed | Proposed |
+| [0015](./0015-extensible-scope-kinds.md) | Scope kinds are extensible; the scope contract is not | Proposed |
+
+None of these reverses a Section 02 decision. `0009` elaborates ADR 0003, `0010` generalizes
+the Section 02 aggregation finding, and `0015` extends ADR 0002 without altering the tree.
+
 **Changing an accepted decision requires a superseding ADR**, not an edit to the original.
 A superseded record keeps its text and is marked `Superseded` with a pointer forward.
 

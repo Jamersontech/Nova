@@ -15,12 +15,14 @@ and workflows.
 **Section 01 — Constitution & Project Foundation: complete.**
 **Section 02 — System Architecture & Master Blueprint: complete** (architecture approved
 2026-08-12).
+**Section 03 — Data, Scope, Identity & Memory Architecture: complete** (proposed, pending
+approval).
 
 This repository currently contains **documentation only**. There is no application, no
 database, no dependencies, and no infrastructure. That is intentional — the governing
 foundation and the approved architecture are established before anything is built.
 
-Next: **Section 03 — Data Architecture & Information Model.**
+Next: **Section 04 — Security, Identity & Permissions.**
 
 ---
 
@@ -32,6 +34,9 @@ Next: **Section 03 — Data Architecture & Information Model.**
   then [`docs/DOMAIN_MODEL.md`](./docs/DOMAIN_MODEL.md).
 - **Understanding how NOVA works?** Read
   [`docs/architecture/MASTER_ARCHITECTURE.md`](./docs/architecture/MASTER_ARCHITECTURE.md).
+- **Implementing anything?** Read
+  [`docs/architecture/INVARIANTS.md`](./docs/architecture/INVARIANTS.md) — the properties your
+  work must satisfy.
 - **Full documentation index:** [`docs/README.md`](./docs/README.md).
 - **What is planned:** [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 

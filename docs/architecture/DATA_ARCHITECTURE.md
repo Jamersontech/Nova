@@ -104,10 +104,38 @@ mechanics. One rule set governs all of them.
 
 ---
 
+## 2.1 Entities Added in Section 03
+
+*These extend the model above; nothing here replaces a Section 02 entity.*
+
+| Entity | Is | Key relationships |
+| --- | --- | --- |
+| **Classification** | The handling level of an item — PUBLIC … SECURITY-CRITICAL | Attached to every stored item ([`DATA_CLASSIFICATION.md`](./DATA_CLASSIFICATION.md)) |
+| **Provenance** | Immutable record of where an item came from | Attached to every significant item |
+| **Trust** | Revisable weight of a source | Property of the source, evaluated at use |
+| **Lineage** | The set of items an item was derived from | Enables classification inheritance and deletion cascade |
+| **Version** | One state of an item over time | Superseded by a later version |
+| **Grant** | An explicit right for a subject over a scope | Held by identity or role; revocable, expiring |
+| **Denial** | An explicit refusal | Overrides any grant |
+| **Credential Binding** | A scoped reference to an external secret — **never the secret** | Belongs to one scope ([ADR 0009](../decisions/0009-credentials-are-references.md)) |
+| **Tombstone** | Record that an item was deleted — identity and authorization, never content | Left by deletion |
+| **Execution Identity** | The ephemeral identity authorization evaluates | Derived by intersection |
+
+**Credential is no longer modelled as data.** Section 02 listed Credential as "an external
+secret." Section 03 refines this: NOVA stores a **Credential Binding**; secret material lives
+only in secrets storage. This elaborates rather than reverses ADR 0003 — see
+[ADR 0009](../decisions/0009-credentials-are-references.md).
+
+---
+
 ## 3. Structural Invariants
 
-These must hold in any Section 3 implementation. They are the data-level expression of the
+These must hold in any implementation. They are the data-level expression of the
 security model, and a schema that cannot enforce them is the wrong schema.
+
+**Section 03 extends this list.** The eight below remain in force as `I-S1`–`I-S8`; the
+complete set of fifty is in [`INVARIANTS.md`](./INVARIANTS.md), which is the authoritative
+specification for isolation testing.
 
 1. **Every scope has exactly one parent** (except root). The tree never becomes a graph —
    a second parent would create a lateral access path.
@@ -125,8 +153,16 @@ clients" is the request that breaks isolation. The answer is two projects.
 
 ---
 
-## 4. What Section 3 Must Decide
+## 4. What Remains to Be Decided
 
-Storage technology, physical partitioning strategy (row-level vs schema vs database
-separation), indexing, retention mechanics, and the encryption model. Section 2 fixes
-*what exists and what must be true*; Section 3 chooses how to store it.
+Section 03 delivered the **conceptual** data model — entities, relationships, classification,
+provenance, lineage, lifecycle, and fifty invariants — but was explicitly instructed not to
+select technology.
+
+Still open: storage technology (`D-02`), physical partitioning strategy — row-level vs schema
+vs database separation (`D-33`) — indexing, and the encryption model (`D-35`). See
+[`../decisions/DEFERRED_DECISIONS.md`](../decisions/DEFERRED_DECISIONS.md).
+
+Whatever is chosen must be able to enforce [`INVARIANTS.md`](./INVARIANTS.md). **A storage
+technology that cannot enforce `I-03` structurally is the wrong choice**, regardless of its
+other merits.

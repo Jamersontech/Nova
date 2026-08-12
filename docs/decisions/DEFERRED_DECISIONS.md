@@ -36,13 +36,43 @@ selection — the technology beneath each remains deferred below.
 
 ---
 
+## Resolved in Section 03
+
+Design decisions only. No technology was selected.
+
+| # | Was | Resolved by |
+| --- | --- | --- |
+| D-03 | Data model — *conceptual* | [`DATA_ARCHITECTURE.md`](../architecture/DATA_ARCHITECTURE.md), [`INVARIANTS.md`](../architecture/INVARIANTS.md). *Physical schema still open — see D-03a* |
+| D-29a | Export and deletion *design* | [ADR 0013](./0013-deletion-and-forgetting.md), [`DATA_LIFECYCLE.md`](../architecture/DATA_LIFECYCLE.md) §7–8. *Formats still open — D-29b* |
+
+**New decisions made in Section 03:** credentials as references ([0009](./0009-credentials-are-references.md)),
+derived-data inheritance ([0010](./0010-derived-data-inheritance.md)), three-axis provenance
+([0011](./0011-provenance-trust-epistemic-separation.md)), classification
+([0012](./0012-data-classification-model.md)), deletion ([0013](./0013-deletion-and-forgetting.md)),
+authorization ordering ([0014](./0014-authorization-decision-model.md)), extensible scope kinds
+([0015](./0015-extensible-scope-kinds.md)).
+
+### ⚠ Governance note — D-02 and D-33 were NOT decided
+
+This register assigned **D-02** (database technology) and **D-33** (physical isolation
+strategy) to Section 03. James's Section 03 instruction **explicitly forbade selecting a
+database, storage technology, or provider**, and directed that the section be "architecture
+and durable documentation first."
+
+Rather than resolve that tension unilaterally, Section 03 delivered the conceptual model and
+**left both deferred**. They are reassigned below to Section 04/29. This is recorded rather
+than silently actioned, per [ADR 0008](./0008-architectural-governance-model.md) — reassigning
+section ownership is a C3 change and is **James's to confirm**.
+
+---
+
 ## Technology and Platform
 
 | # | Deferred decision | Target section |
 | --- | --- | --- |
 | D-01 | Application language, framework, and runtime | 02 / 29 |
-| D-02 | Database technology and hosting | 03 |
-| D-03 | Data model, schema, and storage layout | 03 |
+| D-02 | Database technology and hosting | **04 / 29** *(was 03 — see governance note)* |
+| D-03a | Physical schema and storage layout *(conceptual model done in 03)* | **04 / 29** |
 | D-04 | Cloud provider and hosting platform | 29 |
 | D-05 | Queue / job execution technology | 12 / 29 |
 | D-06 | Vector database and retrieval technology | 07 / 09 |
@@ -66,10 +96,13 @@ selection — the technology beneath each remains deferred below.
 | D-24a | Memory retrieval, decay, storage | Boundaries settled; mechanics depend on storage and retrieval technology | `D-02`, `D-06` | 07 |
 | D-25a | Agent runtime implementation | Model settled; execution mechanics depend on the platform | `D-01`, `D-04` | 06 |
 | D-28a | Budgets, thresholds, billing | Requires real cost data from actual usage | Observed costs once running | 34 |
-| D-29a | Export formats and deletion mechanics | Requires the data model | `D-03` | 37 / 44 |
+| D-29b | Export formats and serialization | Design settled in Section 03; formats depend on the storage choice | `D-02` | 37 / 44 |
+| D-34 | Policy language and authorization engine | Decision model specified ([ADR 0014](./0014-authorization-decision-model.md)); the engine is Section 04's | `D-01`, `D-09` | 04 |
+| D-35 | Encryption model — at rest, in transit, field-level | Classification specifies *what* needs protection; the mechanism depends on storage | `D-02` | 04 / 38 |
+| D-36 | Small-N aggregation threshold | The re-identification risk is identified; the safe threshold depends on real client counts | `Q-01`, `Q-08` | 22 / 37 |
 | D-31 | Sandbox provisioning technology for coding agents | Isolation requirements defined; the technology meeting them is not chosen | Platform choice, `D-04` | 30 |
 | D-32 | Notification routing and interruption policy | Depends on real usage patterns and device surfaces | `Q-03`, lived experience | 25 |
-| D-33 | Physical isolation strategy — row-level vs schema vs database per client | Logical isolation is specified; the physical enforcement mechanism is a Section 03 choice with cost and complexity tradeoffs | `D-02`, expected client volume | 03 |
+| D-33 | Physical isolation strategy — row-level vs schema vs database per client | Logical isolation and `I-03` are fully specified; the physical mechanism was not chosen because Section 03 was forbidden from selecting technology | `D-02`, expected client volume | **04 / 29** |
 
 ---
 

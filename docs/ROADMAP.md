@@ -27,11 +27,15 @@ genuine architectural requirement or a discovered problem justifies the change.
 | --- | --- |
 | 01 — Constitution & Project Foundation | **Complete** |
 | 02 — System Architecture & Master Blueprint | **Complete — architecture Accepted by James 2026-08-12** |
-| 03 — Data Architecture & Information Model | Next |
-| 04 and beyond | Not started |
+| 03 — Data, Scope, Identity & Memory Architecture | **Complete — Proposed, pending approval** |
+| 04 — Security, Identity & Permissions | Next |
+| 05 and beyond | Not started |
 
-**No sections were added, removed, renumbered, or redefined in Section 02.** All 46 domains
-stand as established in Section 01.
+**No sections have been added, removed, renumbered, or redefined.** All 46 domains stand as
+established in Section 01. Section 03's delivered scope was broader than its roadmap title
+("Data Architecture & Information Model") — it also covered scope, identity, and memory at
+James's instruction. The roadmap title is unchanged; only the record below notes the
+difference.
 
 ---
 
@@ -144,9 +148,22 @@ M-4 (roadmap authority). **No technology was selected** — every technology dec
 [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md) remains open by
 intent.
 
-## Section 03 — Next
+## Section 03 — Completed
 
-**Data Architecture & Information Model.** [`architecture/DATA_ARCHITECTURE.md`](./architecture/DATA_ARCHITECTURE.md)
-defines the conceptual entities and the invariants any implementation must enforce.
-Section 03 selects storage technology and the physical isolation strategy (`D-02`, `D-03`,
-`D-33`), and should begin by resolving `Q-01`, `Q-02`, `Q-04`, `Q-07`, and `Q-08`.
+**Data, Scope, Identity & Memory Architecture.** Produced the scope and identity model,
+authorization model, memory model, data classification, provenance and trust, data lifecycle,
+cross-scope and cross-domain rules, fifty testable invariants, and a threat model — plus ADRs
+`0009`–`0015`.
+
+**Technology was deliberately not selected.** `D-02` (database) and `D-33` (physical
+isolation) were assigned to Section 03 by the register, but James's Section 03 instruction
+explicitly forbade selecting a database. Both remain deferred and are reassigned to Section
+04/29 — see [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md).
+
+## Section 04 — Next
+
+**Security, Identity & Permissions.** Builds the authorization engine, secrets storage, and
+identity mechanics that Section 03 specified conceptually (`D-09`, `D-10`, `D-34`). Should
+begin by resolving `Q-01`, `Q-02`, `Q-04`, `Q-07`, and `Q-08`, and by deciding `D-02`/`D-33`,
+since [`architecture/INVARIANTS.md`](./architecture/INVARIANTS.md) `I-03` depends on the
+physical isolation choice.

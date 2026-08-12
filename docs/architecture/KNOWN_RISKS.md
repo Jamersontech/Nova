@@ -1,6 +1,6 @@
 # Known Risks and Architectural Weaknesses
 
-**Status:** **Active** — Section 02, approved by James 2026-08-12.
+**Status:** **Active** — Section 02, approved by James 2026-08-12. Extended in Section 03.
 **Purpose:** An honest register of where this architecture is weakest, what it deliberately
 trades away, and what a future section must watch. Recorded so that later sessions inherit
 the concerns rather than rediscovering them.
@@ -82,14 +82,33 @@ detail even when the elevation seems reasonable.
 
 | Risk | Concern | Owner |
 | --- | --- | --- |
-| **Physical isolation not yet chosen** | Logical isolation is fully specified; whether it is enforced by row-level rules, schema separation, or database-per-client is unresolved (`D-33`). The weakest choice would leave isolation dependent on query correctness | 03 |
+| **Physical isolation not yet chosen** | Logical isolation is fully specified; whether it is enforced by row-level rules, schema separation, or database-per-client is unresolved (`D-33`). The weakest choice would leave isolation dependent on query correctness | **04 / 29** |
 | **Memory quality degrades with volume** | Retrieval quality falls as memory grows. Curation and decay are specified but unimplemented; retrofitting them onto a large corpus is far harder | 07 |
 | **Risk classification may be drawn wrongly** | The seven classes are a first attempt. A boundary drawn wrongly produces either approval fatigue or unapproved consequences | 26 / 39 |
 | **Approval fatigue is a security failure** | If James approves reflexively, the entire human-control model is decorative. This is a product-design problem, not a technical one | 26 |
 | **Evaluation is unbuilt** | Every claim about agent behaviour is currently unverified. Until Section 41 exists, "the agent respects its boundaries" is an assumption | 41 |
 | **Provider abstraction is untested** | Provider neutrality holds only if it is exercised. An abstraction never tested against a second provider is usually wrong | 05 |
 | **Single-user assumptions may be embedded** | `Q-04` is unanswered. The identity model names an external-user class, but no code has been written to honour it | 04 |
-| **Scope tree rigidity** | One parent per scope is deliberate. Real work that genuinely spans two clients will be awkward, and the pressure to relax this will be real — and should be resisted | 03 / 22 |
+| **Scope tree rigidity** | One parent per scope is deliberate. Real work that genuinely spans two clients will be awkward, and the pressure to relax this will be real — and should be resisted | 22 |
+
+---
+
+## 3.1 Risks Identified in Section 03
+
+Full analysis in [`THREAT_MODEL.md`](./THREAT_MODEL.md). Recorded here because these are
+weaknesses, not merely threats.
+
+| Risk | Concern | Owner |
+| --- | --- | --- |
+| **Secrets storage is the highest-value target** | ADR 0009 concentrates all secret material in one place. That is correct — but it means compromise of that store is catastrophic, and the technology is unchosen (`D-10`) | 04 |
+| **Slow memory poisoning** | Detection depends on contradiction surfacing. A consistently-wrong source that nothing contradicts is not detected | 07 / 40 |
+| **Shared-resource blast radius** | A poisoned shared template reaches every consuming client at once. Inherent to sharing; argues for review on shared-resource changes | 22 |
+| **Sensitivity marking is manual** | SENSITIVE-PERSONAL protection depends on James marking the Area. An unmarked health Area is only CONFIDENTIAL | 37 |
+| **Small-N aggregates are not anonymous** | With few clients, an aggregate plus known values reveals the rest. Threshold undecided (`D-36`) | 22 / 37 |
+| **Backups currently unmitigated** | Scope-partitioned backup is specified but the mechanism is unbuilt (`D-15`) | 36 |
+| **Reviewed transformation depends on humans** | Stripping identifiers from procedural knowledge is the escape hatch in ADR 0010, and human review misses things | 22 / 31 |
+| **Lineage completeness is load-bearing** | Deletion is only real if lineage was recorded at every derivation. A single missed derivation leaves an undeletable copy | 03 / 07 |
+| **Fifty invariants, zero tests** | Every invariant is currently an assertion. Until Section 31, none is verified | 31 |
 
 ---
 

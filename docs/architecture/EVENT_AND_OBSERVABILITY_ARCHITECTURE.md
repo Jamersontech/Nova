@@ -90,6 +90,43 @@ the same principle as superseded ADRs.
 **One trace id spans everything** from James's words to the outbound API call, so a single
 question — "what happened when I asked to deploy?" — yields one coherent chain.
 
+## 5.1 What Must Be Auditable
+
+*Added in Section 03.* The minimum set. Each produces an append-only record carrying
+references and identifiers — never content, never secrets.
+
+| Category | Recorded |
+| --- | --- |
+| **Access** | Reads of CLIENT-CONFIDENTIAL and above; every cross-scope and cross-domain access, per scope touched |
+| **Denial** | Every denied decision, with the failing step |
+| **Grants** | Creation, modification, expiry, revocation |
+| **Approvals** | What was approved, by whom, when, for which single action |
+| **Memory** | Creation, correction, supersession, deletion, and **elevation** to a parent scope |
+| **Derivation** | Every derived item with its complete source lineage |
+| **Deletion** | The tombstone: identity, scope, classification, time, authorization |
+| **Credentials** | Requests, issuance, use, rotation, revocation — by **reference only** |
+| **Agent execution** | Instantiation, tokens held, tools called, escalations, outcome |
+| **Work Orders** | Issuance, limits, termination, results, approval |
+| **External transmission** | What left NOVA, to which service, under which scope |
+| **Model interactions** | Profile, provider, scope, cost, outcome — not prompt content by default |
+| **Administrative changes** | Policy, classification changes, scope creation, reclassification |
+
+**Reclassification downward is audited with particular care** — it is the most dangerous
+routine operation in the model ([`DATA_CLASSIFICATION.md`](./DATA_CLASSIFICATION.md) §3).
+
+### The audit trail must not become a leak channel
+
+An audit system that records *what* was accessed rather than *that* it was accessed becomes
+a cross-client corpus with weaker access controls than the data it describes — a boundary
+violation wearing a different name.
+
+Therefore: audit records are classified SECURITY-CRITICAL, are **scope-partitioned like any
+other data**, contain references rather than content, and are readable only by James.
+Aggregating audit across scopes is itself a cross-scope operation subject to
+[`CROSS_SCOPE_DATA_RULES.md`](./CROSS_SCOPE_DATA_RULES.md).
+
+---
+
 ## 6. What Is Never Recorded
 
 Credentials, secrets, and tokens (references only); sensitive LIFE content outside its

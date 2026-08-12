@@ -31,6 +31,13 @@ document; everything else elaborates one part of it.
 | [`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) | The orchestrator; workflows |
 | [`EXECUTION_ARCHITECTURE.md`](./EXECUTION_ARCHITECTURE.md) | Coding agents; the KAIRO client model |
 | [`DATA_ARCHITECTURE.md`](./DATA_ARCHITECTURE.md) | Entities, relationships, invariants |
+| [`SCOPE_AND_IDENTITY_MODEL.md`](./SCOPE_AND_IDENTITY_MODEL.md) | Scope kinds, ownership, identity capabilities *(§3)* |
+| [`AUTHORIZATION_MODEL.md`](./AUTHORIZATION_MODEL.md) | What the PDP evaluates, and in what order *(§3)* |
+| [`MEMORY_MODEL.md`](./MEMORY_MODEL.md) | The thirteen memory types, operationally *(§3)* |
+| [`DATA_CLASSIFICATION.md`](./DATA_CLASSIFICATION.md) | Six levels and what each controls *(§3)* |
+| [`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) | Where information came from, and whether to believe it *(§3)* |
+| [`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) | Create to delete; temporal state, lineage, deletion, portability *(§3)* |
+| [`CROSS_SCOPE_DATA_RULES.md`](./CROSS_SCOPE_DATA_RULES.md) | Aggregation, derived data, side channels, cross-domain *(§3)* |
 | [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) | Tools, integrations, credentials |
 | [`MODEL_ARCHITECTURE.md`](./MODEL_ARCHITECTURE.md) | Provider-neutral model access |
 | [`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) | Events, traces, audit |
@@ -44,6 +51,8 @@ document; everything else elaborates one part of it.
 | Document | Answers |
 | --- | --- |
 | [`SECURITY_BOUNDARIES.md`](./SECURITY_BOUNDARIES.md) | Every boundary and what may cross it |
+| [`INVARIANTS.md`](./INVARIANTS.md) | **The fifty testable properties every implementation must satisfy** *(§3)* |
+| [`THREAT_MODEL.md`](./THREAT_MODEL.md) | Threats, defenses, and residual risk *(§3)* |
 | [`KNOWN_RISKS.md`](./KNOWN_RISKS.md) | Where this architecture is weakest, and what to watch |
 | [`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) | Permissions, risk classes, approvals |
 
