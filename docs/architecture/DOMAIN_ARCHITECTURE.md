@@ -191,8 +191,27 @@ KAIRO                              ← shared resource lives here
               Client A ⇄ Client B        ❌ no path, unchanged
 ```
 
-This uses the existing downward-access rule rather than adding an exception. Three
-constraints keep it safe:
+This uses the existing downward-access rule rather than adding an exception.
+
+**Placement is not authorization.** *(Added 2026-08-12 per James.)* The diagram shows
+**where** a shared resource lives, not **who** may read it:
+
+> Placement at a common ancestor does not imply universal descendant access. A shared
+> resource must have explicit authorization for each consuming descendant scope, or an
+> explicitly defined policy granting access to a specified set of descendants. Ancestor
+> placement is a location/modeling rule, not an access grant.
+
+Placing a resource at the KAIRO scope does **not** make it readable by every KAIRO client.
+Creating a shared resource and authorizing its consumers are two distinct operations; grants
+are per-descendant, auditable, and individually revocable. A policy covering a *set* of
+descendants is permitted only where that set is explicitly defined and deliberately chosen —
+never as a default. Default remains deny.
+
+Without this rule, ancestor placement would be an implicit broadcast: promoting anything to
+a business scope would silently expose it to every client beneath. That is exactly the
+ambient authority the access rule exists to prevent.
+
+Three further constraints keep it safe:
 
 1. **Reference, never copy.** Children reference the resource; they receive no duplicate.
    One update propagates instead of drifting into divergent per-client copies.

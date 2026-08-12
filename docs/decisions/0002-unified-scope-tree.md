@@ -78,6 +78,44 @@ KAIRO                          ← shared resource lives here
 This uses the existing downward-access rule rather than adding an exception to it. No new
 crossing is created, and the "siblings have no path" guarantee is untouched.
 
+### Placement is not authorization
+
+*Added 2026-08-12 by James, refining this amendment.*
+
+> **Placement at a common ancestor does not imply universal descendant access. A shared
+> resource must have explicit authorization for each consuming descendant scope, or an
+> explicitly defined policy granting access to a specified set of descendants. Ancestor
+> placement is a location/modeling rule, not an access grant.**
+
+This is consistent with — and reinforces — the core decision, which already states that
+access flows downward *"only when explicitly granted."* The diagram above shows **where a
+shared resource lives**, not who may read it. Two separate questions:
+
+| Question | Answered by |
+| --- | --- |
+| *Where does this resource live?* | Placement — a modelling rule |
+| *Which descendants may use it?* | Authorization — an explicit grant or policy |
+
+**Placing a resource at the KAIRO scope does not make it readable by every KAIRO client.**
+Each consuming scope is authorized individually, or by a policy naming a specified set of
+descendants. A resource with no grants is visible to no one, regardless of where it sits.
+
+**Why this matters.** Without this rule, ancestor placement would become an implicit
+broadcast: anything promoted to a business scope would silently become readable by every
+client beneath it, and "share this with Client A" would in effect share it with all of them.
+That is ambient authority — precisely what the access rule exists to prevent — and it would
+have made placement a privilege-granting operation performed without a permission check.
+
+**Consequences:**
+
+- Creating a shared resource and authorizing its consumers are **two distinct operations**.
+- Grants over shared resources are auditable and revocable per descendant. Revoking one
+  consumer's access affects no other.
+- A policy granting a *set* of descendants is permitted, but the set must be **explicitly
+  defined** — "all current and future clients" is a defined policy only if that is what was
+  deliberately chosen and recorded, never a default.
+- Default remains **deny**: no grant, no access.
+
 ### The three rules that keep this safe
 
 1. **Reference, never copy.** Children reference a shared resource; they do not receive a
