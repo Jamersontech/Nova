@@ -1,6 +1,6 @@
 # Domain Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Resolves:** **M-1** (LIFE undefined) and **M-2** (multi-business model) from the Section 1
 final audit.
 **Extends:** [`../DOMAIN_MODEL.md`](../DOMAIN_MODEL.md), which defined the business branch.
@@ -172,6 +172,44 @@ KAIRO is one business scope among several — never the default, never a synonym
 "business". Its specific architecture is Section 21. The
 [`EXECUTION_ARCHITECTURE.md`](./EXECUTION_ARCHITECTURE.md) worked example uses KAIRO
 because it is the business that exists today, not because it is privileged.
+
+### 3.5 Shared Resources
+
+*Added 2026-08-12 per James's clarification to [ADR 0002](../decisions/0002-unified-scope-tree.md).*
+
+Businesses accumulate reusable material: site templates, component libraries, playbooks,
+brand assets, standard operating procedures. NOVA must support sharing these **without
+duplicating client data and without weakening client isolation.**
+
+**A shared resource is placed at the nearest common ancestor and referenced downward.**
+
+```text
+KAIRO                              ← shared resource lives here
+├── shared: template · component library · SOP
+├── Client A → references downward       ✅
+└── Client B → references downward       ✅
+              Client A ⇄ Client B        ❌ no path, unchanged
+```
+
+This uses the existing downward-access rule rather than adding an exception. Three
+constraints keep it safe:
+
+1. **Reference, never copy.** Children reference the resource; they receive no duplicate.
+   One update propagates instead of drifting into divergent per-client copies.
+2. **No client-identifying data in a shared resource.** Placing client material at a shared
+   scope is memory elevation — explicit, permissioned, audited
+   ([`MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`](./MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md) §3).
+   A template is shareable; a template containing Client A's copy is not.
+3. **Sharing is deliberate, never ambient.** A resource is shared because it was placed at a
+   shared scope — not because two clients need something similar. Reads remain attributable
+   to the child scope that made them.
+
+**Still prohibited:** one client's resource read from another's context; a scope with two
+parents; a "shared" resource that is really one client's material relabelled; and **sharing
+a credential** — credentials remain scoped to exactly one node. Shared capability never
+means shared access.
+
+This generalizes the tool-binding pattern (§3.2) from tools to any resource.
 
 ---
 

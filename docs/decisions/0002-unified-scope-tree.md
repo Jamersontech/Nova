@@ -1,7 +1,8 @@
 # 0002 — One Unified Scope Tree for All Domains
 
-**Status:** Proposed
-**Date:** 2026-08-12
+**Status:** **Accepted**
+**Proposed:** 2026-08-12 — Section 02
+**Accepted:** 2026-08-12 by James
 **Section:** 02
 **Resolves:** M-1, M-2
 
@@ -49,3 +50,64 @@ expressible — deliberately. Multi-parent scopes would be a C3 change requiring
 ## What Would Change This
 A real workload that genuinely cannot be modelled as a tree, where forcing it causes more
 harm than the isolation guarantee prevents.
+
+---
+
+## Clarification — 2026-08-12, by James (at acceptance)
+
+**The core decision is unchanged.** The unified scope tree remains the canonical isolation
+model, and every rule above stands. This clarifies a requirement the original text left
+implicit.
+
+> **The architecture must support explicitly authorized shared resources, without
+> duplicating client data and without weakening client isolation.**
+
+### How sharing works within the tree
+
+A shared resource is **placed at the nearest common ancestor scope and referenced
+downward** — never linked laterally between siblings.
+
+```text
+KAIRO                          ← shared resource lives here
+├── shared: site template, component library, SOP, brand asset
+├── Client A  → references it downward   ✅
+└── Client B  → references it downward   ✅
+                Client A ⇄ Client B      ❌ still no path
+```
+
+This uses the existing downward-access rule rather than adding an exception to it. No new
+crossing is created, and the "siblings have no path" guarantee is untouched.
+
+### The three rules that keep this safe
+
+1. **Reference, never copy.** Children reference a shared resource; they do not receive a
+   duplicate. This satisfies "without duplicating client data" and means one update
+   propagates rather than drifting into divergent per-client copies.
+2. **A shared resource may contain no client-identifying data.** Placement at a shared
+   scope is a promotion, and promotion of client material is the memory-elevation operation
+   — explicit, permissioned, and audited
+   ([`../architecture/MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`](../architecture/MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md) §3).
+   A template is shareable; a template containing Client A's copy is not.
+3. **Sharing is explicit authorization, never ambient.** A resource is shared because it
+   was deliberately placed at a shared scope, not because two clients happen to need
+   something similar. Reads of shared resources are attributable to the child scope that
+   made them.
+
+### What remains prohibited
+
+- A resource owned by one client being read from another client's context.
+- A scope having two parents.
+- A "shared" resource that is in practice one client's material relabelled.
+- Sharing a **credential** across clients. Credentials remain scoped to exactly one node
+  ([ADR 0003](./0003-context-token-and-brokered-credentials.md)); shared *capability* never
+  means shared *access*.
+
+### Consequence
+
+The tool-binding model already demonstrates the pattern: one `send_email` tool defined at
+root, bound per scope to per-client credentials
+([`../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §1).
+This clarification generalizes that pattern from tools to any resource — templates,
+component libraries, playbooks, brand assets, standard operating procedures.
+
+Reflected in [`../architecture/DOMAIN_ARCHITECTURE.md`](../architecture/DOMAIN_ARCHITECTURE.md) §3.5.

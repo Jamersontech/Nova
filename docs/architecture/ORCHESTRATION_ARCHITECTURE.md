@@ -1,6 +1,6 @@
 # Orchestration Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Covers:** the Orchestrator and the workflow engine.
 
 ---

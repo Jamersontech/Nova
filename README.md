@@ -13,12 +13,12 @@ and workflows.
 ## Current Status
 
 **Section 01 — Constitution & Project Foundation: complete.**
-**Section 02 — System Architecture & Master Blueprint: complete** (architecture Proposed,
-pending approval).
+**Section 02 — System Architecture & Master Blueprint: complete** (architecture approved
+2026-08-12).
 
 This repository currently contains **documentation only**. There is no application, no
 database, no dependencies, and no infrastructure. That is intentional — the governing
-foundation and the architecture are established before anything is built.
+foundation and the approved architecture are established before anything is built.
 
 Next: **Section 03 — Data Architecture & Information Model.**
 

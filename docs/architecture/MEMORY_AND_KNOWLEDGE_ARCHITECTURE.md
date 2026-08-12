@@ -1,6 +1,6 @@
 # Memory and Knowledge Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Owns:** the distinction between the six kinds of information NOVA holds, and the rules
 that keep them from contaminating each other. Storage technology is deferred (`D-02`,
 `D-06`, `D-24`).

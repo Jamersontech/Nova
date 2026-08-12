@@ -1,6 +1,6 @@
 # Event and Observability Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Covers:** how NOVA learns that something happened, and how it can later explain what it
 did and why.
 

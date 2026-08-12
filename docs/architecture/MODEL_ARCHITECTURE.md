@@ -1,6 +1,6 @@
 # Model Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Implements:** Constitution §10 (AI Provider Independence) and §15 (Cost Awareness).
 **Defers:** which providers and models (`D-08`), routing policy specifics (`D-20`).
 

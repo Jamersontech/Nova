@@ -1,7 +1,8 @@
 # 0005 — External Coding Agents Are Untrusted
 
-**Status:** Proposed
-**Date:** 2026-08-12
+**Status:** **Accepted**
+**Proposed:** 2026-08-12 — Section 02
+**Accepted:** 2026-08-12 by James
 **Section:** 02
 
 ## Decision
@@ -51,3 +52,69 @@ compelling, bounded reason.
 ## What Would Change This
 A mechanism providing scoped, read-only, audited context to a sandbox with a demonstrably
 contained blast radius — a genuine improvement worth revisiting, not a convenience.
+
+---
+
+## Clarification — 2026-08-12, by James (at acceptance)
+
+**The security boundary is unchanged.** Every rule above stands: no Context Token leaves
+NOVA, sandboxes remain ephemeral and single-client, credentials remain brokered and narrow,
+and output remains a proposal subject to verification, review, and approval.
+
+This records a **capability requirement on NOVA**, not a relaxation of the boundary:
+
+> **NOVA should eventually generate precise Work Orders for external coding agents from
+> James's high-level requests.**
+
+### Why this belongs here
+
+This ADR accepted a real cost: because a coding agent cannot query NOVA for missing context,
+an underspecified Work Order fails or produces wrong work. The obvious way to relieve that
+pressure would be to widen the agent's access — **which this ADR forbids.**
+
+The correct relief is therefore to move the specification burden *onto NOVA*. James says
+"build Client A a booking page"; NOVA — not the coding agent — resolves that into a precise
+task, repository, branch, constraints, and verifiable success criteria.
+
+**This makes the boundary more durable, not less.** The better NOVA becomes at specifying
+work, the weaker the argument for ever granting coding agents broader access.
+
+### Where the specification comes from
+
+Work Order generation is an **inside-the-boundary** activity, performed by NOVA components
+that already hold the relevant context:
+
+```text
+James's high-level request
+   ↓  Orchestrator — Interpreter and Planner
+   ↓  Domain agents — what this kind of work requires
+   ↓  Client/project scope — conventions, stack, constraints, history
+   ↓  Review criteria — what "done" must mean, verifiably
+   → Work Order  (still: no Context Token, no scope paths, no NOVA identity)
+```
+
+Everything informing the Work Order stays inside NOVA. What crosses the boundary is only
+the finished, minimal specification — the same object with the same omissions.
+
+### Constraints on generated Work Orders
+
+1. **A generated Work Order carries no more than a hand-written one.** Generation must never
+   become a channel for leaking scope paths, other clients' existence, or credentials
+   beyond the task.
+2. **Success criteria must be verifiable**, since they gate automated verification and
+   review.
+3. **Issuing a Work Order is subject to its risk class** ([ADR 0006](./0006-risk-classified-approvals.md)).
+   Automating the *specification* does not automate the *authorization*.
+4. **An underspecified generated order fails closed** — escalating to James rather than
+   dispatching a vague task and hoping.
+5. **Generation quality is evaluated** (Section 41). Work Order quality becomes a measurable
+   property, since it directly determines coding-agent success.
+
+### Consequence
+
+`KNOWN_RISKS.md` recorded "Work Orders must be specified precisely" as an accepted weakness
+with expected early rework. That weakness now has a defined mitigation path rather than
+being a permanent cost — while the security boundary that made it necessary stays intact.
+
+Owned by Sections 08 (planning) and 30 (coding-agent architecture). Reflected in
+[`../architecture/EXECUTION_ARCHITECTURE.md`](../architecture/EXECUTION_ARCHITECTURE.md) §2.1.

@@ -1,6 +1,6 @@
 # Identity and Authority
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Resolves:** **M-3** (identity undefined) and **M-4** (roadmap authority undefined).
 **Adds to:** [`../ai/AI_TERMINOLOGY.md`](../ai/AI_TERMINOLOGY.md) — the terms defined here
 are canonical and are registered there.

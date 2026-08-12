@@ -26,7 +26,7 @@ genuine architectural requirement or a discovered problem justifies the change.
 | Section | Status |
 | --- | --- |
 | 01 — Constitution & Project Foundation | **Complete** |
-| 02 — System Architecture & Master Blueprint | **Complete — architecture Proposed, pending James's approval** |
+| 02 — System Architecture & Master Blueprint | **Complete — architecture Accepted by James 2026-08-12** |
 | 03 — Data Architecture & Information Model | Next |
 | 04 and beyond | Not started |
 

@@ -1,6 +1,6 @@
 # Permission Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Covers:** the permission model, action risk classification, approvals, and human control.
 
 ---

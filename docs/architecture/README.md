@@ -1,6 +1,6 @@
 # NOVA Architecture
 
-**Status:** Proposed — Section 02, pending James's approval.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 
 This directory is NOVA's architectural blueprint: what every major system is, how they
 interact, where the boundaries are, and how information and authority flow.
@@ -74,9 +74,20 @@ so settled questions are not silently re-litigated.
 
 ## Status and Authority
 
-Section 1 established that James approves architectural decisions and an AI agent may only
-propose them. These documents are therefore **Proposed**. The ADRs carry status `Proposed`;
-once James accepts them, this directory becomes Active.
+**James accepted ADRs `0001`–`0008` on 2026-08-12. This architecture is Active.**
+
+Two clarifications were recorded at acceptance, neither changing a core decision:
+
+- **Shared resources** ([ADR 0002](../decisions/0002-unified-scope-tree.md)) — the scope tree
+  remains the canonical isolation model, and it must support explicitly authorized shared
+  resources without duplicating client data or weakening isolation. Sharing works by placing
+  a resource at the nearest common ancestor and referencing it downward, never by linking
+  siblings. → [`DOMAIN_ARCHITECTURE.md`](./DOMAIN_ARCHITECTURE.md) §3.5
+- **NOVA-generated Work Orders** ([ADR 0005](../decisions/0005-external-coding-agent-isolation.md)) —
+  NOVA should eventually derive precise Work Orders from high-level requests. The security
+  boundary is unchanged. → [`EXECUTION_ARCHITECTURE.md`](./EXECUTION_ARCHITECTURE.md) §2.1
+
+Changing anything here now requires a **superseding ADR**, not an edit.
 
 Nothing here selects a database, cloud, framework, language, or model provider. Section 2
 defines *what must exist and how the parts relate*. Sections 03 onward choose *what to build

@@ -1,6 +1,6 @@
 # Execution Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Covers:** how NOVA orchestrates **external coding agents** (Claude Code, Codex, future
 systems), and the end-to-end KAIRO client scenario.
 
@@ -48,6 +48,39 @@ memory access, other clients' existence, and any credential not required by the 
 An external agent cannot read NOVA memory, cannot call NOVA tools, cannot discover other
 clients, and cannot widen its own workspace. Not because it is instructed not to —
 because it holds nothing that would let it.
+
+### 2.1 NOVA Generates Work Orders
+
+*Added 2026-08-12 per James's clarification to [ADR 0005](../decisions/0005-external-coding-agent-isolation.md).*
+
+**NOVA must eventually produce precise Work Orders from James's high-level requests.** He
+says "build Client A a booking page"; NOVA — not the coding agent — resolves that into a
+task, repository, branch, constraints, and verifiable success criteria.
+
+```text
+James's high-level request
+   ↓  Orchestrator — Interpreter and Planner
+   ↓  Domain agents — what this kind of work requires
+   ↓  Client/project scope — conventions, stack, constraints, history
+   ↓  Review criteria — what "done" must mean, verifiably
+   → Work Order  (unchanged: no Context Token, no scope paths, no NOVA identity)
+```
+
+**This strengthens the boundary rather than relaxing it.** Because a coding agent cannot ask
+NOVA for missing context, the pressure to widen its access comes from underspecified tasks.
+Moving the specification burden onto NOVA removes that pressure at the source: the better
+NOVA specifies, the weaker the case for ever granting broader access.
+
+Everything informing the Work Order stays inside the trust boundary. What crosses is only
+the finished, minimal specification — same object, same omissions.
+
+**Constraints:** a generated order carries no more than a hand-written one; success criteria
+must be verifiable; issuing it remains subject to its risk class — automating the
+specification does not automate the authorization; an underspecified order **fails closed**
+and escalates to James rather than dispatching a vague task; and generation quality is
+itself evaluated (Section 41).
+
+Owned by Sections 08 and 30.
 
 ---
 

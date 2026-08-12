@@ -1,16 +1,18 @@
 # NOVA Master Architecture
 
-**Status:** **Proposed** — established in Section 02, pending James's approval.
+**Status:** **Active** — established in Section 02, approved by James 2026-08-12.
 **Authority:** Subordinate to [`../CONSTITUTION.md`](../CONSTITUTION.md). Where this
 document and the Constitution disagree, the Constitution wins and the conflict is a defect
 to be reported.
 **Purpose:** The canonical high-level blueprint of how NOVA works. Every other
 architecture document elaborates one part of this one.
 
-> **On status.** Section 1 established that James approves architectural decisions and an
-> AI agent may only propose them ([`../decisions/README.md`](../decisions/README.md)).
-> Section 2 is therefore a *proposal*. The reasoning behind each major choice is recorded
-> as an ADR with status `Proposed`. Once James accepts them, this document becomes Active.
+> **On status.** James accepted ADRs `0001`–`0008` on 2026-08-12, so this architecture is
+> **approved and Active**. Two clarifications were recorded at acceptance: shared resources
+> ([ADR 0002](../decisions/0002-unified-scope-tree.md)) and NOVA-generated Work Orders
+> ([ADR 0005](../decisions/0005-external-coding-agent-isolation.md)). Neither changed a core
+> decision. Changing anything here now requires a superseding ADR — see
+> [`IDENTITY_AND_AUTHORITY.md`](./IDENTITY_AND_AUTHORITY.md) Part II.
 
 ---
 

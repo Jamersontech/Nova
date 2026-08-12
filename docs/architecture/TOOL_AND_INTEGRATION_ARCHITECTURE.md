@@ -1,6 +1,6 @@
 # Tool and Integration Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Covers:** tools, integrations, credentials, and the accounts they reach — and why these
 four must never be treated as the same thing.
 

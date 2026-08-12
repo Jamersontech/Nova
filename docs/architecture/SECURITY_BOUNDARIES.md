@@ -1,6 +1,6 @@
 # Security Boundaries
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Purpose:** Enumerate every boundary in NOVA, state what may cross it, and state what
 authorization the crossing requires. This is the checklist a security review works from.
 

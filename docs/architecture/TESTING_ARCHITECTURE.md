@@ -1,6 +1,6 @@
 # Testing Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Defers:** frameworks and tooling (`D-12`, Section 31).
 
 ---

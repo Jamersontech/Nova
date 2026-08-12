@@ -1,7 +1,8 @@
 # 0008 — Five-Class Architectural Governance Model
 
-**Status:** Proposed
-**Date:** 2026-08-12
+**Status:** **Accepted**
+**Proposed:** 2026-08-12 — Section 02
+**Accepted:** 2026-08-12 by James
 **Section:** 02
 **Resolves:** M-4
 

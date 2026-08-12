@@ -1,6 +1,6 @@
 # Known Risks and Architectural Weaknesses
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Purpose:** An honest register of where this architecture is weakest, what it deliberately
 trades away, and what a future section must watch. Recorded so that later sessions inherit
 the concerns rather than rediscovering them.
@@ -58,7 +58,16 @@ Because coding agents cannot query NOVA for missing context, an underspecified o
 or produces wrong work.
 
 **Accepted** as the direct cost of [ADR 0005](../decisions/0005-external-coding-agent-isolation.md).
-**Expect** rework early while specification quality improves. **Watch in** Section 30.
+
+**Mitigation path defined (2026-08-12).** At acceptance James recorded that NOVA should
+eventually generate precise Work Orders from high-level requests, moving the specification
+burden onto NOVA rather than relieving it by widening agent access. This converts the
+weakness from a permanent cost into a capability gap owned by Sections 08 and 30.
+
+**Residual risk:** until that capability exists, specification quality is manual and early
+rework should be expected. Once it exists, **Work Order generation quality becomes a new
+thing to evaluate** — a badly generated order fails as surely as a badly written one, and it
+fails at machine speed. **Watch in** Sections 30 and 41.
 
 ### Memory elevation depends on judgment
 Promoting a client detail into business memory is an explicit, audited operation — but the

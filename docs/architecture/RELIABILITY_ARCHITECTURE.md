@@ -1,6 +1,6 @@
 # Reliability Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Implements:** Constitution §12. External services fail, networks fail, models fail,
 agents make mistakes, jobs fail — and **failures must not silently disappear.**
 

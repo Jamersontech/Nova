@@ -1,6 +1,6 @@
 # System Layers
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Purpose:** Define what each layer owns, what it must never own, and which layers it may
 call. This is the document that keeps responsibilities from bleeding into each other.
 

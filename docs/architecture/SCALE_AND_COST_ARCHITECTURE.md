@@ -1,6 +1,6 @@
 # Scale and Cost Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Covers:** how NOVA grows without a rewrite, and how it stays cost-aware.
 **Defers:** billing, budgets, and infrastructure sizing (`D-28`, Section 34).
 

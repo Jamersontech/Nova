@@ -1,7 +1,8 @@
 # 0001 — Layered Architecture with a Policy Spine
 
-**Status:** Proposed
-**Date:** 2026-08-12
+**Status:** **Accepted**
+**Proposed:** 2026-08-12 — Section 02
+**Accepted:** 2026-08-12 by James
 **Section:** 02
 
 ## Decision

@@ -55,6 +55,8 @@ Sections 01 (Constitution & Project Foundation) and 02 (System Architecture & Ma
 Blueprint) are complete. NOVA contains documentation only — no application code,
 dependencies, infrastructure, or technology commitments.
 
-The Section 02 architecture is **Proposed**, pending James's approval of ADRs `0001`–`0008`.
+The Section 02 architecture is **Active** — ADRs `0001`–`0008` were accepted by James on
+2026-08-12, with clarifications recorded on 0002 (shared resources) and 0005 (NOVA-generated
+Work Orders).
 
 Next: **Section 03 — Data Architecture & Information Model.**

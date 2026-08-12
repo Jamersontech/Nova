@@ -1,7 +1,8 @@
 # 0006 — Risk-Classified Actions Drive Approval
 
-**Status:** Proposed
-**Date:** 2026-08-12
+**Status:** **Accepted**
+**Proposed:** 2026-08-12 — Section 02
+**Accepted:** 2026-08-12 by James
 **Section:** 02
 
 ## Decision

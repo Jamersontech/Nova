@@ -67,19 +67,31 @@ mark one `Accepted`.
 
 ## Current Records
 
-| # | Decision | Status |
-| --- | --- | --- |
-| [0001](./0001-layered-architecture-with-policy-spine.md) | Layered architecture with a policy spine | Proposed |
-| [0002](./0002-unified-scope-tree.md) | One unified scope tree for all domains | Proposed |
-| [0003](./0003-context-token-and-brokered-credentials.md) | Context tokens and brokered credentials | Proposed |
-| [0004](./0004-orchestrator-decomposition.md) | Decompose the orchestrator | Proposed |
-| [0005](./0005-external-coding-agent-isolation.md) | External coding agents are untrusted | Proposed |
-| [0006](./0006-risk-classified-approvals.md) | Risk-classified actions drive approval | Proposed |
-| [0007](./0007-model-gateway-provider-neutrality.md) | Model gateway as the only provider-aware component | Proposed |
-| [0008](./0008-architectural-governance-model.md) | Five-class architectural governance model | Proposed |
+| # | Decision | Status | Accepted |
+| --- | --- | --- | --- |
+| [0001](./0001-layered-architecture-with-policy-spine.md) | Layered architecture with a policy spine | **Accepted** | 2026-08-12 |
+| [0002](./0002-unified-scope-tree.md) | One unified scope tree for all domains | **Accepted** *(clarified)* | 2026-08-12 |
+| [0003](./0003-context-token-and-brokered-credentials.md) | Context tokens and brokered credentials | **Accepted** | 2026-08-12 |
+| [0004](./0004-orchestrator-decomposition.md) | Decompose the orchestrator | **Accepted** | 2026-08-12 |
+| [0005](./0005-external-coding-agent-isolation.md) | External coding agents are untrusted | **Accepted** *(clarified)* | 2026-08-12 |
+| [0006](./0006-risk-classified-approvals.md) | Risk-classified actions drive approval | **Accepted** | 2026-08-12 |
+| [0007](./0007-model-gateway-provider-neutrality.md) | Model gateway as the only provider-aware component | **Accepted** | 2026-08-12 |
+| [0008](./0008-architectural-governance-model.md) | Five-class architectural governance model | **Accepted** | 2026-08-12 |
 
-All eight were drafted in Section 02 and await James's acceptance. Until then the
-architecture they describe is proposed, not approved.
+**All eight were accepted by James on 2026-08-12**, following review. The Section 02
+architecture is therefore **Active**, not proposed.
+
+**Two clarifications were recorded at acceptance.** Both are recorded as amendments within
+their ADRs rather than as new records, because neither changed a core decision:
+
+- **0002** — the unified scope tree remains the canonical isolation model, **and** the
+  architecture must support explicitly authorized shared resources without duplicating
+  client data or weakening client isolation.
+- **0005** — NOVA should eventually generate precise Work Orders from high-level requests.
+  The security boundary is unchanged.
+
+**Changing an accepted decision requires a superseding ADR**, not an edit to the original.
+A superseded record keeps its text and is marked `Superseded` with a pointer forward.
 
 Decisions that were consciously postponed are tracked separately in
 [`DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md).

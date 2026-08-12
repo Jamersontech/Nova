@@ -1,6 +1,6 @@
 # Agent Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Constrained by:** [`../ai/AGENT_PRINCIPLES.md`](../ai/AGENT_PRINCIPLES.md), which governs
 when agents may exist. This document defines how they run. Where they disagree, the
 principles win.

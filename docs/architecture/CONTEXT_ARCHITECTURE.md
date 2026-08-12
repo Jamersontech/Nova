@@ -1,6 +1,6 @@
 # Context Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Implements:** Constitution §6 (Global Intelligence, Local Context) and §7 (Context Lock).
 
 Context answers **where** an operation applies. Policy answers **whether** it is allowed.

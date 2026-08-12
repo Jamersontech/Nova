@@ -1,6 +1,6 @@
 # User Interface Architecture
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Scope:** Information architecture only. **No visual design, no components, no screens** —
 those are Sections 15–18. This document decides *what is reachable and how*, not what it
 looks like.

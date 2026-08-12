@@ -1,6 +1,6 @@
 # Data Architecture (Conceptual)
 
-**Status:** Proposed — Section 02.
+**Status:** **Active** — Section 02, approved by James 2026-08-12.
 **Scope:** Conceptual entities and their relationships. **No database, schema, or storage
 technology is chosen here** — that is Section 03 (`D-02`, `D-03`).
 
