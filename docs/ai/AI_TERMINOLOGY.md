@@ -72,6 +72,55 @@ interchangeable: a permitted action may still require approval.
 
 ---
 
+## Terms Added in Section 02
+
+Defined in full in [`../architecture/`](../architecture/README.md); registered here because
+this file is the canonical vocabulary.
+
+### Identity
+A durable claim to be a specific actor. NOVA distinguishes six classes: human, system,
+agent, coding-agent, service, and client. → [`../architecture/IDENTITY_AND_AUTHORITY.md`](../architecture/IDENTITY_AND_AUTHORITY.md)
+
+### Authentication
+Proving an identity is genuine. Distinct from **authorization**, which decides whether that
+identity may act.
+
+### Authorization
+Deciding whether an identity may perform an action. Distinct from **authentication**.
+
+### Role
+A named bundle of permissions attachable to an identity. An identity is *who*; a role is
+*what kind of actor*. One identity may hold several roles.
+
+### Scope
+A node in NOVA's scope tree — simultaneously a context anchor, permission boundary, memory
+partition, and credential partition. Business, Client, Project, Environment, Life Area, and
+Life Thread are all *kinds of scope*. → [`../architecture/DOMAIN_ARCHITECTURE.md`](../architecture/DOMAIN_ARCHITECTURE.md)
+
+### Context Token
+The scoped, expiring object carried by every operation, naming the scope path and rights it
+is authorized for. The mechanism by which context becomes enforceable rather than advisory.
+
+### Work Order
+What an **external coding agent** receives instead of a Context Token: a task, one
+repository, one branch, one sandbox, brokered credentials, and success criteria. It confers
+no authority inside NOVA. → [`../architecture/EXECUTION_ARCHITECTURE.md`](../architecture/EXECUTION_ARCHITECTURE.md)
+
+### Risk Class
+The consequence classification of an action — READ, ANALYZE, RECOMMEND, PREPARE, EXECUTE,
+HIGH-IMPACT EXECUTE, IRREVERSIBLE — which determines what approval is required.
+
+### Execution
+One attempt to perform work, authorized by exactly one context and performed by one agent.
+The unit that audit, cost, and observability attach to.
+
+### Coding Agent
+An **external** system that writes or runs code on NOVA's behalf (Claude Code, Codex).
+Outside NOVA's trust boundary. **Not** a NOVA agent, despite the shared word — see the
+table below.
+
+---
+
 ## Distinctions That Are Frequently Confused
 
 | Do not conflate | With | Because |
@@ -83,6 +132,12 @@ interchangeable: a permitted action may still require approval.
 | Environment | Credential | An environment is a technical context; a credential is a secret scoped to one. |
 | Workflow | Task | A workflow sequences tasks; a task is a single unit of work. |
 | Business | Client | See [`../DOMAIN_MODEL.md`](../DOMAIN_MODEL.md) §1. |
+| **Agent** | **Coding agent** | A NOVA agent is inside the trust boundary; a coding agent is an untrusted external system. |
+| **Identity** | **Role** | An identity is who; a role is a bundle of permissions it may hold. |
+| **Authentication** | **Authorization** | Proving who you are, versus deciding what you may do. |
+| **Context** | **Context Token** | Context is the concept; the token is the enforceable object carrying it. |
+| **Context Token** | **Work Order** | A token confers authority inside NOVA; a work order confers none. |
+| **Scope** | **Context** | A scope is a fixed node in the tree; a context is one operation's position in it. |
 
 ---
 

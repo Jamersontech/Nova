@@ -20,6 +20,13 @@ not. Every document here has a distinct purpose; nothing is duplicated between t
 | 9 | [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md) | What is deliberately unresolved, and where it will be resolved. |
 | 10 | [`ROADMAP.md`](./ROADMAP.md) | The 46 architectural domains and current progress. |
 
+Then the architecture (Section 02):
+
+| # | Document | Purpose |
+| --- | --- | --- |
+| 11 | [`architecture/README.md`](./architecture/README.md) | Index and reading order for the blueprint. |
+| 12 | [`architecture/MASTER_ARCHITECTURE.md`](./architecture/MASTER_ARCHITECTURE.md) | **The canonical blueprint.** Start here for how NOVA works. |
+
 Coding-agent governance lives at the repository root: [`../AGENTS.md`](../AGENTS.md)
 (provider-neutral) and [`../CLAUDE.md`](../CLAUDE.md) (Claude Code adapter).
 
@@ -44,7 +51,10 @@ unnecessary duplication.
 
 ## Current Status
 
-Section 01 (Constitution & Project Foundation) is complete. NOVA contains documentation
-only — no application code, dependencies, infrastructure, or technology commitments.
+Sections 01 (Constitution & Project Foundation) and 02 (System Architecture & Master
+Blueprint) are complete. NOVA contains documentation only — no application code,
+dependencies, infrastructure, or technology commitments.
 
-Next: **Section 02 — System Architecture & Master Blueprint.**
+The Section 02 architecture is **Proposed**, pending James's approval of ADRs `0001`–`0008`.
+
+Next: **Section 03 — Data Architecture & Information Model.**

@@ -67,8 +67,19 @@ mark one `Accepted`.
 
 ## Current Records
 
-No ADRs have been recorded yet. Section 01 established governing principles rather than
-architectural choices; the first ADRs are expected in Section 02.
+| # | Decision | Status |
+| --- | --- | --- |
+| [0001](./0001-layered-architecture-with-policy-spine.md) | Layered architecture with a policy spine | Proposed |
+| [0002](./0002-unified-scope-tree.md) | One unified scope tree for all domains | Proposed |
+| [0003](./0003-context-token-and-brokered-credentials.md) | Context tokens and brokered credentials | Proposed |
+| [0004](./0004-orchestrator-decomposition.md) | Decompose the orchestrator | Proposed |
+| [0005](./0005-external-coding-agent-isolation.md) | External coding agents are untrusted | Proposed |
+| [0006](./0006-risk-classified-approvals.md) | Risk-classified actions drive approval | Proposed |
+| [0007](./0007-model-gateway-provider-neutrality.md) | Model gateway as the only provider-aware component | Proposed |
+| [0008](./0008-architectural-governance-model.md) | Five-class architectural governance model | Proposed |
+
+All eight were drafted in Section 02 and await James's acceptance. Until then the
+architecture they describe is proposed, not approved.
 
 Decisions that were consciously postponed are tracked separately in
 [`DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md).

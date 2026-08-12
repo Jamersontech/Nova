@@ -55,6 +55,8 @@ Read [`docs/CONSTITUTION.md`](./docs/CONSTITUTION.md) before making meaningful c
 | Read this | When |
 | --- | --- |
 | [`docs/CONSTITUTION.md`](./docs/CONSTITUTION.md) | Always. Golden Rules, authority, control, source of truth. |
+| [`docs/architecture/MASTER_ARCHITECTURE.md`](./docs/architecture/MASTER_ARCHITECTURE.md) | Almost always. How NOVA works: scope tree, context tokens, layers. |
+| [`docs/architecture/SECURITY_BOUNDARIES.md`](./docs/architecture/SECURITY_BOUNDARIES.md) | Before touching anything that crosses a boundary. |
 | [`docs/DOMAIN_MODEL.md`](./docs/DOMAIN_MODEL.md) | Business, client, project, environment, credentials, isolation. |
 | [`docs/ai/AI_TERMINOLOGY.md`](./docs/ai/AI_TERMINOLOGY.md) | Before using the words agent, tool, workflow, context, memory, permission, approval. |
 | [`docs/ai/AGENT_PRINCIPLES.md`](./docs/ai/AGENT_PRINCIPLES.md) | Before creating or changing any NOVA agent. |
@@ -71,11 +73,20 @@ the coding agents this file governs. Do not conflate them.
 
 ## Current State of the Repository
 
-As of Section 01, NOVA contains **documentation only**. There is no application, no
+As of Section 02, NOVA contains **documentation only**. There is no application, no
 database, no dependency manifest, no build, and no test suite. This is intentional.
+
+Section 01 established governance; Section 02 established the architecture
+([`docs/architecture/`](./docs/architecture/README.md)). No technology has been selected.
 
 If you are asked to build application functionality, first confirm which roadmap section
 authorizes it. Do not begin a future section because the repository looks empty.
+
+**Before changing anything, classify your change** as C0–C4 under
+[`docs/architecture/IDENTITY_AND_AUTHORITY.md`](./docs/architecture/IDENTITY_AND_AUTHORITY.md)
+Part II. You may implement C0 and C1. C2 and above require James's approval; C3 and C4 also
+require an ADR. When the class is unclear, treat it as the higher one and ask. **Roadmap
+ordering is C3 — never yours to change.**
 
 ---
 
