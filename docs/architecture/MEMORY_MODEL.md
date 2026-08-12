@@ -84,6 +84,67 @@ how memory becomes the hidden channel this model exists to prevent.
 
 ---
 
+## 4.1 Low-Trust Memory: Quarantine and Revalidation
+
+*Added 2026-08-12 following adversarial review, which found that injected content is
+*contained* by the `PREPARE` ceiling but never *removed* — it persists and keeps influencing
+every future retrieval.*
+
+**Quarantine.** Memory formed from `external.web`, `client.supplied`, or
+`integration.supplied` provenance at low trust is held in a quarantined state:
+
+- retrievable and clearly labelled, never silently merged into general context,
+- unable to raise a plan above `PREPARE` without approval naming the source (`I-40`),
+- excluded from derivation into higher-trust items until revalidated,
+- excluded from procedural generalization across scopes.
+
+**Revalidation.** Quarantined memory is re-evaluated when its source is re-fetched, when its
+trust changes, or on an age horizon. Revalidation either promotes it (a verified source now
+supports it), leaves it quarantined, or marks it disputed. **Revalidation never deletes it** —
+provenance is immutable (`I-38`), and a false claim that was believed is itself a fact worth
+retaining.
+
+**Contradiction.** When quarantined memory conflicts with higher-trust memory, the higher
+trust stands and the conflict is recorded; it is never silently discarded
+([`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) §4). Repeated contradiction from one source is a
+signal to lower that source's trust.
+
+**Residual risk, stated plainly:** quarantine contains injection persistence; it does not end
+it. A patient attacker supplying consistently plausible content that nothing contradicts is
+not detected by this mechanism (`T-10`).
+
+---
+
+## 4.2 Stale Instructions — Resolving the `I-36` Tension
+
+*Added 2026-08-12 following adversarial review.*
+
+`I-36` states that `james.stated` memory never expires automatically and is never
+auto-superseded. That is correct and must not change — **NOVA must not quietly forget what
+James told it.** But taken alone it produces the opposite hazard: an instruction given a year
+ago remains `current` and authoritative forever, and NOVA may act on it as though it were
+said today.
+
+**Both properties are required.** The resolution is neither expiry nor deletion:
+
+| Mechanism | Behaviour |
+| --- | --- |
+| **Never delete** | `james.stated` items are retained indefinitely. History is not erased because it aged (`I-36`, `I-38`) |
+| **Never auto-supersede** | No agent, model, or policy may override what James said |
+| **Confidence horizon** | Each `james.stated` item carries an age beyond which it is no longer treated as *currently confirmed* |
+| **Revalidation, not expiry** | Past its horizon, the item remains `current` and readable, but its **epistemic status degrades from fact to assumption** ([`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §4) |
+| **Re-confirmation** | Before an aged instruction drives an action above `PREPARE`, NOVA asks James to confirm it still holds — surfacing when it was said |
+| **Confirmation supersedes** | A confirmation creates a new version with a fresh horizon; the original remains as history (`I-43`) |
+
+**The distinction that matters:** the instruction is not forgotten, not weakened, and not
+deleted — it is **re-confirmed before it is acted on**. Historical truth is preserved;
+stale authority is not assumed. `I-59`.
+
+Horizons are per-item-class and are not set here; the mechanism is fixed, the durations are
+Section 07's.
+
+---
+
 ## 5. Memory Is Not Context, Not Authorization
 
 | | Is | Is not |

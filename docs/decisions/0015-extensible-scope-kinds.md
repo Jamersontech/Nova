@@ -12,6 +12,28 @@ no implicit sibling path; partitions memory, knowledge, credentials, and permiss
 declares what may attach to it. **Structure varies; authorization does not.** Adding a kind
 is a C3 change.
 
+### Enforcement — mechanical, not review alone
+
+*Amended 2026-08-12 following adversarial review.*
+
+The contract must be **validated executably at kind registration**. A kind that fails any of
+the five rules is **rejected by the registry**, not merely questioned in review.
+
+| Rule | Mechanically checkable as |
+| --- | --- |
+| Exactly one parent | The kind's declaration permits exactly one parent kind; the registry rejects multi-parent declarations |
+| Downward-only access by explicit grant | The kind declares no access semantics of its own; authorization is evaluated solely by the PDP against scope paths |
+| No implicit sibling path | No declaration may create a reference or grant between siblings |
+| Partitions memory, knowledge, credentials, permissions | The kind declares partition participation for all four; absence is rejection |
+| Declares what may attach | An explicit attachment list is present and well-formed |
+
+**Human C3 review remains required** — mechanical validation cannot judge whether a kind is
+*sensible*, only whether it is *conformant*. Both gates apply, and either can reject.
+
+**Why review alone is insufficient:** a kind could declare conformance and not implement it,
+and nothing would catch the difference. Enforcement that depends solely on a human reading a
+declaration is a documentation practice, not a control. `I-56`.
+
 ## Context
 ADR 0002 unified all domains into one scope tree. Section 03's brief requires that different
 domains support domain-specific structures, and that NOVA not assume every future business
@@ -47,8 +69,8 @@ tree; a future kind may tempt someone to violate the contract "just for this cas
 
 ## Consequences
 The contract, not the kind list, is load-bearing. A proposed kind that cannot satisfy all
-five rules must be rejected — that rejection is the point, not an obstacle. Invariants
-`I-01`, `I-06`.
+five rules must be rejected — that rejection is the point, not an obstacle. Rejection is
+performed by the registry, not left to review. Invariants `I-01`, `I-06`, `I-56`.
 
 ## What Would Change This
 A domain whose real structure cannot satisfy the contract. That would be evidence against

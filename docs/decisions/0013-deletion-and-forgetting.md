@@ -5,11 +5,32 @@
 **Section:** 03
 
 ## Decision
-Deleting an item deletes it and **invalidates every item derived from it**, discovered via
-lineage: derived items are deleted or re-derived without the source; embeddings, index
-entries, caches, and summaries are treated as copies and removed. A **tombstone** retains the
-item's identity, scope, classification, deletion time, and authorization — never its content.
-**Audit records are retained.**
+Deleting an item deletes it and **invalidates every item derived from it through recorded
+lineage within NOVA-controlled storage**: derived items are deleted or re-derived without the
+source; embeddings, index entries, caches, and summaries are treated as copies and removed. A
+**tombstone** retains the item's identity, scope, classification, deletion time, and
+authorization — never its content. **Audit records are retained.**
+
+### Scope and limits of the cascade
+
+*Amended 2026-08-12 following adversarial review. Universal deletion is not claimed.*
+
+The cascade reaches **recorded lineage inside storage NOVA controls**. It does not reach:
+
+| Beyond reach | Why |
+| --- | --- |
+| **Already-delivered exports** | Once an export leaves, it cannot necessarily be recalled |
+| **Data transmitted to external systems** | A record pushed to a client's CRM or mailbox is outside NOVA's direct deletion control |
+| **Model-provider retention** | Provider-side retention is governed by the provider, not NOVA |
+| **Unrecorded derivations** | A derivative whose lineage was never recorded is not discoverable. Below CLIENT-CONFIDENTIAL, retrieval is not required to be recorded (`I-34`), so paraphrases of lower-classified items may have no lineage edge |
+| Screenshots, printed material, human recollection | Outside any software boundary |
+
+**Backups.** A backup taken before a deletion still contains the item. **Restoration must
+consult tombstones and re-apply deletion before restored data becomes available** (`I-55`).
+Without this rule, restore silently resurrects deleted data — the single most likely way for
+deletion to fail in practice.
+
+Where deletion cannot reach, NOVA must **say so** rather than report deletion as complete.
 
 ## Context
 Constitution §13 requires that James own his data, including deletion. Section 03 must define
@@ -47,7 +68,8 @@ that must be protected; retained audit records mean deletion is never *absolutel
 
 ## Consequences
 An item with unrecoverable lineage is treated as derived from the strictest classification
-present, so it is over-restricted rather than missed. The retained audit record states that
+present, so it is over-restricted rather than missed. Restore paths must be tombstone-aware
+(`I-55`). Deletion reports must distinguish what was deleted from what is beyond reach. The retained audit record states that
 something existed and was deleted — never what it was.
 
 **No legal claim is made.** Whether a record must be retained for legal reasons is Section

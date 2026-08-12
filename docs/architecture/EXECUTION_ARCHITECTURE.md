@@ -80,6 +80,28 @@ specification does not automate the authorization; an underspecified order **fai
 and escalates to James rather than dispatching a vague task; and generation quality is
 itself evaluated (Section 41).
 
+### Untrusted influence must survive into the Work Order
+
+*Added 2026-08-12 following adversarial review.* `I-40` constrains *plans*; a Work Order is a
+specification, and the gap allowed untrusted content to be laundered into trusted instructions
+by passing through NOVA's generation step.
+
+> **Untrusted external content must never become trusted instruction merely because NOVA
+> transformed it into a Work Order.**
+
+Where a Work Order is **materially influenced** by untrusted content — a client's repository,
+a fetched page, an integration response, a client email — the order must:
+
+1. **Preserve that provenance**, naming the external source that influenced it;
+2. **Carry the same approval requirement** the influenced plan would have carried — it cannot
+   be issued for anything above `PREPARE` without approval naming the source;
+3. **Surface the influence to James** in the approval request, not bury it in the task text;
+4. **Retain the influence in the audit trail**, so a bad outcome can be traced to the content
+   that shaped it.
+
+"Materially influenced" means the untrusted content changed the task, the target, the scope,
+or the success criteria — not merely that it was read during research. `I-58`.
+
 Owned by Sections 08 and 30.
 
 ---

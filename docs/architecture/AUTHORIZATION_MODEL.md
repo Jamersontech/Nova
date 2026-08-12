@@ -78,6 +78,40 @@ NOVA stopping is recoverable; NOVA acting unauthorized may not be.
 **Read decisions may be cached within a single context's lifetime**, keyed to that token,
 and invalidated by revocation or emergency stop. Nothing else is cached.
 
+### 4.1 Failure behaviour of the other security-critical subsystems
+
+*Added 2026-08-12 following adversarial review, which found three subsystems with no defined
+failure behaviour.*
+
+Fail-closed applies to more than the PDP. Each rule below is stated so it is unambiguous
+under failure, timeout, malformed response, or unavailability.
+
+| Subsystem | On failure / timeout / malformed / unavailable |
+| --- | --- |
+| **Policy (PDP)** | **Deny.** No degraded mode, no cached-allow fallback (`I-17`) |
+| **Credential Broker** | **Deny.** No outbound call proceeds without a brokered injection |
+| **Context service** | **Deny.** An operation with no valid Context Token cannot proceed |
+| **Classification** | **Apply the strictest applicable classification** for the creating scope, and deny any action the strictest level forbids. Never default to permissive, never store unclassified (`I-52`) |
+| **Lineage recording** | **The derivation fails.** An item that cannot record its lineage is not created (`I-53`) |
+| **Audit** | **Deny any action classified above `PREPARE`.** `READ`–`PREPARE` may proceed and are queued for record (`I-54`) |
+
+**Why lineage failure blocks derivation.** A derived item created without lineage is
+permanently undeletable through the cascade and permanently unclassifiable by inheritance
+([ADR 0013](../decisions/0013-deletion-and-forgetting.md)). Allowing the derivation to
+succeed trades a transient failure for a permanent defect.
+
+**Why audit failure blocks only above `PREPARE`.** An action that cannot be recorded should
+not occur — but applying that to reads would make NOVA unusable whenever the audit sink
+hiccups, and reads at `READ`–`PREPARE` are reversible and low-consequence. The line is drawn
+at the same place the approval model draws it
+([`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §4), so there is one boundary
+to reason about, not two. Queued records must be durable, and a queue that cannot accept a
+record is itself an audit failure.
+
+**These are not independent of the approval model.** An action requiring approval already
+requires a recorded approval; if audit is unavailable, that record cannot be written, so the
+approval cannot be granted. The rules compose rather than conflict.
+
 ---
 
 ## 5. Credentials Are References

@@ -32,7 +32,7 @@ outward while appearing to be new objects.
 | **Logs** | **Yes** | References and identifiers only for CLIENT-CONFIDENTIAL and above; never content |
 | **Caches** | **Yes** | Keyed by scope **and** token; never shared across scopes; invalidated on revocation and deletion |
 | **Backups** | **Yes** | Preserve scope partitioning; restoring one scope must not restore another's data |
-| **Derived data generally** | **Yes** | Strictest-source inheritance, lineage recorded, deletion cascades |
+| **Derived data generally** | **Yes** | Strictest-source inheritance, lineage recorded, deletion cascades through recorded lineage within NOVA-controlled storage |
 
 **Model training is the one flat prohibition.** Everything else has a governed path.
 
@@ -64,6 +64,53 @@ two known values reveals the third. Aggregation over a small set is not anonymou
 therefore treat small-N aggregates as CLIENT-CONFIDENTIAL rather than as safe derived data —
 and **anonymization is never assumed to make something safe**. Removing names does not
 remove identifiability.
+
+### 3.1 Disclosure analysis of aggregate forms
+
+*Added 2026-08-12 following adversarial review.*
+
+Worked against three clients — A = 100, B = 200, C = 300 — where the recipient knows their
+own value:
+
+| Form | What a recipient knowing their own value learns | Verdict |
+| --- | --- | --- |
+| **Total** (600) | Sum of the others (500) | Partial disclosure |
+| **Average** (200) | Total, hence sum of the others | Partial disclosure |
+| **Maximum** (300) | **Another client's exact value** | **Full individual disclosure** |
+| **Minimum** (100) | Whether they are the floor; a bound on all others | Bounding disclosure |
+| **Ranking** | Their exact position, hence the ordering of others | Ordering disclosure |
+| **Percentage** (16.7%) | Total by inversion | Equivalent to total |
+| **Trend** | Direction and magnitude of others' movement | Partial disclosure |
+| **"Anonymous" statistics** | Anonymity does not survive small N | **Not safe** |
+
+**Temporal differencing defeats all of them.** Re-asking the same aggregate after a client is
+added or removed reveals that client's exact value as the delta. A series of individually
+safe-looking answers is not safe as a series. **Repeated queries must be treated as one
+cumulative disclosure**, not as independent events.
+
+### 3.2 Rules for client-facing output
+
+Clients are subjects, not actors (`I-11`) — they cannot query NOVA, which removes the direct
+attack. The real exposure is a **client-facing deliverable** produced by NOVA in a client's
+scope: a report, a benchmark, a dashboard shared with that client.
+
+Binding rules (`I-57`):
+
+1. **Maximum, minimum, and ranking derived from other clients must never appear in
+   client-visible output** where they can reveal an individual client's information. At small
+   N they routinely do.
+2. **Any cross-client aggregate in client-facing output requires explicit review** before
+   release, and the review must consider differencing across prior releases — not just the
+   single figure.
+3. **Small-N aggregates are CLIENT-CONFIDENTIAL** and are not releasable to any client. The
+   threshold is undecided (`D-36`) and must be set before benchmarking exists; **until it is
+   set, no cross-client aggregate may appear in client-facing output at all.**
+4. **Cumulative disclosure is tracked**, so repeated releases to one client are assessed
+   together.
+
+**Anonymization is not a control.** Removing names from an aggregate over few clients does
+not remove identifiability, and treating it as though it does is the specific mistake this
+section exists to prevent.
 
 ---
 

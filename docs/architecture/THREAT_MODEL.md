@@ -15,8 +15,9 @@ a defense is procedural or unbuilt, that is stated.
 **Failure:** An agent deliberately attempts to read another client, exfiltrate credentials,
 or widen its authority.
 **Defense:** Token scope checked at every enforcement point (`I-03`, `I-16`); rights are an
-intersection (`I-07`); credentials never reach agents (`I-22`); repeated boundary attempts
-are a failure condition, not a retryable error.
+intersection (`I-07`); NOVA issues no credential material to agents (`I-22`), with ingress
+stripped and scanned at the capability boundary (`I-51`); repeated boundary attempts are a
+failure condition, not a retryable error.
 **Residual:** It can still do damage *within* its authorized scope. Least privilege bounds
 the blast radius; it does not eliminate it.
 
@@ -35,11 +36,13 @@ verification catches some of the rest.
 **Failure:** A client's repository, email, or website contains instructions the model
 follows.
 **Defense:** External content is data, never instruction; untrusted content may inform but
-never escalate a plan (`I-40`); credentials are unreachable from the model path (`I-22`);
-sandboxed coding agents hold nothing to exfiltrate.
+never escalate a plan (`I-40`); NOVA issues no credential to the model path (`I-22`);
+untrusted provenance is preserved into Work Orders (`I-58`).
 **Residual:** **Significant and unavoidable.** Injection can still cause wrong *in-scope*
-work and wasted effort. It cannot cross a client boundary or reach a credential — that is
-the guarantee, and it is narrower than "injection is solved."
+work and wasted effort. It cannot cross a client boundary through a token, and NOVA will not
+hand it a credential — that is the claim, and it is narrower than "injection is solved."
+A sandboxed coding agent **does** hold narrow expiring secrets by design (ADR 0005), so
+injection inside a sandbox can reach those specific credentials for their lifetime.
 
 ### T-04 Compromised integration
 **Failure:** An external system returns manipulated data or is taken over.
@@ -51,10 +54,16 @@ by provenance labelling and the `PREPARE` ceiling on untrusted-influenced plans.
 
 ### T-05 Credential theft
 **Failure:** An attacker obtains a credential.
-**Defense:** Secrets exist only in secrets storage and only at the outbound boundary
-(`I-21`, `I-22`); scoped to one node (`I-23`); expiring; individually revocable (`I-25`).
-**Residual:** A compromise of secrets storage itself is catastrophic. That storage is a
-deferred technology decision (`D-10`) and is the single highest-value target in the system.
+**Defense:** NOVA issues no secret to an agent; secrets exist only in secrets storage and at
+the outbound boundary (`I-21`, `I-22`); scoped to one node (`I-23`); expiring; individually
+revocable (`I-25`); tool responses declare and strip credential-shaped fields, with boundary
+scanning (`I-51`).
+**Residual:** **Ingress is real and not prevented.** A credential can still arrive via an
+integration response, an error payload echoing headers, a sandbox environment variable, a
+subprocess listing, a generated file, a screenshot, or text James pastes. Detection is
+best-effort; scanning cannot recognise every secret format. External coding agents hold real
+narrow secrets by design (ADR 0005). Compromise of secrets storage itself is catastrophic and
+its technology is undecided (`D-10`).
 
 ### T-06 Confused deputy
 **Failure:** A low-authority actor induces a high-authority component to act for it.
@@ -90,7 +99,9 @@ requires supporting provenance (`I-39`); contradictions surface rather than reso
 `james.stated` is never auto-superseded (`I-36`).
 **Residual:** **Real.** Slow poisoning within one scope, from a consistently-wrong
 integration, remains possible. Detection depends on contradiction surfacing — which fails if
-nothing contradicts it.
+nothing contradicts it. Injected content also *persists* in memory and keeps influencing
+retrieval; quarantine and revalidation ([`MEMORY_MODEL.md`](./MEMORY_MODEL.md) §4.1) contain
+this but do not remove it.
 
 ### T-11 Compromised shared resource
 **Failure:** A resource shared across clients is altered maliciously.
@@ -117,9 +128,11 @@ required.
 
 ### T-14 Backup leakage
 **Failure:** Backups flatten scope partitioning; restoring one scope restores another's data.
-**Defense:** Backups preserve partitioning; restore is scope-aware.
+**Defense:** Backups preserve partitioning; restore is scope-aware; restoration consults
+tombstones and re-applies deletion before restored data becomes available (`I-55`).
 **Residual:** Depends on the unbuilt backup mechanism (`D-15`). **Currently unmitigated in
-practice.**
+practice**, and `I-55` is marked `[PHYS]` — it is a requirement on a mechanism that does not
+yet exist.
 
 ### T-15 Model-provider leakage
 **Failure:** Content sent to a provider is retained, logged, or trained on.
@@ -152,6 +165,33 @@ closed; output is verified and reviewed before landing; sandbox limits bound the
 order is harder to catch than a malformed one, and fails at machine speed. Work Order
 generation quality must be evaluated (Section 41).
 
+### T-19 Compromised Policy Decision Point
+*Added 2026-08-12 following adversarial review.*
+
+**Failure:** The PDP itself is compromised and returns malicious `ALLOW` decisions. Every
+enforcement point obeys, because obeying the PDP is what they are for. Scope containment,
+default deny, risk ceilings, and credential scoping all pass — the checks are performed by
+the compromised component.
+
+**Defense:** **None that is sufficient.** Fail-closed behaviour (`I-17`) protects against a
+PDP that is *unavailable, unresponsive, or erroring* — it says nothing about one that is
+*lying*. A compromised PDP is authoritative by construction.
+
+Partial mitigations that exist: PDP compromise is visible in the audit trail *if* the audit
+path is independent of the PDP (`I-18`, `I-47`); the Credential Broker performs its own scope
+check, so a malicious allow must also defeat the broker to reach a secret; and the PDP is
+deliberately simple, narrowing the attack surface (ADR 0014).
+
+**Residual risk: systemic and unmitigated.** Compromise of the PDP is a **total** authorization
+failure. **Independent verification of authorization decisions is not designed** — there is no
+second opinion, no quorum, no out-of-band attestation, and no anomaly detection over decision
+patterns. Adding any of these is a Section 04/38 decision that has not been made.
+
+This is stated plainly rather than mitigated on paper: the architecture concentrates
+authorization in one trusted component, and that concentration is the cost of having one place
+where isolation is decided ([ADR 0001](../decisions/0001-layered-architecture-with-policy-spine.md),
+[ADR 0014](../decisions/0014-authorization-decision-model.md)).
+
 ---
 
 ## 2. What the Architecture Genuinely Prevents
@@ -161,7 +201,7 @@ Stated narrowly, because over-claiming is itself a risk:
 | Genuinely prevented | Why |
 | --- | --- |
 | Cross-client access via a token | No mechanism issues a token spanning siblings; containment is checked before permissions |
-| An agent exfiltrating a credential | Agents never hold credential material |
+| An agent exfiltrating a credential **obtained through NOVA's issuance path** | NOVA issues no credential material to agents. Credentials arriving by *ingress* are a detected-and-contained incident, not a prevented event ([ADR 0009](../decisions/0009-credentials-are-references.md)) |
 | Self-escalation | Rights only intersect; only James grants |
 | Silent cross-scope persistence | Aggregates are ephemeral; promotion is explicit and audited |
 | An agent approving its own work | Only James approves; review agents are permanently read-only |
@@ -171,7 +211,7 @@ Stated narrowly, because over-claiming is itself a risk:
 | Not prevented | Why |
 | --- | --- |
 | Damage within an authorized scope | Authorization is the boundary, and it was granted |
-| Injection causing wrong in-scope work | Only the boundary is guaranteed, not correctness |
+| Injection causing wrong in-scope work | Only the boundary is claimed, not correctness |
 | Slow memory poisoning | Detection needs contradiction, which may never arrive |
 | Over-broad grants by James | The ultimate authority can authorize anything |
 | Provider-side leakage after egress | Outside NOVA's control |

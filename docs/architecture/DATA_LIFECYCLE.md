@@ -139,6 +139,22 @@ deletion being real.
 deletion time, and authorization — never its content. Tombstones prevent silent
 re-derivation and let audit remain complete without retaining the deleted material.
 
+### Limits — what deletion cannot reach
+
+*Added 2026-08-12 following adversarial review.* The cascade covers **recorded lineage within
+NOVA-controlled storage**. Universal deletion is not claimed.
+
+- **Backups** taken before deletion still contain the item. **Restoration must consult
+  tombstones and re-apply deletion before restored data becomes available** (`I-55`).
+- **Already-delivered exports** cannot necessarily be recalled.
+- **Data transmitted to external systems** is outside NOVA's direct deletion control.
+- **Model-provider retention** is outside NOVA's direct deletion control.
+- **Unrecorded derivations** are undiscoverable — the reason lineage recording is mandatory
+  (`I-53`).
+
+NOVA must report what was deleted **and what lies beyond reach**, rather than reporting
+deletion as complete.
+
 **No legal claims are made here.** Whether any record must be retained for legal reasons is
 Section 37's question; this defines the mechanism such a requirement would attach to.
 
