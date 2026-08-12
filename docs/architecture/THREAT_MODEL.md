@@ -182,15 +182,60 @@ path is independent of the PDP (`I-18`, `I-47`); the Credential Broker performs 
 check, so a malicious allow must also defeat the broker to reach a secret; and the PDP is
 deliberately simple, narrowing the attack surface (ADR 0014).
 
-**Residual risk: systemic and unmitigated.** Compromise of the PDP is a **total** authorization
-failure. **Independent verification of authorization decisions is not designed** — there is no
-second opinion, no quorum, no out-of-band attestation, and no anomaly detection over decision
-patterns. Adding any of these is a Section 04/38 decision that has not been made.
+**Partial mitigation added in Section 04.** [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)
+requires the storage enforcement layer to derive scope restriction from the execution's bound
+scope identity **without consulting the PDP** (`I-62`). A compromised PDP granting `ALLOW` for
+another client's resource therefore still yields no data: the connection is bound elsewhere.
+**Two independent mechanisms must fail** for cross-client access.
+
+**Residual risk after mitigation: still systemic.** `T-19` is **reduced in blast radius, not
+resolved.** A compromised PDP can still authorize destructive, irreversible and unapproved
+actions *within* an execution's own scope, deny legitimate work, and lie in every other
+respect. The mitigation assumes the attacker cannot forge the scope binding — an attacker
+controlling connection establishment defeats it. **Independent verification of authorization
+decisions remains undesigned**: no second opinion, no quorum, no attestation, no anomaly
+detection over decision patterns. Section 04 considered and explicitly declined it as
+disproportionate at NOVA's current scale (ADR 0017, option 3).
 
 This is stated plainly rather than mitigated on paper: the architecture concentrates
 authorization in one trusted component, and that concentration is the cost of having one place
 where isolation is decided ([ADR 0001](../decisions/0001-layered-architecture-with-policy-spine.md),
 [ADR 0014](../decisions/0014-authorization-decision-model.md)).
+
+### T-20 Stolen or compromised human session
+*Added 2026-08-12 — Section 04.*
+
+**Failure:** An attacker obtains a valid session on one of James's devices and acts as him.
+**Defense:** Multi-factor with a phishing-resistant primary factor (`I-64`); sessions are
+per-surface, absolutely expiring, enumerable and individually revocable (`I-65`); step-up
+requires **fresh** authentication for irreversible actions and for changes to grants, policy or
+credentials (`I-67`); emergency stop ends all sessions.
+**Residual:** A session stolen on a device James is actively using can perform anything below
+the step-up line without further challenge. Step-up narrows the window; it does not close it.
+Voice is the weakest surface and is capped at `PREPARE`.
+
+### T-21 Authentication recovery abuse
+*Added 2026-08-12 — Section 04.*
+
+**Failure:** An attacker takes the account through the recovery path rather than the front door
+— historically the most-attacked route in any authentication system.
+**Defense:** Recovery must be at least as strong as primary authentication, rate-limited,
+notified, and audited (`I-67`, `A-4`).
+**Residual:** **Real and structural.** Recovery exists because James can lose his device, and
+any usable recovery path is by definition an alternative way in. Strength parity bounds it; it
+does not eliminate it. The provider choice (`D-09`) will materially affect this.
+
+### T-22 Break-glass abuse
+*Added 2026-08-12 — Section 04.*
+
+**Failure:** The recovery path intended for availability failure is used — by an attacker or
+under pressure — as an authorization bypass.
+**Defense:** Human-only, time-boxed, loudly recorded, scoped to service recovery, on a separate
+credential path rotated after every use, and explicitly **never** a bypass of authorization or
+client isolation (`I-75`).
+**Residual:** **Accepted deliberate weakness.** An attacker obtaining break-glass credentials
+obtains recovery-level access. `B-3` loudness depends on a notification path that may itself be
+degraded during exactly the incident break-glass exists for.
 
 ---
 
@@ -205,6 +250,7 @@ Stated narrowly, because over-claiming is itself a risk:
 | Self-escalation | Rights only intersect; only James grants |
 | Silent cross-scope persistence | Aggregates are ephemeral; promotion is explicit and audited |
 | An agent approving its own work | Only James approves; review agents are permanently read-only |
+| Cross-client access via a compromised PDP **alone** | Storage enforcement is independent of the PDP ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)) — **once `D-33` is implemented**; unverified until then |
 
 ## 3. What It Does Not Prevent
 

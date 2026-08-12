@@ -182,6 +182,42 @@ A property every implementation must satisfy, written to be testable.
 
 ---
 
+## Terms Added in Section 04
+
+Defined in full in [`../architecture/`](../architecture/README.md).
+
+### Enforcement Layer
+The layer beneath query construction that applies scope restriction, deriving it from an
+execution's bound scope identity and **not** from the Policy Decision Point. Distinct from the
+PDP: the PDP decides *whether*, the enforcement layer makes out-of-scope data *unreachable*.
+→ [ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md),
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)
+
+### Scope Binding
+The association between an execution and the scope its storage access is restricted to,
+established at connection or session establishment and immutable for that execution's lifetime.
+
+### Step-Up
+Requiring **fresh** authentication — not merely a valid session — before an action of higher
+consequence. Distinct from re-authentication after expiry: step-up is triggered by what is
+about to happen, not by elapsed time.
+
+### Credential Broker Protocol
+The seven-step sequence by which a tool obtains use of a credential without ever receiving it:
+present binding and token, policy check, binding-state check, operation check, inject, discard,
+record. → [`../architecture/SECRETS_ARCHITECTURE.md`](../architecture/SECRETS_ARCHITECTURE.md) §3
+
+### Break-Glass
+A bounded, human-only, time-boxed, loudly recorded path to restore service when authentication
+or policy is **unavailable**. **Never** an authorization bypass and never a path to client work
+or credentials. → [ADR 0021](../decisions/0021-revocation-and-break-glass.md)
+
+### Incident
+A confirmed or suspected violation of an invariant. Incidents are contained before they are
+investigated, always reach James, and are never silently resolved.
+
+---
+
 ## Distinctions That Are Frequently Confused
 
 | Do not conflate | With | Because |
@@ -206,6 +242,10 @@ A property every implementation must satisfy, written to be testable.
 | **Classification** | **Scope** | *What may be done* with an item versus *where* it lives. Both are required. |
 | **Grant absent** | **Explicit denial** | Absence is default deny; an explicit denial additionally overrides any grant. |
 | **Session identity** | **Execution identity** | Continuity versus the identity authorization evaluates. |
+| **PDP** | **Enforcement layer** | The PDP decides *whether*; the enforcement layer makes out-of-scope data *unreachable*. Deliberately independent. |
+| **Authentication** | **Step-up** | Proving identity versus proving it *again, freshly*, because of what is about to happen. |
+| **Break-glass** | **Authorization bypass** | Break-glass restores availability; it never grants access James could not otherwise authorize. |
+| **Revocation** | **Reversal** | Revocation stops future use; it does not undo past use. |
 
 ---
 

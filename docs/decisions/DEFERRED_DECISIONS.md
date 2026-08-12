@@ -73,6 +73,26 @@ the query layer such that out-of-scope partitions are unreachable, not merely un
 
 ---
 
+## Resolved in Section 04
+
+**Design decisions only. No technology was selected.** Each entry below fixes a *requirement*;
+the product satisfying it remains deferred.
+
+| # | Was | Resolved by | Still open |
+| --- | --- | --- | --- |
+| D-33 | Physical isolation strategy | [ADR 0016](./0016-isolation-enforced-below-query-layer.md), [ADR 0017](./0017-isolation-independent-of-pdp.md), [`ISOLATION_ENFORCEMENT.md`](../architecture/ISOLATION_ENFORCEMENT.md) — **requirement fixed, mechanism family criteria defined** | The mechanism itself, with `D-02` in 29 |
+| D-09 | Authentication and identity model | [ADR 0018](./0018-authentication-model.md), [`AUTHENTICATION_MODEL.md`](../architecture/AUTHENTICATION_MODEL.md) | **Provider and factor technology — `D-09a`** |
+| D-10 | Secrets storage requirements | [ADR 0019](./0019-secrets-store-separation.md), [`SECRETS_ARCHITECTURE.md`](../architecture/SECRETS_ARCHITECTURE.md) | **Store technology — `D-10a`** |
+| D-34 | Authorization engine requirements | [`POLICY_ENGINE_REQUIREMENTS.md`](../architecture/POLICY_ENGINE_REQUIREMENTS.md) | **Language and engine — `D-34a`** |
+| D-35 | Encryption requirements and key scoping | [ADR 0020](./0020-keys-mirror-the-scope-tree.md), [`ENCRYPTION_REQUIREMENTS.md`](../architecture/ENCRYPTION_REQUIREMENTS.md) | **Algorithms and key management — `D-35a`, Section 38** |
+
+**New in Section 04:** revocation timing and break-glass ([ADR 0021](./0021-revocation-and-break-glass.md)).
+
+**`D-02` remains deferred and untouched**, per James's instruction. ADR 0016 constrains the
+eventual choice through criteria `C-1`–`C-9` but selects nothing.
+
+---
+
 ## Technology and Platform
 
 | # | Deferred decision | Target section |
@@ -85,8 +105,8 @@ the query layer such that out-of-scope partitions are unreachable, not merely un
 | D-06 | Vector database and retrieval technology | 07 / 09 |
 | D-07 | Orchestration platform and execution model | 08 |
 | D-08 | AI providers and specific models | 05 |
-| D-09 | Authentication provider and identity model | 04 |
-| D-10 | Secrets storage and credential vault technology | 04 |
+| D-09a | Authentication **provider and factor technology** *(model resolved in 04)* | 29 |
+| D-10a | Secrets **store technology** *(requirements resolved in 04)* | 29 |
 | D-11 | Observability, logging, and audit stack | 27 / 28 |
 | D-12 | Testing framework and AI evaluation tooling | 31 |
 | D-13 | UI framework and design-token implementation | 15 / 16 |
@@ -104,12 +124,14 @@ the query layer such that out-of-scope partitions are unreachable, not merely un
 | D-25a | Agent runtime implementation | Model settled; execution mechanics depend on the platform | `D-01`, `D-04` | 06 |
 | D-28a | Budgets, thresholds, billing | Requires real cost data from actual usage | Observed costs once running | 34 |
 | D-29b | Export formats and serialization | Design settled in Section 03; formats depend on the storage choice | `D-02` | 37 / 44 |
-| D-34 | Policy language and authorization engine | Decision model specified ([ADR 0014](./0014-authorization-decision-model.md)); the engine is Section 04's | `D-01`, `D-09` | 04 |
-| D-35 | Encryption model — at rest, in transit, field-level | Classification specifies *what* needs protection; the mechanism depends on storage | `D-02` | 04 / 38 |
+| D-34a | Policy **language and engine** | Requirements fixed in Section 04 ([`POLICY_ENGINE_REQUIREMENTS.md`](../architecture/POLICY_ENGINE_REQUIREMENTS.md)); a candidate failing `P-1`–`P-5` or `P-10` is disqualified | `D-01`, `D-02` | 29 |
+| D-35a | Encryption **algorithms and key management** | Requirements and key scoping fixed in Section 04 ([ADR 0020](./0020-keys-mirror-the-scope-tree.md)); mechanism depends on storage | `D-02` | 38 |
+| D-37 | Key custody, escrow and recovery mechanics | `E-10` makes key loss equal data loss; recovery must be designed as carefully as authentication recovery | `D-02`, `D-35a` | 36 |
+| D-38 | Break-glass credential storage mechanism | Bounded and specified ([ADR 0021](./0021-revocation-and-break-glass.md)); the store is a technology choice | `D-10a` | 29 |
 | D-36 | Small-N aggregation threshold | The re-identification risk is identified; the safe threshold depends on real client counts | `Q-01`, `Q-08` | 22 / 37 |
 | D-31 | Sandbox provisioning technology for coding agents | Isolation requirements defined; the technology meeting them is not chosen | Platform choice, `D-04` | 30 |
 | D-32 | Notification routing and interruption policy | Depends on real usage patterns and device surfaces | `Q-03`, lived experience | 25 |
-| D-33 | Physical isolation / enforcement below the query layer | Logical isolation and `I-03` are fully specified; the enforcement mechanism determines whether `I-03` and `I-33` are structural. **Confirmed as a Section 04 security decision** | expected client volume; `D-02` for implementation | **04** *(implemented with `D-02` in 29)* |
+| D-33a | Isolation **mechanism selection** *(requirement resolved in 04 — [ADR 0016](./0016-isolation-enforced-below-query-layer.md))* | The requirement and disqualifying criteria `C-1`–`C-9` are fixed; the mechanism family and product are chosen with `D-02` | `D-02`, expected client volume | **29** |
 
 ---
 

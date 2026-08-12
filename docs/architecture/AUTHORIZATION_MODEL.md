@@ -186,5 +186,13 @@ of the components being stopped — an unhealthy orchestrator is exactly when it
 ## 7. What Section 3 Does Not Decide
 
 The engine, policy language, storage, evaluation performance, and caching implementation
-are deferred (`D-09`, `D-10`, `D-34`). Section 3 fixes *what must be evaluated and in what
-order*; Section 04 builds it.
+were deferred by Section 03. **Section 04 fixed the requirements** —
+[`POLICY_ENGINE_REQUIREMENTS.md`](./POLICY_ENGINE_REQUIREMENTS.md) for the engine,
+[`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) for identity, and
+[`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) for the broker — while leaving every
+product choice deferred (`D-09a`, `D-10a`, `D-34a`).
+
+**Scope containment (step 3) is additionally enforced beneath the query layer**, independently
+of this PDP ([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md),
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)). A compromised PDP that returns
+`ALLOW` for another client's resource still yields no data.

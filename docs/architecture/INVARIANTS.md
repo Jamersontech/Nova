@@ -43,6 +43,8 @@ storage and platform choices support them. These are marked **[PHYS]** below.
 | **I-33** | "Not queryable" is a storage-engine property. Retrieve-then-filter satisfies the words and defeats the intent | `D-33`, `D-02`, `D-06` |
 | **I-45** | Requires a queryable lineage graph and a delete-by-lineage contract in **every** store, including indexes, caches, and backups | `D-02`, `D-06`, `D-15` |
 | **I-47** | Append-only requires immutable storage or an equivalent enforced guarantee | `D-02`, `D-11` |
+| **I-55** | Requires a backup/restore mechanism that consults tombstones | `D-15` |
+| **I-60**–**I-63** | Enforcement below the query layer requires a store that can bind scope to a connection or session and refuse unconstrained queries. **The mechanism is specified ([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md)); no technology is chosen** | `D-02`, `D-33` |
 
 **Consequence for Section 04:** the isolation *requirement* can be specified without naming a
 product — "enforcement must occur below the query layer such that out-of-scope partitions are
@@ -161,6 +163,57 @@ decided and implemented.
 | **I-57** | Maximum, minimum, and ranking derived from other clients never appear in client-visible output where they can reveal an individual client's information. Any cross-client aggregate in client-facing output requires explicit review that accounts for cumulative disclosure across prior releases. |
 | **I-58** | A Work Order materially influenced by untrusted external content preserves that provenance, carries the approval requirement the influenced plan would have carried, and surfaces the influence in the approval request. |
 | **I-59** | `james.stated` items are never deleted or auto-superseded. Past a confidence horizon their epistemic status degrades to assumption and they require re-confirmation before driving an action above `PREPARE`. Confirmation creates a new version; the original is retained. |
+
+## Added by Section 04 — Security, Identity & Permissions
+
+*Added 2026-08-12. Same status as every invariant above: REQUIREMENT, unverified.*
+
+### Isolation enforcement
+
+| # | Invariant |
+| --- | --- |
+| **I-60** **[PHYS]** | Scope restriction is applied beneath query construction. A query lacking a scope constraint returns nothing; it never returns unrestricted data. |
+| **I-61** **[PHYS]** | An execution's scope binding is established at connection or session establishment and cannot be modified by the executing code for that execution's lifetime. |
+| **I-62** **[PHYS]** | The storage enforcement layer does not consult the Policy Decision Point. Cross-client access requires two independent mechanisms to fail. |
+| **I-63** **[PHYS]** | Enforcement covers enumeration, counts, and existence checks, on every access path including administrative and analytical, and denies when scope is indeterminate. |
+
+### Authentication and sessions
+
+| # | Invariant |
+| --- | --- |
+| **I-64** | Any session reaching `EXECUTE` or above satisfies multi-factor authentication with a phishing-resistant primary factor bound to origin or device. |
+| **I-65** | Sessions carry absolute expiry, are per-surface, and are individually enumerable and revocable. Activity alone does not extend a session. |
+| **I-66** | An execution identity is issued by the runtime for one execution and cannot be presented, forged, or refreshed by the agent holding it. No identity class can authenticate as another. |
+| **I-67** | `IRREVERSIBLE` actions and changes to grants, policy, classification, or credentials require fresh authentication, not merely a valid session. Account recovery is at least as strong as primary authentication. |
+
+### Secrets
+
+| # | Invariant |
+| --- | --- |
+| **I-68** | Secret material resides in a store separate from NOVA's data store, and backups of the data store contain none. |
+| **I-69** | Only the Credential Broker retrieves secret material. No agent, orchestrator, tool, model path, migration, backup job, or administrative console retrieves it. |
+| **I-70** | The broker discards secret material after injection; it is never returned upward to the caller. |
+
+### Encryption
+
+| # | Invariant |
+| --- | --- |
+| **I-71** | Key material is partitioned to follow the scope tree. A key sufficient to read one client's data at rest is not sufficient for a sibling's. |
+| **I-72** | Key material is never stored in the data model, and the secrets store is keyed separately from the data store. |
+
+### Policy authoring
+
+| # | Invariant |
+| --- | --- |
+| **I-73** | No agent modifies policy, and no policy grants an agent the ability to modify policy. Policy cannot weaken an invariant; a policy that would permit a cross-client read is invalid at authoring time. |
+
+### Security operations
+
+| # | Invariant |
+| --- | --- |
+| **I-74** | Revocation takes effect at the next authorization decision. In-flight executions holding a revoked token fail closed at their next enforcement point. |
+| **I-75** | Break-glass access is human-only, time-boxed, loudly recorded, and scoped to service recovery. It never bypasses authorization or client isolation, and never reaches client work or credentials. |
+| **I-76** | Every incident is recorded and reaches James. No incident is silently resolved, and containment precedes investigation. |
 
 ---
 

@@ -1,0 +1,59 @@
+# 0021 — Revocation Takes Effect at the Next Decision; Break-Glass Is Bounded
+
+**Status:** Proposed
+**Proposed:** 2026-08-12 — Section 04
+**Section:** 04
+
+## Decision
+Revocation of grants, delegations, sessions, bindings, and tokens takes effect **at the next
+authorization decision**; in-flight executions fail closed at their next enforcement point.
+A **break-glass** path exists for availability failure only: human-only, loud, time-boxed,
+scoped to service recovery, on its own credential path, and **never a bypass of authorization
+or client isolation**.
+
+## Context
+Section 03 established fail-closed behaviour throughout. Fail-closed systems create a new
+problem: what happens when they fail closed and James legitimately needs in.
+
+## Problem
+Two gaps. Revocation was specified as a state change without stating when it bites — and
+"revoked but the running job finished anyway" is not revocation. And an undefined recovery path
+guarantees that an undocumented bypass gets built under pressure, by whoever is on the worst
+day of the project.
+
+## Options Considered
+**Revocation:** propagate to running executions immediately (complex, requires interrupting
+work mid-flight); take effect at next decision (simple, since the PDP is consulted per decision
+— a short window where an in-flight step completes); or expire naturally (unacceptable).
+
+**Break-glass:** no path at all (purest, and produces an undocumented one the first time NOVA
+is unreachable); an unrestricted admin mode (usable, and becomes the attack path that defeats
+everything); or a bounded recovery-only path.
+
+## Decision Made
+Next-decision revocation, and a bounded recovery-only break-glass.
+
+## Reason
+Because the PDP is consulted per decision rather than per session, "next decision" is already
+near-immediate — the elaborate propagation machinery buys very little. For break-glass, the
+choice is not whether one exists but whether it is designed or improvised; an undesigned one is
+built in an emergency by someone in a hurry.
+
+## Tradeoffs
+**Advantages:** revocation needs no propagation infrastructure; in-flight work fails closed
+rather than completing; break-glass is loud, time-boxed, and cannot reach client work or
+credentials.
+**Disadvantages:** a brief window where an already-authorized step completes after revocation;
+break-glass is by construction a path around normal controls, so an attacker obtaining those
+credentials obtains recovery-level access; `B-3` loudness depends on a notification path that
+may itself be degraded during the incident break-glass exists for.
+
+## Consequences
+**Revocation stops future use; it does not reverse past use** — revoking a credential does not
+un-send an email, and NOVA must say so rather than implying otherwise. Break-glass credentials
+rotate after every use and are stored separately. Invariants `I-74`–`I-76`.
+
+## What Would Change This
+A demonstrated case where next-decision revocation is too slow — long-running executions that
+cross many enforcement points would need mid-execution interruption, an extension rather than a
+reversal.

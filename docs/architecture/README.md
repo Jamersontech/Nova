@@ -51,6 +51,12 @@ document; everything else elaborates one part of it.
 | Document | Answers |
 | --- | --- |
 | [`SECURITY_BOUNDARIES.md`](./SECURITY_BOUNDARIES.md) | Every boundary and what may cross it |
+| [`ISOLATION_ENFORCEMENT.md`](./ISOLATION_ENFORCEMENT.md) | **How `I-03` becomes structural** — enforcement below the query layer *(§4)* |
+| [`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) | Who proves what, and how sessions are bounded *(§4)* |
+| [`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) | Secrets-store requirements and the broker protocol *(§4)* |
+| [`ENCRYPTION_REQUIREMENTS.md`](./ENCRYPTION_REQUIREMENTS.md) | What must be encrypted; keys mirror the scope tree *(§4)* |
+| [`POLICY_ENGINE_REQUIREMENTS.md`](./POLICY_ENGINE_REQUIREMENTS.md) | What an authorization engine must satisfy *(§4)* |
+| [`SECURITY_OPERATIONS.md`](./SECURITY_OPERATIONS.md) | Revocation, emergency stop, break-glass, incident response *(§4)* |
 | [`INVARIANTS.md`](./INVARIANTS.md) | **The fifty testable properties every implementation must satisfy** *(§3)* |
 | [`THREAT_MODEL.md`](./THREAT_MODEL.md) | Threats, defenses, and residual risk *(§3)* |
 | [`KNOWN_RISKS.md`](./KNOWN_RISKS.md) | Where this architecture is weakest, and what to watch |

@@ -1,6 +1,6 @@
 # Known Risks and Architectural Weaknesses
 
-**Status:** **Active** — Section 02, approved by James 2026-08-12. Extended in Section 03.
+**Status:** **Active** — Section 02, approved by James 2026-08-12. Extended in Sections 03 and 04.
 **Purpose:** An honest register of where this architecture is weakest, what it deliberately
 trades away, and what a future section must watch. Recorded so that later sessions inherit
 the concerns rather than rediscovering them.
@@ -132,6 +132,23 @@ so no future session mistakes acceptance for absence.
 
 **This acceptance does not close any of these.** Each remains open, owned by the sections
 named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there.
+
+---
+
+## 3.3 Risks Identified in Section 04
+
+*Proposed — Section 04. Full analysis in [`THREAT_MODEL.md`](./THREAT_MODEL.md) `T-19`–`T-22`.*
+
+| Risk | Concern | Owner |
+| --- | --- | --- |
+| **Authentication recovery is a structural weakness** | Recovery exists because James can lose his device; any usable recovery path is an alternative way in. Strength parity (`I-67`) bounds it, does not eliminate it | 04, on `D-09` |
+| **Break-glass is a deliberate bypass** | Bounded and loud, but an attacker with break-glass credentials gets recovery-level access — and its loudness depends on a notification path that may be degraded during the very incident it exists for | 04 / 25 |
+| **Step-up does not protect an active session** | An attacker on a device James is actively using can do anything below the step-up line without challenge | 04 |
+| **Secrets store availability gates all outbound work** | The broker fails closed (`S-8`), so store unavailability stops every external call. Correct for security, a real availability dependency | 04 / 35 |
+| **Key custody is now load-bearing** | Per-scope keys mean key loss is data loss (`E-10`). A key-recovery path weaker than the encryption is the encryption's real strength | 36 |
+| **`T-19` is reduced, not resolved** | ADR 0017 removes cross-client access from a PDP-only compromise, **once `D-33` is implemented**. Independent decision verification was considered and explicitly declined as disproportionate | 04 / 38 |
+| **Isolation enforcement is specified but unbuilt** | `I-60`–`I-63` are `[PHYS]` requirements on a mechanism not yet chosen (`D-02` deferred). Until then `I-03` remains dependent on query correctness | 29 / 31 |
+| **Two enforcement models to reason about** | ADR 0017's independence is a benefit that costs conceptual load: isolation cannot be adjusted through policy, only through infrastructure | 29 |
 
 ---
 

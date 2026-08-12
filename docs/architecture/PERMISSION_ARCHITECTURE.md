@@ -143,6 +143,9 @@ points, not requested politely of the thing being stopped.
 
 Resumption after a stop is always an explicit human act.
 
+**Mechanics are specified in Section 04:** [`SECURITY_OPERATIONS.md`](./SECURITY_OPERATIONS.md)
+§2 (emergency stop), §1 (revocation timing), §3 (break-glass).
+
 ---
 
 ## 7. Least Privilege in Practice

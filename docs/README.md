@@ -53,7 +53,8 @@ unnecessary duplication.
 ## Current Status
 
 Sections 01 (Constitution & Project Foundation), 02 (System Architecture & Master
-Blueprint), and 03 (Data, Scope, Identity & Memory Architecture) are complete. NOVA contains documentation only — no application code,
+Blueprint), 03 (Data, Scope, Identity & Memory Architecture) and 04 (Security, Identity &
+Permissions) are complete. NOVA contains documentation only — no application code,
 dependencies, infrastructure, or technology commitments.
 
 The Section 02 architecture is **Active** — ADRs `0001`–`0008` were accepted by James on
@@ -63,4 +64,6 @@ Work Orders).
 The Section 03 model is **Active** — ADRs `0009`–`0015` were accepted by James on 2026-08-12
 as amended, with the documented residual risks explicitly accepted rather than resolved.
 
-Next: **Section 04 — Security, Identity & Permissions** (not started).
+The Section 04 model is **Proposed**, pending James's approval of ADRs `0016`–`0021`.
+
+Next: **Section 05 — AI Architecture & Model Gateway** (not started).

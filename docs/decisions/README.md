@@ -113,6 +113,22 @@ Section 02 aggregation finding, and `0015` extends ADR 0002 without altering the
 resolved** — recorded in [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md)
 §3.2. Acceptance is not closure.
 
+### Section 04 — Proposed, awaiting James
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0016](./0016-isolation-enforced-below-query-layer.md) | Isolation is enforced below the query layer | Proposed |
+| [0017](./0017-isolation-independent-of-pdp.md) | Isolation enforcement is independent of the PDP | Proposed |
+| [0018](./0018-authentication-model.md) | Multi-factor, phishing-resistant authentication with step-up | Proposed |
+| [0019](./0019-secrets-store-separation.md) | Secrets storage is separate, broker-only, per-scope isolated | Proposed |
+| [0020](./0020-keys-mirror-the-scope-tree.md) | Encryption keys mirror the scope tree | Proposed |
+| [0021](./0021-revocation-and-break-glass.md) | Revocation at next decision; break-glass is bounded | Proposed |
+
+None reverses an accepted decision. `0016` resolves `D-33` as a **requirement without
+selecting a technology**; `0017` partially mitigates the `T-19` residual risk James accepted;
+`0018`–`0021` resolve the design halves of `D-09`, `D-10`, `D-34` and `D-35`, leaving every
+product choice deferred. **`D-02` was not touched.**
+
 **Changing an accepted decision requires a superseding ADR**, not an edit to the original.
 A superseded record keeps its text and is marked `Superseded` with a pointer forward.
 

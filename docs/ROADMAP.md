@@ -28,8 +28,9 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 01 — Constitution & Project Foundation | **Complete** |
 | 02 — System Architecture & Master Blueprint | **Complete — architecture Accepted by James 2026-08-12** |
 | 03 — Data, Scope, Identity & Memory Architecture | **Complete — Accepted by James 2026-08-12 (as amended)** |
-| 04 — Security, Identity & Permissions | Next |
-| 05 and beyond | Not started |
+| 04 — Security, Identity & Permissions | **Complete — Proposed, pending approval** |
+| 05 — AI Architecture & Model Gateway | Next |
+| 06 and beyond | Not started |
 
 **No sections have been added, removed, renumbered, or redefined.** All 46 domains stand as
 established in Section 01. Section 03's delivered scope was broader than its roadmap title
@@ -169,9 +170,21 @@ see [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md).
 
 ## Section 04 — Next
 
-**Security, Identity & Permissions.** Builds the authorization engine, secrets storage, and
-identity mechanics that Section 03 specified conceptually (`D-09`, `D-10`, `D-34`), and owns
-**`D-33`** — enforcement below the query layer, on which `I-03` and `I-33` depend. `D-02`
-remains deferred to 29. Should begin by resolving `Q-01`, `Q-02`, `Q-04`, `Q-07`, and `Q-08`.
+**Security, Identity & Permissions.** Produced isolation enforcement, authentication,
+secrets, encryption, policy-engine requirements and security operations — plus ADRs
+`0016`–`0021` and invariants `I-60`–`I-76`.
 
-**Not yet started.** Awaiting James's instruction.
+Resolved **`D-33`** as a precise requirement — enforcement below the query layer, independent
+of the PDP — **without selecting a technology**, and resolved the design halves of `D-09`,
+`D-10`, `D-34` and `D-35`. **`D-02` remains deferred and untouched.** Every product choice was
+pushed to Section 29 or 38 as `D-09a`, `D-10a`, `D-33a`, `D-34a`, `D-35a`.
+
+Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0017-isolation-independent-of-pdp.md):
+cross-client access now requires two independent mechanisms to fail. **Reduced in blast
+radius, not resolved.**
+
+## Section 05 — Next
+
+**AI Architecture & Model Gateway.** Not started. `D-08` (providers and models) is its to
+decide; [`architecture/MODEL_ARCHITECTURE.md`](./architecture/MODEL_ARCHITECTURE.md) fixes the
+gateway design it implements.
