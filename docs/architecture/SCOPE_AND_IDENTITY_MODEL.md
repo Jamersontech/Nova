@@ -1,6 +1,6 @@
 # Scope and Identity Model
 
-**Status:** Proposed — Section 03, pending James's approval.
+**Status:** **Active** — Section 03, approved by James 2026-08-12 (as amended, commit 0917de5).
 **Extends:** [`DOMAIN_ARCHITECTURE.md`](./DOMAIN_ARCHITECTURE.md) (scope tree) and
 [`IDENTITY_AND_AUTHORITY.md`](./IDENTITY_AND_AUTHORITY.md) (identity classes). Neither is
 replaced. This document adds the operational detail those principles imply: scope kinds,

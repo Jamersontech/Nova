@@ -1,6 +1,6 @@
 # Cross-Scope and Cross-Domain Data Rules
 
-**Status:** Proposed — Section 03, pending James's approval.
+**Status:** **Active** — Section 03, approved by James 2026-08-12 (as amended, commit 0917de5).
 **Purpose:** The highest-risk area in the model. Every mechanism here is examined with one
 question: **could this become a side channel from one scope into another?**
 

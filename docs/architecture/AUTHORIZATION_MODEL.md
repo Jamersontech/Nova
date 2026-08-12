@@ -1,6 +1,6 @@
 # Authorization Model
 
-**Status:** Proposed — Section 03, pending James's approval.
+**Status:** **Active** — Section 03, approved by James 2026-08-12 (as amended, commit 0917de5).
 **Extends:** [`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md), which established
 the single Policy Decision Point, risk classes, and approval modes. This document defines
 the elements the PDP evaluates and how a decision is reached. **No authorization engine is

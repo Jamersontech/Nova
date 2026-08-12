@@ -27,7 +27,7 @@ genuine architectural requirement or a discovered problem justifies the change.
 | --- | --- |
 | 01 — Constitution & Project Foundation | **Complete** |
 | 02 — System Architecture & Master Blueprint | **Complete — architecture Accepted by James 2026-08-12** |
-| 03 — Data, Scope, Identity & Memory Architecture | **Complete — Proposed, pending approval** |
+| 03 — Data, Scope, Identity & Memory Architecture | **Complete — Accepted by James 2026-08-12 (as amended)** |
 | 04 — Security, Identity & Permissions | Next |
 | 05 and beyond | Not started |
 
@@ -155,15 +155,23 @@ authorization model, memory model, data classification, provenance and trust, da
 cross-scope and cross-domain rules, fifty testable invariants, and a threat model — plus ADRs
 `0009`–`0015`.
 
-**Technology was deliberately not selected.** `D-02` (database) and `D-33` (physical
-isolation) were assigned to Section 03 by the register, but James's Section 03 instruction
-explicitly forbade selecting a database. Both remain deferred and are reassigned to Section
-04/29 — see [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md).
+Accepted by James on 2026-08-12 following an adversarial review that produced nine
+amendments — narrowed credential guarantees, the compromised-PDP risk (T-19), deletion
+limits and the tombstone-restore requirement, fail-closed subsystem behaviour, aggregation
+and differencing restrictions, `[PHYS]` invariant dependencies, memory quarantine and
+revalidation, executable scope-kind validation, and Work Order provenance. **The documented
+residual risks were explicitly accepted, not resolved.**
+
+**Technology was deliberately not selected.** James confirmed on 2026-08-12 that **`D-02`
+remains deferred** (no database or other technology to be selected; owner 29) and that
+**`D-33` is a Section 04 security decision** concerning enforcement below the query layer —
+see [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md).
 
 ## Section 04 — Next
 
 **Security, Identity & Permissions.** Builds the authorization engine, secrets storage, and
-identity mechanics that Section 03 specified conceptually (`D-09`, `D-10`, `D-34`). Should
-begin by resolving `Q-01`, `Q-02`, `Q-04`, `Q-07`, and `Q-08`, and by deciding `D-02`/`D-33`,
-since [`architecture/INVARIANTS.md`](./architecture/INVARIANTS.md) `I-03` depends on the
-physical isolation choice.
+identity mechanics that Section 03 specified conceptually (`D-09`, `D-10`, `D-34`), and owns
+**`D-33`** — enforcement below the query layer, on which `I-03` and `I-33` depend. `D-02`
+remains deferred to 29. Should begin by resolving `Q-01`, `Q-02`, `Q-04`, `Q-07`, and `Q-08`.
+
+**Not yet started.** Awaiting James's instruction.

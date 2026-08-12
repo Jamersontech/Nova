@@ -1,6 +1,6 @@
 # Architectural Invariants
 
-**Status:** Proposed — Section 03, pending James's approval.
+**Status:** **Active** — Section 03, approved by James 2026-08-12 (as amended, commit 0917de5).
 **Purpose:** The complete set of properties every implementation section must satisfy.
 **Each is written to be testable.** An invariant that cannot be tested is a wish.
 

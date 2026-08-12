@@ -52,17 +52,24 @@ derived-data inheritance ([0010](./0010-derived-data-inheritance.md)), three-axi
 authorization ordering ([0014](./0014-authorization-decision-model.md)), extensible scope kinds
 ([0015](./0015-extensible-scope-kinds.md)).
 
-### ⚠ Governance note — D-02 and D-33 were NOT decided
+### Governance note — D-02 and D-33 disposition, confirmed by James 2026-08-12
 
-This register assigned **D-02** (database technology) and **D-33** (physical isolation
-strategy) to Section 03. James's Section 03 instruction **explicitly forbade selecting a
-database, storage technology, or provider**, and directed that the section be "architecture
-and durable documentation first."
+This register originally assigned **D-02** (database technology) and **D-33** (physical
+isolation strategy) to Section 03. James's Section 03 instruction forbade selecting a
+database or storage technology, so Section 03 delivered the conceptual model and left both
+deferred, proposing a reassignment rather than actioning one.
 
-Rather than resolve that tension unilaterally, Section 03 delivered the conceptual model and
-**left both deferred**. They are reassigned below to Section 04/29. This is recorded rather
-than silently actioned, per [ADR 0008](./0008-architectural-governance-model.md) — reassigning
-section ownership is a C3 change and is **James's to confirm**.
+**James confirmed the disposition on 2026-08-12** (a C3 decision, per
+[ADR 0008](./0008-architectural-governance-model.md)):
+
+| # | Disposition |
+| --- | --- |
+| **D-02** — database technology | **Remains deferred.** No database or other technology is to be selected. Owner: **29** (Application Infrastructure) |
+| **D-33** — physical isolation / enforcement below the query layer | **A Section 04 security decision.** It determines whether `I-03` and `I-33` are structural or merely asserted, which makes it a security question rather than an infrastructure preference. Owner: **04**, implemented alongside `D-02` in **29** |
+
+Section 04 may therefore specify the isolation *requirement* — enforcement must occur below
+the query layer such that out-of-scope partitions are unreachable, not merely unreturned —
+**without naming a product**.
 
 ---
 
@@ -71,8 +78,8 @@ section ownership is a C3 change and is **James's to confirm**.
 | # | Deferred decision | Target section |
 | --- | --- | --- |
 | D-01 | Application language, framework, and runtime | 02 / 29 |
-| D-02 | Database technology and hosting | **04 / 29** *(was 03 — see governance note)* |
-| D-03a | Physical schema and storage layout *(conceptual model done in 03)* | **04 / 29** |
+| D-02 | Database technology and hosting | **29** — *remains deferred; no technology to be selected* |
+| D-03a | Physical schema and storage layout *(conceptual model done in 03)* | **29** |
 | D-04 | Cloud provider and hosting platform | 29 |
 | D-05 | Queue / job execution technology | 12 / 29 |
 | D-06 | Vector database and retrieval technology | 07 / 09 |
@@ -102,7 +109,7 @@ section ownership is a C3 change and is **James's to confirm**.
 | D-36 | Small-N aggregation threshold | The re-identification risk is identified; the safe threshold depends on real client counts | `Q-01`, `Q-08` | 22 / 37 |
 | D-31 | Sandbox provisioning technology for coding agents | Isolation requirements defined; the technology meeting them is not chosen | Platform choice, `D-04` | 30 |
 | D-32 | Notification routing and interruption policy | Depends on real usage patterns and device surfaces | `Q-03`, lived experience | 25 |
-| D-33 | Physical isolation strategy — row-level vs schema vs database per client | Logical isolation and `I-03` are fully specified; the physical mechanism was not chosen because Section 03 was forbidden from selecting technology | `D-02`, expected client volume | **04 / 29** |
+| D-33 | Physical isolation / enforcement below the query layer | Logical isolation and `I-03` are fully specified; the enforcement mechanism determines whether `I-03` and `I-33` are structural. **Confirmed as a Section 04 security decision** | expected client volume; `D-02` for implementation | **04** *(implemented with `D-02` in 29)* |
 
 ---
 

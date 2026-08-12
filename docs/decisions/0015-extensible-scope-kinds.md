@@ -1,7 +1,8 @@
 # 0015 — Scope Kinds Are Extensible; the Scope Contract Is Not
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-12 — Section 03
+**Accepted:** 2026-08-12 by James, as amended in commit 0917de5
 **Section:** 03
 
 ## Decision

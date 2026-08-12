@@ -1,6 +1,6 @@
 # Threat Model
 
-**Status:** Proposed — Section 03, pending James's approval.
+**Status:** **Active** — Section 03, approved by James 2026-08-12 (as amended, commit 0917de5).
 **Purpose:** Analyze what actually goes wrong, what defends against it, and what risk
 remains.
 

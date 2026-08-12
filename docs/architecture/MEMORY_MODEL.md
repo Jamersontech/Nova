@@ -1,6 +1,6 @@
 # Memory Model
 
-**Status:** Proposed — Section 03, pending James's approval.
+**Status:** **Active** — Section 03, approved by James 2026-08-12 (as amended, commit 0917de5).
 **Extends:** [`MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`](./MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md),
 which established the six kinds of information, the tiers, and scope partitioning. This
 document defines each memory type operationally. **No storage or retrieval technology is

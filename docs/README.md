@@ -60,6 +60,7 @@ The Section 02 architecture is **Active** — ADRs `0001`–`0008` were accepted
 2026-08-12, with clarifications recorded on 0002 (shared resources) and 0005 (NOVA-generated
 Work Orders).
 
-The Section 03 model is **Proposed**, pending James's approval of ADRs `0009`–`0015`.
+The Section 03 model is **Active** — ADRs `0009`–`0015` were accepted by James on 2026-08-12
+as amended, with the documented residual risks explicitly accepted rather than resolved.
 
-Next: **Section 04 — Security, Identity & Permissions.**
+Next: **Section 04 — Security, Identity & Permissions** (not started).

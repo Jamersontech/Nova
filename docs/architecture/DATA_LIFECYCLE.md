@@ -1,6 +1,6 @@
 # Data Lifecycle
 
-**Status:** Proposed — Section 03, pending James's approval.
+**Status:** **Active** — Section 03, approved by James 2026-08-12 (as amended, commit 0917de5).
 **Covers:** the life of an item from creation to deletion, plus temporal state, versioning,
 lineage, retention, deletion, and portability.
 

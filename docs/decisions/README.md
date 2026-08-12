@@ -90,20 +90,28 @@ their ADRs rather than as new records, because neither changed a core decision:
 - **0005** — NOVA should eventually generate precise Work Orders from high-level requests.
   The security boundary is unchanged.
 
-### Section 03 — Proposed, awaiting James
+### Section 03
 
-| # | Decision | Status |
-| --- | --- | --- |
-| [0009](./0009-credentials-are-references.md) | Credentials are references, never data | Proposed |
-| [0010](./0010-derived-data-inheritance.md) | Derived data inherits the strictest source | Proposed |
-| [0011](./0011-provenance-trust-epistemic-separation.md) | Provenance, trust, and epistemic status are three axes | Proposed |
-| [0012](./0012-data-classification-model.md) | Six-level data classification | Proposed |
-| [0013](./0013-deletion-and-forgetting.md) | Deletion cascades through lineage, leaving tombstones | Proposed |
-| [0014](./0014-authorization-decision-model.md) | Ordered authorization decision, fail-closed | Proposed |
-| [0015](./0015-extensible-scope-kinds.md) | Scope kinds are extensible; the scope contract is not | Proposed |
+| # | Decision | Status | Accepted |
+| --- | --- | --- | --- |
+| [0009](./0009-credentials-are-references.md) | Credentials are references, never data | **Accepted** *(amended)* | 2026-08-12 |
+| [0010](./0010-derived-data-inheritance.md) | Derived data inherits the strictest source | **Accepted** | 2026-08-12 |
+| [0011](./0011-provenance-trust-epistemic-separation.md) | Provenance, trust, and epistemic status are three axes | **Accepted** | 2026-08-12 |
+| [0012](./0012-data-classification-model.md) | Six-level data classification | **Accepted** | 2026-08-12 |
+| [0013](./0013-deletion-and-forgetting.md) | Deletion cascades through lineage, leaving tombstones | **Accepted** *(amended)* | 2026-08-12 |
+| [0014](./0014-authorization-decision-model.md) | Ordered authorization decision, fail-closed | **Accepted** | 2026-08-12 |
+| [0015](./0015-extensible-scope-kinds.md) | Scope kinds are extensible; the scope contract is not | **Accepted** *(amended)* | 2026-08-12 |
 
-None of these reverses a Section 02 decision. `0009` elaborates ADR 0003, `0010` generalizes
-the Section 02 aggregation finding, and `0015` extends ADR 0002 without altering the tree.
+**All seven were accepted by James on 2026-08-12, as amended in commit `0917de5`** following
+an adversarial review that produced nine amendments. Section 03's architecture is therefore
+**Active**.
+
+None reverses a Section 02 decision. `0009` elaborates ADR 0003, `0010` generalizes the
+Section 02 aggregation finding, and `0015` extends ADR 0002 without altering the tree.
+
+**James explicitly accepted the documented residual risks rather than treating them as
+resolved** — recorded in [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md)
+§3.2. Acceptance is not closure.
 
 **Changing an accepted decision requires a superseding ADR**, not an edit to the original.
 A superseded record keeps its text and is marked `Superseded` with a pointer forward.

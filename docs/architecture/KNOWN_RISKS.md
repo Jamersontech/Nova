@@ -112,6 +112,29 @@ weaknesses, not merely threats.
 
 ---
 
+## 3.2 Residual Risks Explicitly Accepted by James — 2026-08-12
+
+When accepting ADRs `0009`–`0015` as amended (commit `0917de5`), James **explicitly accepted
+the following residual risks rather than treating them as resolved.** They are recorded here
+so no future session mistakes acceptance for absence.
+
+| Residual risk | Accepted position |
+| --- | --- |
+| **Credential ingress is not prevented** | NOVA does not *issue* credential material to agents, but it can arrive via integration responses, error payloads, sandbox environments, subprocess listings, files, screenshots, or user-supplied text. Detection (`I-51`) is best-effort and cannot recognise every secret format. **Leakage is not claimed impossible** |
+| **External coding agents hold real secrets** | Narrow, expiring, task-scoped — but genuine. Containment is their narrowness and lifetime, not their absence (ADR 0005) |
+| **A compromised PDP is a total authorization failure** | Fail-closed protects against an unavailable PDP, not a lying one. Independent verification of decisions is **not designed**. Accepted as systemic residual risk (T-19) |
+| **Deletion is bounded** | The cascade reaches recorded lineage within NOVA-controlled storage only. Delivered exports, data sent to external systems, model-provider retention, and unrecorded derivations are **beyond reach** |
+| **Injection persistence is contained, not removed** | Quarantine and revalidation limit influence; a patient attacker supplying plausible uncontradicted content is not detected (T-10) |
+| **Aggregation disclosure is bounded by policy, not arithmetic** | Small-N aggregates leak; max/min/ranking disclose individual values. Prohibitions are rules to enforce, not mathematical impossibilities. `D-36` is unset, so client-facing cross-client aggregates are barred entirely for now |
+| **`[PHYS]` invariants are unsatisfied until implementation** | `I-03`, `I-21`, `I-33`, `I-45`, `I-47`, `I-55` depend on physical choices not yet made |
+| **All 59 invariants are unverified** | Every one is a REQUIREMENT, none is a VERIFIED IMPLEMENTATION PROPERTY, until Section 31 |
+| **Administrator error is unmitigable** | An over-broad grant or an unread approval by James is authorized breadth, not escalation |
+
+**This acceptance does not close any of these.** Each remains open, owned by the sections
+named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there.
+
+---
+
 ## 4. What Would Invalidate This Architecture
 
 Stated plainly, so a future session can recognize it:
