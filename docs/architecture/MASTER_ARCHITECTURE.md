@@ -245,7 +245,35 @@ interfaces, each independently replaceable:
 | **Memory** | Scope-partitioned retention | Truth about the outside world |
 | **Event Bus** | Distribution of things that happened | Interpreting them |
 | **Approval** | Human-in-the-loop gating | Deciding risk (Policy does) |
-| **Observability** | Logs, traces, audit records | Enforcement |
+| **Observability** ² | Logs, traces; **collection and routing of audit events** | Enforcement; **owning or reading the audit corpus** |
+| **Data-Access Boundary** ¹ | Establishing and holding the storage scope binding for an execution; opening scope-bound channels | Deciding authorization; interpreting data |
+
+> ¹ **PROPOSED — added by Section 04, not yet accepted.** *(2026-08-13, N-3.)* Every other row
+> in this table was accepted by James on 2026-08-12 with ADRs `0001`–`0008`. This row is an
+> **amendment to accepted Section 02 architecture proposed through Section 04**, and stands or
+> falls with [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md), which remains
+> **Proposed**. Until James accepts that ADR, this row is not approved architecture.
+>
+> **It is a trusted platform responsibility and boundary — not a standalone microservice, not a
+> new speculative subsystem, and not separately deployable.** It is listed here because Section
+> 04 requires a *named owner* for the storage scope binding (`I-61`, `I-78`, `C-11`), and an
+> unowned responsibility is how that binding quietly becomes application code's to set. Unlike
+> the rows above it, "independently replaceable" describes the mechanism beneath it, not a
+> service boundary. Full registration:
+> [`ISOLATION_ENFORCEMENT.md`](./ISOLATION_ENFORCEMENT.md) §4.1.
+
+> ² **AMENDED BY SECTION 04 — PROPOSED, not yet accepted.** *(2026-08-13, `S4-P2`.)*
+> **As accepted on 2026-08-12 this row read:** *Observability | Logs, traces, audit records |
+> Enforcement.* James decided `S4-P2` on 2026-08-13 (Option D): **James reads audit partitions
+> directly and per scope; no centralized audit reader exists, and Observability does not own or
+> read the audit corpus.** It may collect and route audit events, and may append only under write
+> capability acquired per execution for that execution's scope (`E-12`, `I-88`, `I-89`, `I-90`,
+> [`ENCRYPTION_REQUIREMENTS.md`](./ENCRYPTION_REQUIREMENTS.md) §3.2).
+>
+> **Authority:** this amendment is authorized through
+> [ADR 0022](../decisions/0022-section-04-amendments-to-accepted-architecture.md), which is
+> **Proposed**. Until James accepts it, **the amended text above is not accepted architecture**,
+> and it is **removed — restoring the original row verbatim — if ADR 0022 is rejected.**
 
 **Why this decomposition.** The failure mode being avoided is a Core that becomes a
 monolith where "everything talks to everything." Each service above answers exactly one

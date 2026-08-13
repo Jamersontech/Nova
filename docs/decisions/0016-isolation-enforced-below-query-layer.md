@@ -34,8 +34,9 @@ That is a coding convention with a security label, not a structural property.
 
 ## Decision Made
 Option 2. Three mechanism families are recorded as candidates with tradeoffs — per-scope
-physical separation, per-scope namespace separation, engine-enforced row restriction — and
-none is selected.
+physical separation, per-scope namespace separation, engine-enforced **record** restriction —
+and none is selected. *(Wording aligned 2026-08-13, N-13: "row" was a relational term and is
+replaced by "record", which commits to no storage model. No decision changes.)*
 
 ## Reason
 `I-03` is the invariant the entire architecture rests on. Making it depend on query-writing
@@ -52,9 +53,19 @@ connections; disqualifies otherwise attractive storage options; adds provisionin
 onboarding a client.
 
 ## Consequences
-`D-02` acquires hard qualification criteria (`C-1`–`C-9`); a candidate failing `C-1`, `C-2`,
-`C-5`, or `C-6` is disqualified regardless of other merits. `I-03` and `I-33` remain `[PHYS]`
-and unverified until a mechanism is chosen and tested. Invariants `I-60`–`I-63`.
+`D-02` acquires hard qualification criteria. **The authoritative list of criteria is
+[`ISOLATION_ENFORCEMENT.md`](../architecture/ISOLATION_ENFORCEMENT.md) §5, `C-1`–`C-11`.**
+*(Range corrected 2026-08-13, N-5: this ADR previously said `C-1`–`C-9`, predating `C-10` and
+`C-11`.)*
+
+**The approved disqualification set is unchanged: `C-1`, `C-2`, `C-5`, `C-6`.** A candidate
+failing any of those four is rejected regardless of other merits. **James decided 2026-08-13
+(`S4-P4`) that `C-3`, `C-4`, `C-8`, `C-9`, `C-10` and `C-11` are NOT ratified as disqualifying**
+— they are evaluated and recorded, and a failure is a flagged concern for James rather than an
+automatic rejection. §5 marks each accordingly.
+
+`I-03` and `I-33` remain `[PHYS]` and unverified until a mechanism is chosen and tested.
+Invariants `I-60`–`I-63`, `I-86`.
 
 ## What Would Change This
 Evidence that no available mechanism can meet the requirement at acceptable cost — in which

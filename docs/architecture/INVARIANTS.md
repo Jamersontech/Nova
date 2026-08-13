@@ -44,7 +44,26 @@ storage and platform choices support them. These are marked **[PHYS]** below.
 | **I-45** | Requires a queryable lineage graph and a delete-by-lineage contract in **every** store, including indexes, caches, and backups | `D-02`, `D-06`, `D-15` |
 | **I-47** | Append-only requires immutable storage or an equivalent enforced guarantee | `D-02`, `D-11` |
 | **I-55** | Requires a backup/restore mechanism that consults tombstones | `D-15` |
-| **I-60**–**I-63** | Enforcement below the query layer requires a store that can bind scope to a connection or session and refuse unconstrained queries. **The mechanism is specified ([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md)); no technology is chosen** | `D-02`, `D-33` |
+| **I-60**–**I-63** | Enforcement below the query layer requires a store that can bind scope to a channel and refuse unconstrained queries. **The mechanism is specified ([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md)); no technology is chosen** | `D-02`, `D-33a` |
+| **I-66** | Non-presentability of an execution identity depends on how identities are issued and verified at runtime | `D-01`, `D-09` |
+| **I-68** | Store separation and backup contents are properties of the chosen stores and backup mechanism | `D-10`, `D-02`, `D-15` |
+| **I-69** | Restricting retrieval to one component requires the store to enforce caller identity | `D-10` |
+| **I-71** | Per-scope key partitioning must be supported by the key-management mechanism and the store (`C-9`) | `D-35`, `D-02` |
+| **I-72** | Separate keying of the secrets store is a property of the chosen stores | `D-10`, `D-35` |
+| **I-80** | Provisioning validation and isolation verification can only run once an isolation mechanism exists | `D-33a`, `D-02` |
+| **I-86** | Whether a channel can be constrained to exactly one scope, and whether the platform can prevent a component from holding several scope-bound channels at once, are properties of the storage and channel mechanism. Nothing in the conceptual model prevents a multi-scope connection | `D-02`, `D-33a` |
+| **I-87** | Token integrity is stated as a required **property**; the mechanism that provides it — and therefore whether detection actually holds — does not yet exist | `D-09`, `D-33` |
+| **I-88** | Separating write from read capability over the same audit partition, and confining a write capability to one execution's scope and lifetime, are properties of the key-management and storage mechanism, not of the conceptual model | `D-35`, `D-02` |
+| **I-90** | Whether a single audit partition can be served on its own, without a component that spans partitions, is a property of the storage and audit mechanism. **`I-89` is deliberately *not* marked `[PHYS]`** — the prohibition on a universal audit reader is NOVA's own architectural choice (`S4-P2`, Option D) and holds under any mechanism; only its *feasibility* is mechanism-dependent, and that is what this row records | `D-35`, `D-02`, `D-11` |
+
+**`I-70` is deliberately *not* marked `[PHYS]`.** "The broker discards the secret and never
+returns it upward" is a property of the broker's own design — a component NOVA specifies and
+builds — not of any external technology. Marking it would be marking for consistency rather than
+for genuine dependency, which this notation exists to avoid. Its *effectiveness* is bounded by
+`I-81` (retry paths), which is **not** `[PHYS]` either, and for the same reason: holding only
+pre-injection requests in retry queues, error records, logs, telemetry, snapshots, and caches is a
+property of how NOVA designs that path, not of any technology it has yet to choose. *(Corrected
+2026-08-12, F-5. The earlier text described `I-81` as "separately marked", which it never was.)*
 
 **Consequence for Section 04:** the isolation *requirement* can be specified without naming a
 product — "enforcement must occur below the query layer such that out-of-scope partitions are
@@ -166,6 +185,12 @@ decided and implemented.
 
 ## Added by Section 04 — Security, Identity & Permissions
 
+> **`I-60`–`I-93` are PROPOSED, not accepted.** *(Marked 2026-08-13, N-3 class sweep.)* This file
+> is Active Section 03 material and every change to it is C3. `I-01`–`I-59` were accepted by
+> James on 2026-08-12. **Everything from `I-60` down is proposed through Section 04 and stands or
+> falls with ADRs `0016`–`0023`, which remain Proposed.** If those ADRs are rejected, these
+> invariants are removed rather than retained.
+
 *Added 2026-08-12. Same status as every invariant above: REQUIREMENT, unverified.*
 
 ### Isolation enforcement
@@ -173,8 +198,8 @@ decided and implemented.
 | # | Invariant |
 | --- | --- |
 | **I-60** **[PHYS]** | Scope restriction is applied beneath query construction. A query lacking a scope constraint returns nothing; it never returns unrestricted data. |
-| **I-61** **[PHYS]** | An execution's scope binding is established at connection or session establishment and cannot be modified by the executing code for that execution's lifetime. |
-| **I-62** **[PHYS]** | The storage enforcement layer does not consult the Policy Decision Point. Cross-client access requires two independent mechanisms to fail. |
+| **I-61** **[PHYS]** | An execution's scope binding is established by the **Data-Access Boundary** within the TRUSTED zone, derived solely from the Context Token's scope path, and is not modifiable by application or agent code for that execution's lifetime. The token whose scope path is used must have passed the integrity check `I-87` requires; a token that fails it establishes no binding. |
+| **I-62** **[PHYS]** | The storage enforcement layer does not consult the Policy Decision Point. Cross-client access therefore requires either compromise of **both** the PDP and the scope-binding path, **or** compromise of the Context service / Context Token issuance — which defeats both together, since both derive from the Context Token. **General two-of-two independence is not claimed.** |
 | **I-63** **[PHYS]** | Enforcement covers enumeration, counts, and existence checks, on every access path including administrative and analytical, and denies when scope is indeterminate. |
 
 ### Authentication and sessions
@@ -183,23 +208,23 @@ decided and implemented.
 | --- | --- |
 | **I-64** | Any session reaching `EXECUTE` or above satisfies multi-factor authentication with a phishing-resistant primary factor bound to origin or device. |
 | **I-65** | Sessions carry absolute expiry, are per-surface, and are individually enumerable and revocable. Activity alone does not extend a session. |
-| **I-66** | An execution identity is issued by the runtime for one execution and cannot be presented, forged, or refreshed by the agent holding it. No identity class can authenticate as another. |
-| **I-67** | `IRREVERSIBLE` actions and changes to grants, policy, classification, or credentials require fresh authentication, not merely a valid session. Account recovery is at least as strong as primary authentication. |
+| **I-66** **[PHYS]** | An execution identity is issued by the runtime for one execution and is scoped to that execution. **Required property:** an agent must not be able to present, re-present, refresh, extend, or synthesize an execution identity, and no identity class may authenticate as another. *(Amended 2026-08-12, M-8: stated as a required security property. NOVA specifies no mechanism establishing unforgeability, and none is claimed. Satisfaction depends on how identities are issued and verified at runtime — `D-01`, `D-09`.)* |
+| **I-67** | `IRREVERSIBLE` actions and changes to grants, policy, classification, or credentials require fresh authentication, not merely a valid session. **Cross-scope audit review additionally requires step-up** *(added 2026-08-13, `H-1` Option 3)* — reviewing audit across more than one scope aggregates the cross-client audit corpus and is treated like any other cross-scope operation (`I-49`, `I-86`). **Single-scope audit reading by James does not require step-up.** Account recovery is at least as strong as primary authentication. |
 
 ### Secrets
 
 | # | Invariant |
 | --- | --- |
-| **I-68** | Secret material resides in a store separate from NOVA's data store, and backups of the data store contain none. |
-| **I-69** | Only the Credential Broker retrieves secret material. No agent, orchestrator, tool, model path, migration, backup job, or administrative console retrieves it. |
+| **I-68** **[PHYS]** | Secret material resides in a store separate from NOVA's data store, and backups of the data store contain none. |
+| **I-69** **[PHYS]** | Only the Credential Broker retrieves secret material. No agent, orchestrator, tool, model path, migration, backup job, or administrative console retrieves it. |
 | **I-70** | The broker discards secret material after injection; it is never returned upward to the caller. |
 
 ### Encryption
 
 | # | Invariant |
 | --- | --- |
-| **I-71** | Key material is partitioned to follow the scope tree. A key sufficient to read one client's data at rest is not sufficient for a sibling's. |
-| **I-72** | Key material is never stored in the data model, and the secrets store is keyed separately from the data store. |
+| **I-71** **[PHYS]** | Key material is partitioned to follow the scope tree. A key sufficient to read one client's data at rest is not sufficient for a sibling's. |
+| **I-72** **[PHYS]** | Key material is never stored in the data model, and the secrets store is keyed separately from the data store. |
 
 ### Policy authoring
 
@@ -212,8 +237,32 @@ decided and implemented.
 | # | Invariant |
 | --- | --- |
 | **I-74** | Revocation takes effect at the next authorization decision. In-flight executions holding a revoked token fail closed at their next enforcement point. |
-| **I-75** | Break-glass access is human-only, time-boxed, loudly recorded, and scoped to service recovery. It never bypasses authorization or client isolation, and never reaches client work or credentials. |
+| **I-75** | Break-glass **never authorizes client-data access and never bypasses the normal authorization path.** It is confined to the control plane — restoring authentication, repairing policy infrastructure, recovering control-plane services, lifting an emergency stop — and is human-only, time-boxed, and loudly recorded. Protected data remains fail-closed while authorization is unavailable; break-glass may restore NOVA's ability to *perform* authorization, never replace it. |
 | **I-76** | Every incident is recorded and reaches James. No incident is silently resolved, and containment precedes investigation. |
+
+## Added by the Section 04 Review Amendments
+
+*Added 2026-08-12. Same status as every invariant above: REQUIREMENT, unverified.*
+
+| # | Invariant |
+| --- | --- |
+| **I-77** | Structural storage isolation is **additional to** the Data Access PEP, never a replacement. Every data access still passes the full ADR 0014 sequence — grants, risk ceiling, classification, conditions. The isolation layer decides nothing about authorization and can only deny reachability. |
+| **I-78** | A scope binding is established only by the **Data-Access Boundary** within the TRUSTED zone, derived solely from the Context Token's scope path, and is verified against the presented token at establishment — including the token's integrity property (`I-87`). A mismatch, or a token whose integrity cannot be established, is refused and recorded. |
+| **I-79** | If execution scope is missing, ambiguous, invalid, inconsistent with the token, or cannot be established, no scope-bound channel is opened and access is denied. There is no unbound channel and no default scope. |
+| **I-80** **[PHYS]** | A client scope becomes operationally active only after provisioning, configuration validation, isolation verification, and the required isolation tests have all passed and been recorded. Existence of a scope record is not activation; any failure or incomplete stage leaves the scope inactive for protected operations. |
+| **I-81** | Reliability infrastructure never persists injected credential material. Retry queues, dead-letter queues, request objects, error records, logs, telemetry, snapshots, and caches hold pre-injection requests only; credentials are re-injected by the broker at send time. |
+| **I-82** | Holding a Context Token whose scope path includes an ancestor confers no ancestor key material. Decryption of an ancestor-scope shared resource requires an explicit grant over that resource; key access is released per resource, per operation, and is audited. |
+| **I-83** | Security audit records are keyed under a hierarchy separate from client-data keys, and that hierarchy is **itself partitioned across the scope tree** — there is no single global audit key, and no audit-key capability spans sibling scopes in either direction, for reading or writing. **Audit-key access inherits nothing from data-key authorization**: being authorized for a scope's data keys confers no audit-key access to that scope or any other, and the ancestor data-key rule (`I-82`) does not govern the audit hierarchy. Destroying a client's data keys does not destroy that client's audit records or tombstones, and `I-47` is unaffected. |
+| **I-84** | Generic and unstructured tool responses are not returned raw into agent context by default; they are parsed, filtered, or summarized at the capability boundary, and unstructured responses are treated as potentially credential-bearing. **This is containment, not prevention — credential ingress remains possible.** |
+| **I-85** | Audit records of authorization decisions are emitted by the PDP and are therefore **not independent evidence of PDP integrity**. NOVA requires no independent audit path for authorization decisions and designs none; a compromised PDP may emit false or omitted records. |
+| **I-86** **[PHYS]** | No access channel is bound to more than one scope, and no component holds simultaneous scope-bound channels in order to join across them at the storage layer. Cross-scope work uses serial single-scope channels, aggregated above the executions. |
+| **I-87** **[PHYS]** | A Context Token carries an integrity property that allows a receiving component to **detect** modification after issuance or fabrication by anything other than the Context service. Every component consuming a token performs that check; a token that fails it, or whose integrity cannot be established, is rejected, no binding is established, the access is denied, and the rejection is recorded. **This is a detection property, not a claim of unforgeability, and it does not mitigate compromise of the Context service itself** (`T-23a`). No mechanism is specified ([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §6). |
+| **I-88** **[PHYS]** | Audit write capability is **authorized by construction, scope-bound, and is not read capability.** An execution that has been authorized — and whose scope binding is therefore established (`I-61`, `I-79`, `I-86`) — may write audit records for **that scope only**, for **that execution's lifetime only**. That authorization *is* the capability: there is no separate release decision, no grant class, and no second authorization authority. **No component — including the PDP (`I-85`) and the Observability responsibility — holds blanket cross-scope audit-write capability**, and none may write for a scope it is not executing in. `I-18` is unaffected and not exempted: the execution's own authorization is a decision and produces a record; audit emission is a consequence of it, not a new authorization request. Write confers no read over that partition or any other, and append-only (`I-47`) is unaffected. A component running several concurrent executions holds one execution-bound capability per execution and **must never use them to write across scopes**. This is writer authority **`W-1`** and governs successful execution-scoped events only; attempted/denied events are `I-91` and control-plane events are `I-92` ([ADR 0023](../decisions/0023-audit-record-writer-authority.md)). |
+| **I-89** | There is **no centralized audit reader and no component holding universal or cross-scope audit-read capability** — not the Observability responsibility, not a reader service, not an administrative path. James reads audit partitions directly and per scope; cross-scope review is N per-scope reads aggregated above them (`I-86`), recorded per scope touched (`I-49`), and requires step-up (`I-67`). His access is not grant-mediated: `I-09` and `I-10` are unchanged, and `I-82` — a data-key rule — does not apply. **Not `[PHYS]`:** this is an architectural property NOVA decides and holds to (`S4-P2`, Option D), true of any mechanism. Whether the mechanism can *support* it is `I-90`. |
+| **I-90** **[PHYS]** | Audit partitions must be **individually readable per scope without an aggregating component** — a scope's audit records can be retrieved on their own, and reconstructing a cross-scope view requires N separate per-scope reads rather than a component that spans partitions. `I-89` is the architectural prohibition; this is the mechanism property that prohibition depends on. If the chosen storage and audit mechanism cannot serve a single partition without a spanning reader, `I-89` cannot be satisfied. |
+| **I-91** | **Writer authority `W-2`.** The record of an authorization decision — **allow, deny, or approval-required alike** — is written under the authority of **that decision**, into the partition of the scope the decision concerned. This covers denials, pre-binding refusals (`I-78`, `I-79`), token rejections (`I-87`), and every attempted access that did not become an authorized execution. **`W-2` applies only where the decision concerned a client scope.** A decision taken before any scope exists — authentication and recovery, which precede context resolution ([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §1) — is a control-plane event under `I-92`, **never forced into a client partition**. **No execution, scope binding, grant class or second authority is required or created**; `I-18` already makes the decision produce a record, and this states that the decision is the authority for the record of itself. A denied cross-scope attempt is recorded in the **actor's** scope; the target's partition receives nothing naming the actor (`E-11`), and the security event is recorded in the control-plane partition (`I-92`). **This authority confers nothing beyond the single record of the single decision** — it is not standing, not transferable, and cannot reach a scope the decision did not concern. |
+| **I-92** | **Writer authority `W-3`, and the control-plane audit partition.** Operations that concern no client scope — scope creation, provisioning, validation, verification, activation, rollback, grants, delegations, revocations, emergency stop, break-glass, incidents, policy changes, classification changes, credential lifecycle, session lifecycle **including failed authentication and failed recovery (`A-4`)**, restore/migration verification, approvals, and audit-write failures — are recorded in a **control-plane audit partition that is not a node in the client scope tree**. It is **not a scope kind** and is not governed by the `I-06` scope contract: nothing executes in it, no context resolves to it, no token names it, and it holds no client data. It **must not carry client-scope content, identifiers, or resource references** (`I-48`, `E-11`) and must never become a substitute for reading a client's own partition. Reading it is `I-89`: **James only**. **No component acquires client-scope write capability by writing here**, which is what makes `S4-P1` hold by construction. |
+| **I-93** | **Audit-write failure is fail-closed for access, fail-open for restriction.** If a record `I-18` requires cannot be durably written: an authorization decision resolves to **deny**; an execution does **not** start; a control-plane operation does **not** proceed; a scope does **not** activate (`I-80`). **Operations that restrict or remove access proceed** — emergency stop is not withheld because its record failed, since refusing to stop fails *open*; break-glass proceeds only with an out-of-band record, on `B-7`'s reasoning, with the interval to durable recording recorded as exposure. The failure record is itself a control-plane event (`I-92`); **if it too cannot be written, no further attempt is made** — the operation has already failed closed and the condition surfaces as an incident (`I-76`). **No fallback writer, no universal client-scope capability, and no "best effort" reading of `I-18` is permitted.** **Persistence is resolved by identity, not by acknowledgement:** every mandatory audit record carries a **deterministic event identity** derived from the operation it records and its trace id; **physical writes sharing an identity are one logical record**, so an uncertain write is retried and de-duplicated by identity rather than producing a second event. `I-47` is unaffected — nothing is removed; duplicates collapse logically on read. **A decision record records that the decision was taken; whether the operation proceeded is a separate record**, so a record persisted while the caller failed closed is accurate rather than false. If a deterministic identity cannot be established, the write is treated as failed and the rule above applies. |
 
 ---
 

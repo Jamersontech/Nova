@@ -53,8 +53,34 @@ phishing-resistant primary factor implies a device dependency and a real lockout
 ## Consequences
 Voice cannot exceed `PREPARE` without step-up elsewhere. Recovery design becomes a Section 04
 deliverable of equal weight to primary authentication. Multi-user mechanics remain blocked on
-`Q-04`. Invariants `I-64`–`I-67`.
+`Q-04`.
+
+**Context Tokens must carry a detectable integrity property.** *(Added 2026-08-12, F-3.)* A
+component receiving a Context Token must be able to detect modification after issuance or
+fabrication by a non-issuer, and must refuse the token if it cannot (`CT-1`–`CT-3`, `I-87`). **No
+mechanism is selected, and unforgeability is not claimed**; the requirement does not mitigate
+compromise of the Context service (`T-23a`) and introduces a new trusted component of its own
+(`T-23c`).
+
+Invariants `I-64`–`I-67`, `I-87`.
 
 ## What Would Change This
-`Q-04` answered "multi-user", which adds delegation between humans and makes the external-user
-class real — an extension, not a reversal.
+`Q-04` answered **"multi-user"**. *(Corrected 2026-08-12, M-9. The earlier characterisation as
+"an extension, not a reversal" understated the disruption and is withdrawn.)*
+
+Multi-user is **not** something that can be layered onto the current model:
+
+- **`I-09` currently means only James approves.** A second approver requires a **superseding
+  ADR** for that authority invariant.
+- **`I-10` currently means only James grants access.** A second granter requires a **superseding
+  ADR** for that authority invariant.
+- Delegation *between humans* does not exist in the current model at all
+  ([`SCOPE_AND_IDENTITY_MODEL.md`](../architecture/SCOPE_AND_IDENTITY_MODEL.md) §5 narrows only
+  downward from James).
+
+Authentication itself would extend cleanly — the external-user identity class already exists and
+is deliberately unimplemented. **The authority model would not.** Changing who may approve, grant,
+or delegate is a **C3 change requiring explicit superseding governance**, not an addition.
+
+**`I-09` and `I-10` are not modified now**, and no multi-user design is introduced. This records
+only what the change would cost when `Q-04` is answered.

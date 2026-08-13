@@ -100,9 +100,68 @@ for undeclared material. Mechanically:
   [`AUTHORIZATION_MODEL.md`](./AUTHORIZATION_MODEL.md) §5.1 applies: treat as compromised,
   revoke and rotate, purge and cascade, record without the value, escalate, fix the path.
 
-**Stated honestly:** scanning is **heuristic and will miss novel formats**. It reduces
-ingress; it does not close it. This is the residual risk James accepted, and it is not
-improved by Section 04 — only made operational.
+### 4.1 Generic and unstructured responses
+
+*Added 2026-08-12 following adversarial review (M-4). Schema-based stripping presumes a
+meaningful response schema. A generic HTTP/API pass-through tool has none, so declared stripping
+does nothing for exactly the tool NOVA is most likely to want.*
+
+**Layered containment, none of which is prevention (`I-84`):**
+
+| Layer | Requirement |
+| --- | --- |
+| **Tool-specific rules** | A tool whose responses are known to carry credential material (token issuance, key rotation, OAuth refresh) declares them and strips them, regardless of general schema |
+| **Raw-response restriction** | A generic pass-through tool must **not** return raw unstructured responses into agent context by default. Responses are parsed, filtered, or summarized at the capability boundary, and raw bodies are available only where a specific declared need exists |
+| **Unknown/unstructured handling** | Where a response cannot be structurally understood, it is treated as **potentially credential-bearing**: scanned, and preferentially not placed in durable memory or model context |
+| **Heuristic detection** | Applied to all responses, declared or not. **Explicitly best-effort** |
+| **Error handling** | Error payloads are scanned with the same rules as success payloads — they are the most common echo path for request headers |
+| **Retry handling** | See §4.2 and `I-81` |
+| **Logs and telemetry** | Response bodies for CLIENT-CONFIDENTIAL and above are referenced, not copied (`I-48`) |
+| **Generated artefacts** | Files written by a sandboxed coding agent are scanned before being treated as reviewable output |
+
+**Stated honestly, and not improved by these layers:** detection is **heuristic and will miss
+novel formats**. Restricting raw pass-through reduces exposure; it does not eliminate it, and a
+sufficiently unusual credential format in an unstructured body will pass. **Credential ingress
+remains possible.** These are containment and minimization requirements, not prevention, and
+nothing here should be read as claiming credentials cannot leak.
+
+### 4.2 Retry and reliability paths
+
+*Added 2026-08-12 following adversarial review (M-5).*
+
+The broker discarding the secret (§3 step 6) proves only that the secret is not returned
+**upward**. It says nothing about whether the secret persists **sideways**, in the reliability
+infrastructure that holds the outbound request.
+
+**Requirement: reliability mechanisms must not become credential persistence mechanisms
+(`I-81`).**
+
+| Path | Requirement |
+| --- | --- |
+| **Retry queues** | A queued retry stores the request **without** injected credential material. Re-injection happens at send time, through the broker, exactly as for the first attempt |
+| **Request objects** | The injected form of a request is not retained after the attempt completes |
+| **Logs** | Outbound requests are logged by reference; headers and bodies carrying credentials are never logged |
+| **Error records** | An error capturing a failed request captures it in pre-injection form |
+| **Telemetry** | Records metadata — endpoint, latency, outcome — never the request as sent |
+| **Dead-letter queues** | Hold pre-injection requests only. A DLQ is durable and long-lived, so a credential there is a credential at rest in the wrong store |
+| **Snapshots / caches** | Never hold injected requests |
+| **Credential material arriving in a *response*** | **Not covered by `I-81`.** `I-81` governs credentials NOVA *injects* on the way out. A credential echoed back by an external system — in a success body, an error payload, or a redirect — is **ingress**, governed by `I-84` and §4.1, where detection is **explicitly best-effort**. A DLQ or error record capturing such a response can therefore hold credential material that `I-81` does not reach *(cross-referenced 2026-08-13, N-12)* |
+
+> **`I-81` does not solve ingress, and must not be read as doing so.** It closes the *egress*
+> persistence path — injected secrets never reaching queues, DLQs, logs, telemetry, snapshots, or
+> error records. The ingress path stays open by `I-84`'s own admission: **credential ingress
+> remains possible**, and a novel format in an unstructured body will pass detection.
+
+**Re-injection on retry is deliberate**, and it means each retry is a fresh broker call subject
+to the full check sequence — so a credential revoked between attempts is not reusable by a
+queued retry.
+
+**Bounded retries are preserved** ([`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md)
+§4); only the storage of injected material is prohibited.
+
+**The limit:** this constrains NOVA's own reliability infrastructure. It cannot constrain an
+external system that logs the credential it received, or a platform component not built to this
+requirement. Verification is deferred to Section 31.
 
 ---
 

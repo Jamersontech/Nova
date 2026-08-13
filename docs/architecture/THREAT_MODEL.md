@@ -177,22 +177,41 @@ the compromised component.
 PDP that is *unavailable, unresponsive, or erroring* — it says nothing about one that is
 *lying*. A compromised PDP is authoritative by construction.
 
-Partial mitigations that exist: PDP compromise is visible in the audit trail *if* the audit
-path is independent of the PDP (`I-18`, `I-47`); the Credential Broker performs its own scope
-check, so a malicious allow must also defeat the broker to reach a secret; and the PDP is
-deliberately simple, narrowing the attack surface (ADR 0014).
+**Audit evidence from a compromised PDP is not trustworthy.** *(Corrected 2026-08-12, M-6.)*
+`I-18` requires every decision to produce an audit record — **emitted by the PDP itself**. A
+compromised PDP can therefore emit false records, omit records, or record denials for accesses
+it in fact allowed. **NOVA has no independent audit path for authorization decisions: none is
+required by the architecture and none is designed.** The earlier claim that compromise "is
+visible in the audit trail *if* the audit path is independent of the PDP" was conditional on an
+independence that does not exist, and is **withdrawn** (`I-85`).
+
+Partial mitigations that do exist: the Credential Broker performs its own binding-state and
+operation checks, so a malicious allow must also defeat those to reach a secret; storage
+enforcement does not consult the PDP (ADR 0017); and the PDP is deliberately simple, narrowing
+the attack surface (ADR 0014).
+
+**Practically:** PDP compromise may be detectable from *effects* — unexpected external calls,
+unexplained state changes, storage-layer denials that should never have been attempted — but
+**not from the authorization audit trail itself.** Independent verification and independent
+audit are both undesigned; adding either is a Section 38 decision that has not been made.
 
 **Partial mitigation added in Section 04.** [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)
 requires the storage enforcement layer to derive scope restriction from the execution's bound
 scope identity **without consulting the PDP** (`I-62`). A compromised PDP granting `ALLOW` for
 another client's resource therefore still yields no data: the connection is bound elsewhere.
-**Two independent mechanisms must fail** for cross-client access.
+**Cross-client access is no longer available from PDP compromise alone.**
+
+**But the independence is bounded (H-2).** Both the PDP and the scope binding derive from the
+**Context Token**. They are independent *of each other*; they are not independent of the Context
+service. Compromising it defeats both together — see `T-23a`. **General two-of-two independence
+is not claimed.**
 
 **Residual risk after mitigation: still systemic.** `T-19` is **reduced in blast radius, not
 resolved.** A compromised PDP can still authorize destructive, irreversible and unapproved
 actions *within* an execution's own scope, deny legitimate work, and lie in every other
-respect. The mitigation assumes the attacker cannot forge the scope binding — an attacker
-controlling connection establishment defeats it. **Independent verification of authorization
+respect. The mitigation assumes the attacker cannot subvert the scope binding — an attacker
+controlling the Context service or channel establishment defeats it (`T-23a`). **Independent
+verification of authorization
 decisions remains undesigned**: no second opinion, no quorum, no attestation, no anomaly
 detection over decision patterns. Section 04 considered and explicitly declined it as
 disproportionate at NOVA's current scale (ADR 0017, option 3).
@@ -201,6 +220,64 @@ This is stated plainly rather than mitigated on paper: the architecture concentr
 authorization in one trusted component, and that concentration is the cost of having one place
 where isolation is decided ([ADR 0001](../decisions/0001-layered-architecture-with-policy-spine.md),
 [ADR 0014](../decisions/0014-authorization-decision-model.md)).
+
+### T-23 Attacks on the Context Token as a root of trust
+*Added 2026-08-12 following adversarial review (H-2). Split into three distinct variants
+2026-08-12 following final review (F-3), because they have different defenses and are routinely
+confused with each other.*
+
+The Context Token is the single upstream input to **both** the PDP's evaluation and the storage
+scope binding. Three different things can go wrong with it. Only one of them is addressed by
+`I-87`.
+
+#### T-23a — Compromise of the Context service
+
+**Failure:** The Context service itself — the authoritative source of execution scope identity —
+is compromised, or its issuance logic is subverted. It issues a **genuine** token naming Client B
+for work that should be Client A. The PDP then correctly authorizes what the token says, and the
+storage enforcement layer binds to Client B because that is what the token said.
+
+**Defense:** **None sufficient.** Both the PDP and the scope binding derive from the token, so
+this single compromise defeats both. The independence established by ADR 0017 is independence
+*from the PDP*, not from the Context service. **`I-87` does not help here at all** — the token is
+authentic; integrity detection has nothing to detect.
+
+**Residual:** **Systemic and unmitigated.** The Context service is a critical trusted component of
+the same standing as the PDP. Section 04 does not address its compromise, and no independent
+verification of token issuance is designed. This is the precise limit of the ADR 0017 mitigation
+and is stated so it cannot be mistaken for general two-of-two independence.
+
+#### T-23b — Unauthorized fabrication or modification of a Context Token
+
+**Failure:** Something that is *not* the Context service produces a token, or alters one in
+flight or at rest — a compromised orchestrator widening its own scope path, an agent minting a
+token for a sibling scope, a tampered token replayed at a later enforcement point.
+
+**Defense:** **`I-87` — required, unimplemented.** A consuming component must be able to detect
+modification after issuance or fabrication by a non-issuer, and must refuse the token if that
+cannot be established; the refusal is recorded, no binding is opened, and access is denied
+(`I-78`, `I-79`). This is a **detection** requirement. **Forgery is not claimed to be
+impossible**, and no mechanism is selected
+([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §6).
+
+**Residual:** **Real until the mechanism exists.** `I-87` is `[PHYS]` — a requirement on a future
+component, not a property NOVA has. Until it is implemented and verified (Section 31), this
+variant is undefended in practice. Detection also says nothing about a token that is genuine but
+was obtained by other means; scope narrowing (`I-07`, `I-12`) and expiry bound that, imperfectly.
+
+#### T-23c — Compromise of the token-integrity mechanism itself
+
+**Failure:** Whatever eventually provides the `I-87` property is compromised — its verification
+path, its trust anchors, or the component performing the check. Fabricated tokens then pass
+inspection and are accepted as genuine, which collapses T-23b into T-23a.
+
+**Defense:** **None designed.** `I-87` introduces a new trusted component, and Section 04 selects
+no mechanism and therefore specifies no protection for it. Stated explicitly so that adding token
+integrity is not mistaken for a net reduction in trusted surface: it moves trust, it does not
+remove it.
+
+**Residual:** **Accepted and unaddressed in Section 04.** The mechanism, its custody, and its own
+threat model are deferred with `D-09` / `D-33`.
 
 ### T-20 Stolen or compromised human session
 *Added 2026-08-12 — Section 04.*
@@ -213,6 +290,31 @@ credentials (`I-67`); emergency stop ends all sessions.
 **Residual:** A session stolen on a device James is actively using can perform anything below
 the step-up line without further challenge. Step-up narrows the window; it does not close it.
 Voice is the weakest surface and is capped at `PREPARE`.
+
+#### T-20a — Compromise of James's audit-reading session
+*Added 2026-08-13 (`H-2`). **This is where the "compromised audit reader" case lives.** Under
+`S4-P2` Option D there is no audit-reader component — the reader is James — so his session is the
+audit corpus's exposure surface, and it belongs here rather than in a separate entry.*
+
+**Failure:** An attacker holding a valid session on one of James's devices reads audit records.
+
+**Defense:** **Two boundaries, deliberately unequal.**
+
+| Attempted | Outcome |
+| --- | --- |
+| **Read audit for a scope the session can reach** | **Succeeds.** Single-scope audit reading is at normal session strength (`H-1` Option 3, `A-3a`) |
+| **Review audit across more than one scope** | **Requires step-up** — fresh authentication, not merely a valid session (`I-67`, `A-3a`). The cross-client audit corpus sits behind that boundary |
+| **Reach audit through a component** | **Fails.** No component holds audit-read capability (`I-89`, `E-13`); there is nothing to compromise instead of the session |
+| **Alter or delete audit to cover tracks** | **Fails.** Append-only, including by James (`I-47`) |
+| **Read client content from audit** | **Fails.** Audit carries references and identifiers, never content (`I-48`) |
+
+**Residual:** **A compromised session exposes the audit of the scope or scopes that session can
+reach without step-up** — in practice, single-scope reads. The **cross-client audit corpus is
+additionally protected by the step-up boundary**, so an attacker who cannot step up cannot
+aggregate across scopes. That boundary is the whole of the additional protection: an attacker who
+*can* step up — because James is actively authenticating on a compromised device — reaches
+everything he reaches. `H-1` Option 3 was chosen knowing this; it narrows the corpus exposure
+without making routine oversight require a challenge every time.
 
 ### T-21 Authentication recovery abuse
 *Added 2026-08-12 — Section 04.*
@@ -236,6 +338,137 @@ client isolation (`I-75`).
 **Residual:** **Accepted deliberate weakness.** An attacker obtaining break-glass credentials
 obtains recovery-level access. `B-3` loudness depends on a notification path that may itself be
 degraded during exactly the incident break-glass exists for.
+
+### T-24 Compromised Policy Enforcement Point
+*Added 2026-08-13 following the final pre-approval review (R-5). `T-19` covers a lying PDP and
+`T-23` covers the token root; nothing covered a compromised **enforcer**.*
+
+**Failure:** One of the five enforcement points
+([`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §2) is compromised and stops doing
+its job — it does not ask the PDP, ignores a `DENY`, skips the token-integrity check (`I-87`), or
+forwards a call it should have refused. Unlike `T-19`, the PDP may be perfectly healthy; its
+answer is simply not consulted or not obeyed.
+
+**Defense:** **Partial, and it differs sharply by which point is compromised.**
+
+| Compromised point | What is lost | What still holds |
+| --- | --- | --- |
+| **Data access PEP** | Grants, risk ceiling, classification, conditions on the read/write path | **Cross-client isolation holds — but only once `D-33` is implemented and verified.** Structural storage isolation sits beneath the PEP, never consults it, and restricts to the bound scope (`I-77`, `R-9`, ADR 0016). **`I-60`–`I-63` are `[PHYS]` and unbuilt**, so **today a compromised Data access PEP does yield cross-client data**; the confinement is a property of the future implemented system, not the present one |
+| **Tool call PEP** | Risk-class and scope checks on tool invocation | The Credential Broker performs its **own** scope check (`S-3`, broker step 2) rather than trusting the caller |
+| **Credential PEP** | The scope check at credential request | Binding state, expiry, revocation and permitted-operation checks are the broker's own (steps 3–4), and are not the PEP's to skip |
+| **Orchestration / Agent Runtime PEP** | Narrowing on dispatch; an agent could receive a token it should not have | Rights remain an intersection (`I-07`); no mechanism widens authority (`I-08`); the downstream points still run |
+
+**Residual:** **Real and only partly bounded.** A compromised PEP is an authorization failure
+*within* the scope it is bound to, and nothing detects it from the authorization trail — the same
+limit `I-85` records for the PDP. What Section 04 provides is that **no single compromised
+enforcement point yields cross-client data — once `D-33` is implemented and the Section 31
+isolation tests have run.** *(Qualified 2026-08-13, `M-A`. The earlier text asserted this in the
+present tense; `I-60`–`I-63` are `[PHYS]` and unbuilt, so **until then this containment does not
+exist** and a compromised Data access PEP is a cross-client exposure.)* Independent verification of
+enforcement-point behaviour is **undesigned**, exactly as it is for the PDP. Detection would be
+from effects, not from records.
+
+### T-25 Compromised Data-Access Boundary
+*Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a
+new TRUSTED-zone responsibility ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),
+**Proposed**); registering a trusted component without a threat entry is the gap this closes.*
+
+**Failure:** The component holding the storage scope binding is compromised. It binds a channel
+to Client B for work whose Context Token says Client A, opens an unbound channel, widens a
+binding mid-execution, or opens one channel spanning several scopes — each prohibited by `I-61`,
+`I-78`, `I-79` and `I-86`, and each available to a component that no longer honours them.
+
+**Defense:** **None sufficient, and this must be stated plainly.** The Data-Access Boundary *is*
+the mechanism that makes `R-1`/`R-2` real. There is no second component checking its work: the
+Data Access PEP above it asks the PDP about the *requested* scope, not about which partition the
+channel actually reaches, and the storage layer applies whatever binding it is given. `I-78`
+requires the binding to be verified against the presented token at establishment — but that check
+is performed **by the boundary itself**, so a compromised boundary is checking its own work.
+
+**Residual:** **Systemic and unmitigated, and of the same standing as `T-19` and `T-23a`.**
+Compromise yields cross-client access directly. This is the cost of concentrating the binding in
+one trusted place — the same trade ADR 0001 makes for the PDP — and Section 04 designs no
+independent verification of it. It is recorded so that the Data-Access Boundary is understood as
+a **third** critical trusted component alongside the PDP and the Context service, not as
+infrastructure.
+
+### T-26 Compromised Observability component
+*Added 2026-08-13, after James decided `S4-P1` (Option A) and `S4-P2` (Option D). Written against
+the architecture as decided — **not** against a cross-scope audit writer, which the decision
+prohibits.*
+
+**Failure:** The Observability responsibility — which collects and routes audit events — is
+compromised. The attacker seeks to read other clients' audit records, forge records to conceal
+activity, or destroy evidence of an incident.
+
+**Defense:** **Bounded by construction, in three separate ways.**
+
+| Attempted | Outcome | Why |
+| --- | --- | --- |
+| **Read another client's audit** | **Fails** | Observability holds **no** audit-read capability at all. There is no centralized audit reader and no component with universal or cross-scope audit-read capability (`I-89`, `E-13`). It is not a reader of the corpus it routes |
+| **Read the audit it just wrote** | **Fails** | Write confers no read over that partition or any other (`E-12c`, `I-88`) |
+| **Forge records across every scope** | **Fails** | There is no blanket cross-scope audit-write capability under any of the three authorities: `W-1` is bound to the execution's single scope (`I-88`), `W-2` to the scope one decision concerned (`I-91`), `W-3` to the control-plane partition, which holds no client records (`I-92`). Control-plane writer compromise is `T-27` |
+| **Forge records in a scope it currently serves** | **Succeeds, bounded** | Within a scope whose execution-scoped capability it currently holds, a compromised writer can append false records. This is the residual below |
+| **Read the audit it routes** | **Fails** | No component holds audit-read capability; the reader is James (`I-89`, `E-13`). **The compromised-audit-reader case is `T-20a`**, not this entry |
+| **Amend or delete records to hide an incident** | **Fails** | Audit is append-only (`I-47`). There is no amendment and no deletion operation to compromise |
+| **Retain capability for later use beyond the execution** | **Fails** | Capability lifetime is the execution's lifetime; it does not stand beyond it (`E-12b`) |
+| **Read client data via the audit path** | **Fails** | Audit records carry references and identifiers, never client content (`I-48`), and a record in one scope's partition may not disclose a sibling's identifiers (`E-11`) |
+
+**Residual: real, and narrower than it would otherwise be.**
+
+1. **Forgery within currently held scopes.** A compromised Observability component can append
+   false records to the scopes whose **execution-scoped** capabilities it holds at the time of
+   compromise (`E-12b`, `I-88`). Under `I-47` those records are **permanent** — they cannot be
+   removed, only contradicted by a later record. The blast radius is the union of the scopes it is
+   currently serving, **not the tree** — and it cannot acquire capability for a scope it is not
+   serving. Capability lifetime is the execution's lifetime, so the window closes as those
+   executions end.
+1a. **The bootstrap window is retired.** `S4-P6` (Option A) removed the capability-release
+   decision entirely, so there is no release that can succeed while its record fails. The window
+   that `E-12d` described no longer exists — not mitigated, but absent.
+2. **Suppression by omission.** Routing is where events pass; a compromised router can **drop**
+   events so that a real action produces no record. `I-18` requires a record to be produced, but
+   nothing independently verifies that every produced record arrives. **This is not addressed**,
+   and it parallels the `I-85` limit for the PDP: the audit trail cannot prove its own
+   completeness.
+3. **Detection is from effects, not from the trail.** As with `T-19` and `T-24`, a compromised
+   audit path cannot be detected by reading the audit path.
+
+**What `S4-P1`/`S4-P2` actually bought:** had the permissive option been taken, this entry would
+read *"permanent forged-audit injection across every scope, undetectable and irreversible."*
+Instead the same compromise is confined to the scopes the component currently serves, and yields
+**no read access whatever**. Suppression by omission remains, and is the honest gap.
+
+### T-27 Compromised control-plane audit writer
+*Added 2026-08-13 (`S4-P9`). [ADR 0023](../decisions/0023-audit-record-writer-authority.md) creates a
+control-plane audit partition; registering a new concentration without a threat entry is the defect
+these reviews keep finding.*
+
+**Failure:** A component authorized to write control-plane audit records is compromised. It seeks to
+forge provisioning, grant, revocation, incident or break-glass records, to suppress them, or to reach
+client audit through the control plane.
+
+**Defense:**
+
+| Attempted | Outcome | Why |
+| --- | --- | --- |
+| **Reach any client audit partition** | **Fails** | The control-plane partition is not a node in the client scope tree and holds no client-scope records (`I-92`). Writing there confers nothing over any client partition — this is what makes `S4-P1` hold by construction |
+| **Read the control-plane partition** | **Fails** | Write is not read (`E-12c`); reading any partition is James only (`I-89`) |
+| **Forge control-plane records** | **Succeeds, bounded** | Within the control-plane partition. The residual below |
+| **Amend or delete** | **Fails** | Append-only (`I-47`) |
+| **Read client content** | **Fails** | Control-plane records carry no client-scope content, identifiers or resource references (`I-48`, `E-11`, `I-92`) |
+| **Suppress a record to avoid failing closed** | **Fails to help the attacker** | A missing mandatory record makes the operation fail closed (`I-93`) — suppression denies, it does not permit |
+
+**Residual: real and bounded to the control plane.** A compromised control-plane writer can append
+false provisioning, grant, revocation or incident records, permanently under `I-47`. That is a
+genuine concentration — these are the records that establish whether a client scope was correctly
+isolated before activation (`I-80`) and who holds what authority. **It yields no client partition and
+no client data.**
+
+**Suppression by omission remains unaddressed here as everywhere** (`T-26`): nothing independently
+verifies that a produced control-plane record arrived. `I-93` ensures a *known* write failure fails
+the operation closed; it does not detect a writer that silently drops records while reporting
+success.
 
 ---
 

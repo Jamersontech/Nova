@@ -50,6 +50,22 @@ can answer "what is actually enforced?" A single PDP is testable in isolation
 **Default deny.** Absence of a grant is a denial. Absence of an explicit *denial* is not a
 grant ([`../ai/AGENT_PRINCIPLES.md`](../ai/AGENT_PRINCIPLES.md) §3).
 
+**A token failing integrity detection is not a valid token at any of the five points.**
+*(Added 2026-08-13, N-6 — proposed through Section 04.)* Each enforcement point must be able to
+detect a Context Token modified after issuance or fabricated by anything other than the Context
+service, and must refuse it — no channel, no decision, no call, denied and recorded (`I-87`,
+`CT-1`–`CT-3`, [`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §6). This is a **detection**
+requirement on a mechanism that does not yet exist (`I-87` is `[PHYS]`); **forgery is not claimed
+to be impossible**, and it does nothing against a compromised Context service issuing genuine
+tokens (`T-23a`).
+
+**All five enforcement points remain in force after Section 04.** *(Noted 2026-08-12, H-1.)*
+Section 04 adds a structural storage isolation layer beneath the **Data access** PEP
+([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md),
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)). It is **additional**: the Data
+access PEP still asks the PDP for every access, and the isolation layer decides nothing about
+authorization. Neither replaces the other (`I-77`).
+
 ---
 
 ## 3. Grants and Scopes

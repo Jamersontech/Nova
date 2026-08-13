@@ -123,8 +123,66 @@ resolved** — recorded in [`../architecture/KNOWN_RISKS.md`](../architecture/KN
 | [0019](./0019-secrets-store-separation.md) | Secrets storage is separate, broker-only, per-scope isolated | Proposed |
 | [0020](./0020-keys-mirror-the-scope-tree.md) | Encryption keys mirror the scope tree | Proposed |
 | [0021](./0021-revocation-and-break-glass.md) | Revocation at next decision; break-glass is bounded | Proposed |
+| [0022](./0022-section-04-amendments-to-accepted-architecture.md) | Section 04 amendments to accepted architecture — authorizes the nine documented amendments | Proposed |
+| [0023](./0023-audit-record-writer-authority.md) | Audit record writer authority; control-plane audit partition; audit-write failure behaviour. **Also authorizes the `DATA_ARCHITECTURE.md` and `EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` amendments that ADR 0022 does not cover** | Proposed |
 
-None reverses an accepted decision. `0016` resolves `D-33` as a **requirement without
+### Amendment-authority audit — Section 04 edits to Active/Accepted documents
+
+*Built 2026-08-13 (R-3, R-8). The previous note was self-inconsistent — it named three documents
+while saying "both edits" — and it accounted for **five** amendments. A full enumeration of the
+working tree finds **thirteen** Active/Accepted documents modified by Section 04. All thirteen are
+audited here. **Nothing in this table is marked approved unless that approval exists in the
+repository.***
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+
+| # | Document | Section / status | What Section 04 changes | Authorizing ADR | Does that ADR explicitly authorize it? | James approval | Amendment status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | [`../architecture/MASTER_ARCHITECTURE.md`](../architecture/MASTER_ARCHITECTURE.md) §5 | 02 · Active | Data-Access Boundary row added; Observability row narrowed (`S4-P2`) | `0017` + **`0022`** §1 | **Yes** | **Given 2026-08-13** (to make the amendment; the ADR itself is not accepted) | **Proposed**, marked in place |
+| 2 | [`../architecture/SYSTEM_LAYERS.md`](../architecture/SYSTEM_LAYERS.md) | 02 · Active | Boundary paragraph at the Knowledge & Data entrance; per-data-access note on point 5 | `0017` + **`0022`** §2 | **Yes** | **Given 2026-08-13** | **Proposed**, marked in place |
+| 3 | [`../architecture/SECURITY_BOUNDARIES.md`](../architecture/SECURITY_BOUNDARIES.md) §4 | 02 · Active | Adds Context service + Data-Access Boundary to the TRUSTED zone | **`0022`** §3 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 4 | [`../ai/AI_TERMINOLOGY.md`](../ai/AI_TERMINOLOGY.md) | 01 · Active | Section 04 term block; independence qualification; Data-Access Boundary; Context Token Integrity; Scope Binding; Break-Glass correction | **`0022`** §4 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 5 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | Adds `I-60`–`I-88`; `[PHYS]` dependency rows; `I-61`/`I-78`/`I-83` amendments | **`0022`** §5 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 6 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-19` rewrite; `T-23a/b/c`; `T-20`–`T-22`; `T-24`, `T-25` | **`0022`** §6 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 7 | [`../architecture/AUTHORIZATION_MODEL.md`](../architecture/AUTHORIZATION_MODEL.md) §7 | 03 · Active | Independence qualification; Data Access PEP preservation | **`0022`** §7 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 8 | [`../architecture/PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) §2 | 02 · Active | Five-PEPs-remain note; token-integrity requirement at each point | **`0022`** §8 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 9 | [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) | 02 · Active | Retries carry no injected credentials (`I-81`) | **`0022`** §9 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 9a | [`../architecture/DATA_ARCHITECTURE.md`](../architecture/DATA_ARCHITECTURE.md) §4 | 02 · Active | Audit Record row — three writer authorities replace "Written by executions" | **`0023`** | **Yes** | Authorized via ADR 0023 *(Proposed)* | **Proposed** |
+| 9b | [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1 | 03 · Active | Writer-authority mapping for the thirteen audit categories | **`0023`** | **Yes** | Authorized via ADR 0023 *(Proposed)* | **Proposed** |
+| 10 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) | 02 · Active | Section 04 risk rows; `[PHYS]` inventory; invariant count | — | **Not required** — the document's own header says "Extended in Sections 03 and 04"; extension is its stated purpose | n/a | Extension, not amendment |
+| 11 | [`../ROADMAP.md`](../ROADMAP.md) | 01 · Active | Section 04 status; invariant range; governance notes | — | **Not required** — recording section status is this document's purpose | n/a | Status record |
+| 12 | [`./DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md) | 01 · Active | M-7 correction; `D-33a`/`D-37`/`D-38`; criteria references | — | **Not required** — maintaining the register is its purpose | `D-33a`/`D-37`/`D-38` ownership **approved 2026-08-13** | Register update |
+| 13 | `README.md` *(this file)* | 01 · Active | Section 04 ADR index; this audit | — | **Not required** — indexing ADRs is its purpose | n/a | Index update |
+
+#### The authority gaps — closed by ADR 0022
+
+*Updated 2026-08-13. James decided `S4-P3`: **create a single ADR enumerating every affected
+document.*** [ADR 0022](./0022-section-04-amendments-to-accepted-architecture.md) now supplies the
+authority for rows 1–9 above, enumerating each individually with its reason, its relationship to
+`0016`–`0021`, and its removal condition.
+
+Two rules were deliberately **not** loosened in doing so:
+
+> [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md), line 10 — *"Any change to
+> this file is a C3 architectural change **requiring an ADR**."*
+> [ADR 0008](./0008-architectural-governance-model.md) — C3 changes are James's alone.
+
+**ADR 0022 satisfies both rather than amending either.** It is **Proposed**: until James accepts
+it, rows 1–9 remain amendments marked *Proposed* in place, and **every one is removed — restoring
+the accepted text verbatim — if ADR 0022 is rejected.** `0016`–`0021` cannot be accepted without
+also deciding `0022`.
+
+**`DATA_ARCHITECTURE.md` is now amended — under ADR 0023, not ADR 0022.** *(2026-08-13, `S4-P9`.)*
+Its Audit Record row was the accepted statement that audit records are "Written by executions", which
+the `S4-P8` inventory showed leaves 36 mandatory event classes unwritable.
+[ADR 0023](./0023-audit-record-writer-authority.md) supplies that authority **separately and
+visibly** rather than silently broadening ADR 0022's scope, which James had explicitly bounded.
+`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` §5.1 is authorized the same way.
+
+**Its relational partitioning wording remains out of scope and unedited** — that is a separate matter
+from the writer question and no ADR authorizes it.
+
+Otherwise none reverses an accepted decision. `0016` resolves `D-33` as a **requirement without
 selecting a technology**; `0017` partially mitigates the `T-19` residual risk James accepted;
 `0018`–`0021` resolve the design halves of `D-09`, `D-10`, `D-34` and `D-35`, leaving every
 product choice deferred. **`D-02` was not touched.**

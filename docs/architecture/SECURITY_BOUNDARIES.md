@@ -88,10 +88,26 @@ never an autonomous execution.
 
 ```text
 TRUSTED          James · NOVA Core · Policy · Credential Broker
+                 · Context service · Data-Access Boundary        ← named in Section 04
 GOVERNED         NOVA agents — inside the boundary, still least-privileged
 UNTRUSTED        External coding agents · sandboxes · all external services
 HOSTILE-ASSUMED  All content originating outside NOVA
 ```
+
+**The two Section 04 additions are namings, not new grants.** ***PROPOSED — added by Section 04,
+not yet accepted*** *(2026-08-13, N-13; this file is Active Section 02 material, so the line above
+is an amendment proposed through [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)
+and is removed if that ADR is rejected).* Both were already inside NOVA Core and therefore
+already trusted; Section 04 names them because it makes specific claims about each that a reader
+must be able to locate:
+
+- **Context service** — the authoritative source of execution scope identity. Section 04
+  establishes that it is a critical trusted component **of the same standing as the PDP**, and
+  that **nothing in Section 04 mitigates its compromise** (`T-23a`). Naming it here prevents the
+  mistake of treating it as ordinary infrastructure.
+- **Data-Access Boundary** — a trusted platform responsibility, not a microservice, that holds
+  the storage scope binding (`I-61`, `I-78`). It must never be the agent runtime, a sandbox, or
+  application code.
 
 **External coding agents are in the untrusted zone despite doing NOVA's work.** They are
 capable contractors in a sealed room ([`EXECUTION_ARCHITECTURE.md`](./EXECUTION_ARCHITECTURE.md)).

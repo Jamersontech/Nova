@@ -7,9 +7,13 @@
 ## Decision
 Revocation of grants, delegations, sessions, bindings, and tokens takes effect **at the next
 authorization decision**; in-flight executions fail closed at their next enforcement point.
-A **break-glass** path exists for availability failure only: human-only, loud, time-boxed,
-scoped to service recovery, on its own credential path, and **never a bypass of authorization
-or client isolation**.
+A **break-glass** path exists for availability failure only: human-only, loud, time-boxed, on
+its own credential path, and **confined to the control plane**. *(Amended 2026-08-12, H-4.)*
+**Break-glass must never authorize client-data access and must never bypass the normal
+authorization path.** It may restore the ability to authenticate, repair policy infrastructure,
+recover control-plane services, and lift an emergency stop. If policy is unavailable, break-glass
+may restore NOVA's ability to *perform* authorization; it never replaces it. Protected data
+remains fail-closed throughout.
 
 ## Context
 Section 03 established fail-closed behaviour throughout. Fail-closed systems create a new
@@ -41,17 +45,19 @@ built in an emergency by someone in a hurry.
 
 ## Tradeoffs
 **Advantages:** revocation needs no propagation infrastructure; in-flight work fails closed
-rather than completing; break-glass is loud, time-boxed, and cannot reach client work or
-credentials.
+rather than completing; break-glass is loud, time-boxed, and confined to the control plane so it
+cannot reach client data.
 **Disadvantages:** a brief window where an already-authorized step completes after revocation;
-break-glass is by construction a path around normal controls, so an attacker obtaining those
-credentials obtains recovery-level access; `B-3` loudness depends on a notification path that
-may itself be degraded during the incident break-glass exists for.
+an attacker obtaining break-glass credentials obtains **control-plane recovery access**,
+including the ability to repair — and therefore potentially alter — policy infrastructure;
+`B-3` loudness depends on a notification path that may itself be degraded during the incident
+break-glass exists for; and rotation cannot depend on NOVA being healthy (`B-7`, `L-5`).
 
 ## Consequences
 **Revocation stops future use; it does not reverse past use** — revoking a credential does not
 un-send an email, and NOVA must say so rather than implying otherwise. Break-glass credentials
-rotate after every use and are stored separately. Invariants `I-74`–`I-76`.
+are stored separately and rotated after every use — by a path that **must not depend on NOVA
+being healthy** (`B-7`), since they are used exactly when it is not. Invariants `I-74`–`I-76`.
 
 ## What Would Change This
 A demonstrated case where next-decision revocation is too slow — long-running executions that

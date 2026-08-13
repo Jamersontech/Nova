@@ -111,6 +111,23 @@ references and identifiers — never content, never secrets.
 | **Model interactions** | Profile, provider, scope, cost, outcome — not prompt content by default |
 | **Administrative changes** | Policy, classification changes, scope creation, reclassification |
 
+**Writer authority for each category.** ***PROPOSED — added by Section 04, not yet accepted***
+*(2026-08-13, `S4-P9`; authorized by
+[ADR 0023](../decisions/0023-audit-record-writer-authority.md), which is Proposed. Removed if that
+ADR is rejected.)* Every category above resolves to exactly one of three authorities:
+
+| Category | Authority | Partition |
+| --- | --- | --- |
+| Access · Memory · Derivation · Deletion · Agent execution · Work Orders · External transmission · Model interactions | **`W-1`** — the execution's own authorization (`I-88`) | The execution's bound scope |
+| **Denial** | **`W-2`** — the decision itself (`I-91`) | The scope the decision concerned; a cross-scope denial records in the **actor's** scope, never naming the actor in the target's |
+| **Grants · Approvals · Administrative changes** · the lifecycle half of **Credentials** (rotation, revocation) | **`W-3`** — the control-plane operation's own authorization (`I-92`) | **Control-plane audit partition** — outside the client scope tree |
+| The in-execution half of **Credentials** (request, issuance, use) | **`W-1`** | The execution's bound scope |
+
+**Approvals are control-plane events**, not execution events: an approval is an authorization act
+performed *before* the execution it permits. The later execution record remains execution-scoped in
+the client partition, and the two are linkable by reference **without granting the control plane any
+access to client data** (`I-48`).
+
 **Reclassification downward is audited with particular care** — it is the most dangerous
 routine operation in the model ([`DATA_CLASSIFICATION.md`](./DATA_CLASSIFICATION.md) §3).
 

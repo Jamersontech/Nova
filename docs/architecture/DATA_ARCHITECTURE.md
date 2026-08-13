@@ -100,7 +100,27 @@ mechanics. One rule set governs all of them.
 | **Document** | A file and its contents | Held by a scope |
 | **Event** | A record that something happened | Emitted by executions; may raise notifications |
 | **Notification** | Something brought to James's attention | Raised from events |
-| **Audit Record** | An immutable record of an action and its authorization | Written by executions |
+| **Audit Record** ¹ | An immutable record of an action and its authorization | Written under one of three authorities — see below |
+
+> ¹ **AMENDED BY SECTION 04 — PROPOSED, not yet accepted.** *(2026-08-13, `S4-P9`.)*
+> **As accepted on 2026-08-12 this row read:** *Audit Record | An immutable record of an action and
+> its authorization | **Written by executions**.* That is **incomplete rather than wrong** — it was
+> written in Section 02, before control-plane operations were specified in Section 04. Read
+> literally it makes 36 mandatory event classes unwritable and renders `I-18`, `I-80`, `V-5`,
+> `B-3`, `X-6` and `I-76` unimplementable.
+>
+> **The three writer authorities** ([ADR 0023](../decisions/0023-audit-record-writer-authority.md)):
+> **`W-1`** the execution's own authorization, for successful execution-scoped events, into its
+> bound scope (`I-88`); **`W-2`** the authorization decision itself, for attempted, denied and
+> pre-binding events, into the scope the decision concerned (`I-91`); **`W-3`** the control-plane
+> operation's own authorization, for events concerning no client scope, into the control-plane
+> audit partition (`I-92`).
+>
+> **Authority:** [ADR 0023](../decisions/0023-audit-record-writer-authority.md), which is
+> **Proposed**. [ADR 0022](../decisions/0022-section-04-amendments-to-accepted-architecture.md) does
+> **not** cover this document. Until James accepts ADR 0023 this amendment is not accepted
+> architecture, and it is **removed — restoring the original row verbatim — if ADR 0023 is
+> rejected.**
 
 ---
 

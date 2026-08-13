@@ -69,6 +69,11 @@ already using, for instance. NOVA pauses and asks unless a compensation is decla
 
 ## 4. Retry Discipline
 
+- **Retries never carry injected credentials.** *(Added 2026-08-12, M-5.)* A queued or retried
+  request is stored in **pre-injection** form; the credential is re-injected by the broker at
+  send time. Retry queues, dead-letter queues, error records, logs, telemetry, and snapshots
+  must not hold injected credential material
+  ([`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) §4.2, `I-81`).
 - Bounded attempts with exponential backoff; never unbounded.
 - **Only idempotent operations retry automatically.** Idempotency is declared tool metadata
   ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2).

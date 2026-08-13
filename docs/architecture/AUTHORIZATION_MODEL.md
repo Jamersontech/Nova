@@ -190,9 +190,22 @@ were deferred by Section 03. **Section 04 fixed the requirements** —
 [`POLICY_ENGINE_REQUIREMENTS.md`](./POLICY_ENGINE_REQUIREMENTS.md) for the engine,
 [`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) for identity, and
 [`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) for the broker — while leaving every
-product choice deferred (`D-09a`, `D-10a`, `D-34a`).
+product choice deferred (`D-09`, `D-10`, `D-34`).
 
-**Scope containment (step 3) is additionally enforced beneath the query layer**, independently
+**Scope containment (step 3) is *additionally* enforced beneath the query layer**, independently
 of this PDP ([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md),
 [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)). A compromised PDP that returns
 `ALLOW` for another client's resource still yields no data.
+
+**Independent of the PDP — not independent of the Context service.** *(Qualified 2026-08-13,
+N-10.)* Both this PDP and the storage scope binding take their input from the same Context Token,
+so compromise of the Context service or of token issuance defeats both together (`T-23a`,
+`I-62`). No general two-of-two independence is claimed.
+
+**This does not remove or replace the Data Access enforcement point.** The Data Access PEP in
+[`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §2 remains one of the five PEPs and
+still asks the PDP for every data access, still running steps 1–10 above in full. Structural
+isolation is a **second restriction on reachability, independent of this PDP** — it decides
+nothing about authorization and can only deny. Implementing connection-scope binding *instead of* the Data
+Access PEP would silently remove grants, risk ceilings, classification and conditions from the
+read path, and is prohibited (`I-77`).

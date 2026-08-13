@@ -28,9 +28,14 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 01 — Constitution & Project Foundation | **Complete** |
 | 02 — System Architecture & Master Blueprint | **Complete — architecture Accepted by James 2026-08-12** |
 | 03 — Data, Scope, Identity & Memory Architecture | **Complete — Accepted by James 2026-08-12 (as amended)** |
-| 04 — Security, Identity & Permissions | **Complete — Proposed, pending approval** |
+| 04 — Security, Identity & Permissions | **PROPOSED, UNDER REVIEW** |
 | 05 — AI Architecture & Model Gateway | Next |
 | 06 and beyond | Not started |
+
+**"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
+records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
+ordering remains James's alone** — no agent may reorder, skip, merge, or begin a section on its
+own reading of dependencies ([ADR 0008](./decisions/0008-architectural-governance-model.md)).
 
 **No sections have been added, removed, renumbered, or redefined.** All 46 domains stand as
 established in Section 01. Section 03's delivered scope was broader than its roadmap title
@@ -168,23 +173,80 @@ remains deferred** (no database or other technology to be selected; owner 29) an
 **`D-33` is a Section 04 security decision** concerning enforcement below the query layer —
 see [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md).
 
-## Section 04 — Next
+## Section 04 — PROPOSED, UNDER REVIEW
 
 **Security, Identity & Permissions.** Produced isolation enforcement, authentication,
 secrets, encryption, policy-engine requirements and security operations — plus ADRs
-`0016`–`0021` and invariants `I-60`–`I-76`.
+`0016`–`0023` and invariants `I-60`–`I-93`.
+
+**Not approved.** An adversarial review returned APPROVE WITH AMENDMENTS; an amendment pass on
+2026-08-12 resolved H-1 to H-4, M-1 to M-6, M-8 and M-9. **M-7 was resolved by James on
+2026-08-12** by restoring the original decision ownership.
 
 Resolved **`D-33`** as a precise requirement — enforcement below the query layer, independent
 of the PDP — **without selecting a technology**, and resolved the design halves of `D-09`,
-`D-10`, `D-34` and `D-35`. **`D-02` remains deferred and untouched.** Every product choice was
-pushed to Section 29 or 38 as `D-09a`, `D-10a`, `D-33a`, `D-34a`, `D-35a`.
+`D-10`, `D-34` and `D-35`. **`D-02` remains deferred and untouched.**
+
+**`S4-P9` closed the entire audit-writer surface.** The `S4-P8` inventory found **58 event classes**,
+only 20 with a defined writer. [ADR 0023](./decisions/0023-audit-record-writer-authority.md) defines
+**three authorities and no others** — `W-1` the execution's own authorization, `W-2` the authorization
+decision itself, `W-3` the control-plane operation's authorization into a **control-plane audit
+partition outside the client scope tree** — plus fail-closed behaviour when a mandatory record cannot
+be written (`I-91`–`I-93`). **`S4-P1` now holds by construction**: no component holds client-scope
+write capability for a control-plane record, because control-plane records are not client records.
+`I-49` and `E-11` were found **not** to conflict and are unamended. ADR 0023 separately authorizes the
+`DATA_ARCHITECTURE.md` and `EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` amendments that ADR 0022 does not
+cover.
+
+**A sixth decision settled what authorizes audit writes.** `S4-P6` (Option A): audit-write
+capability is **authorized by construction** — an already-authorized execution may write audit for
+its own bound scope, for its lifetime only. No separate release decision, no grant class, no second
+authorization authority, no exemption from `I-18`. This **supersedes the `D` half of `S4-P5`**: with
+no release decision there is no recursion to bootstrap. `M-A` was fixed in the same pass — `T-24`'s
+containment claim is now explicitly dependent on `D-33` being implemented and verified.
+
+**A fifth decision closed the audit-write bootstrap.** `S4-P5` (Options **C + D**): audit-write
+capability is acquired once per execution for that execution's single scope, and the release
+decision's own audit record is the first record written under the capability it grants — a bounded
+base case. `I-18` is intact, no second authorization authority exists, and `I-82` is **not** the
+governing mechanism. `H-1` (Option 3): step-up for cross-scope audit review only. `H-2`: no
+`T-27` — `T-20a` covers the compromised audit-reading session.
+
+**James decided four review-raised items on 2026-08-13** — `S4-P1` (audit write is scope-bound;
+no blanket cross-scope audit writer), `S4-P2` (James reads audit directly per scope; no
+centralized audit reader; Observability does not own or read the audit corpus), `S4-P3` (create
+[ADR 0022](./decisions/0022-section-04-amendments-to-accepted-architecture.md) to authorize the
+amendments to accepted documents), and `S4-P4` (the approved disqualification set stays at
+`C-1`, `C-2`, `C-5`, `C-6`). **Deciding these did not approve Section 04** — see
+[`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md).
+
+**Three new decisions were created and approved.** *(Recorded 2026-08-13, N-14.)* `D-33a` (→ 29),
+`D-37` (→ 36) and `D-38` (→ 29) were **created during Section 04** and their ownership was
+**explicitly approved by James on 2026-08-13**. They are new decisions, not reassignments of
+existing ones, and are recorded separately from the M-7 correction so the two are not confused —
+see [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md).
+
+**Section 04 amends nine accepted documents, all marked Proposed in place and all authorized
+through [ADR 0022](./decisions/0022-section-04-amendments-to-accepted-architecture.md)** —
+`MASTER_ARCHITECTURE.md`, `SYSTEM_LAYERS.md`, `SECURITY_BOUNDARIES.md`,
+`PERMISSION_ARCHITECTURE.md`, `RELIABILITY_ARCHITECTURE.md` (Section 02), `INVARIANTS.md`,
+`THREAT_MODEL.md`, `AUTHORIZATION_MODEL.md` (Section 03), and `ai/AI_TERMINOLOGY.md` (Section 01).
+`DATA_ARCHITECTURE.md` is explicitly **out of scope**. **ADR 0022 is Proposed and no ADR is
+accepted**; if it is rejected, every amendment is removed and the accepted text restored verbatim.
+
+**Prior ownership unchanged.** `D-09`, `D-10`, `D-34` and `D-35` remain owned by **Section 04**
+(`D-35`: 04 / 38), as originally established. Four unapproved reassignments made during Section
+04 were withdrawn by James on 2026-08-12 — see
+[`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md). `D-33` follows the
+disposition James confirmed separately.
 
 Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0017-isolation-independent-of-pdp.md):
-cross-client access now requires two independent mechanisms to fail. **Reduced in blast
-radius, not resolved.**
+a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
+only — both mechanisms derive from the Context Token, so compromising the Context service
+defeats both (`T-23a`). Reduced in blast radius, not resolved.**
 
-## Section 05 — Next
+## Section 05 — Not started
 
-**AI Architecture & Model Gateway.** Not started. `D-08` (providers and models) is its to
+**AI Architecture & Model Gateway.** Not started, and not begun pending Section 04's review. `D-08` (providers and models) is its to
 decide; [`architecture/MODEL_ARCHITECTURE.md`](./architecture/MODEL_ARCHITECTURE.md) fixes the
 gateway design it implements.

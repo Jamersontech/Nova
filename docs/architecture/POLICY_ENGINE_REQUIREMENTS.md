@@ -49,6 +49,21 @@ NOVA, so the invariants in [`INVARIANTS.md`](./INVARIANTS.md) can be tested dire
 **P-10 — No model in the decision path.** Authorization is never decided by an AI model.
 Model output may *request* an action; it never *authorizes* one (`I-20`).
 
+**P-11 — The engine must not also be the storage enforcement mechanism.** The engine chosen for
+`D-34` must not become the layer that enforces storage-layer scope restriction. The storage
+enforcement layer must not consult the PDP (`R-7`, `I-62`), and an engine that *is* the
+enforcement layer cannot satisfy that requirement. §3 states what this does and does not buy.
+*(Moved here 2026-08-13, R-7 — `P-11` was defined in §3 while `P-1`–`P-10` sat here and §4 listed
+it as disqualifying, so an implementer reading the requirement set would miss it.)*
+
+**P-12 — Token integrity is part of step 1.** *(Moved here 2026-08-13, R-7, with `P-11`.)* Step 1
+of the ADR 0014 sequence — *context valid* — includes detecting a Context Token modified after
+issuance or fabricated by a non-issuer, and refusing it (`I-87`, `CT-1`–`CT-3`,
+[`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §6). An engine that cannot be given a
+token-validity input, or that treats an unverifiable token as evaluable, does not satisfy `P-4`
+or step 1. **This is a detection requirement on a mechanism that does not yet exist** (`I-87` is
+`[PHYS]`); no unforgeability is claimed.
+
 `P-10` deserves emphasis: an LLM asked "should this be allowed?" is non-deterministic,
 unexplainable, and manipulable by injected content — it violates `P-4`, `P-5`, `P-6`, and
 `I-20` simultaneously.
@@ -73,17 +88,32 @@ rejected at authoring time, not merely produce a denial at runtime.
 
 ## 3. Relationship to Isolation Enforcement
 
-The PDP and the storage enforcement layer are **deliberately independent**
-([`ISOLATION_ENFORCEMENT.md`](./ISOLATION_ENFORCEMENT.md) §4). The engine chosen for `D-34`
-must not become the mechanism that also enforces storage-layer scope restriction — that would
-collapse two independent defenses into one and re-expose the full `T-19` blast radius.
+*Corrected 2026-08-13 (N-1). The earlier text called the two "deliberately independent" and
+described collapsing them as losing "two independent defenses". That is the general-independence
+claim withdrawn under H-2, and it is not what the architecture establishes.*
+
+**The independence this preserves is narrow, and stating it precisely matters:**
+
+| Claim | Status |
+| --- | --- |
+| The enforcement layer is independent **of the PDP** | **Established.** It never consults the PDP (`R-7`, `I-62`), so a compromised PDP alone yields no cross-client data |
+| The two are independent **of each other** | **Established**, in that direction only |
+| The two are independent **of the Context service** | **NOT established, and not claimed.** Both derive their input from the Context Token. Compromise of the Context service, or of token issuance, defeats both together from a single point (`T-23a`) |
+| General two-of-two independence | **Not claimed** (`I-62`) |
+
+Collapsing the engine into the enforcement layer therefore removes the **PDP-compromise**
+mitigation specifically ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)) and
+returns `T-19` to its full blast radius. It does not remove a general two-of-two property,
+because there is none to remove.
+
+**Token integrity is `P-12`**, stated with the rest of the requirement set in §1.
 
 ---
 
 ## 4. Deferred
 
 `D-34` (policy language and engine) remains **deferred**. §1 is the qualification criteria; a
-candidate failing `P-1`–`P-5` or `P-10` is disqualified. Engine selection sits with `D-01`
+candidate failing `P-1`–`P-5`, `P-10`, `P-11`, or `P-12` is disqualified. Engine selection sits with `D-01`
 and `D-02` in Section 29, evaluated against this document.
 
-Invariant: `I-73`.
+Invariants: `I-73`, `I-87`.

@@ -70,10 +70,34 @@ Every system that fails closed needs a defined path for the case where it fails 
 James legitimately needs in*. Leaving this undefined guarantees an undocumented bypass gets
 built under pressure.
 
-**B-1 — Break-glass is for availability failure, never for authorization bypass.** It restores
-James's ability to reach NOVA when authentication or policy is unavailable. **It does not
-grant access to anything he could not otherwise authorize**, and it never bypasses client
-isolation (`I-75`).
+**The normative rule, stated first and without qualification:**
+
+> ### BREAK-GLASS MUST NEVER AUTHORIZE CLIENT-DATA ACCESS.
+> ### BREAK-GLASS MUST NEVER BYPASS THE NORMAL AUTHORIZATION PATH.
+
+*Rewritten 2026-08-12 following adversarial review (H-4). The previous `B-1` was internally
+tense: it claimed both "restores access when policy is unavailable" and "never bypasses
+authorization." Those cannot both be true of a single mechanism acting on data. Resolved by
+confining break-glass to the control plane.*
+
+**B-1 — Control plane only.** Break-glass acts on **platform and control-plane function**, never
+on protected data. It may:
+
+- restore the ability to authenticate,
+- repair or restart policy infrastructure,
+- recover control-plane services,
+- lift an emergency stop.
+
+It may **not**, under any circumstance:
+
+- read, write, export, or otherwise access client data or any protected resource,
+- stand in for the PDP, evaluate authorization, or grant access,
+- act while authorization is unavailable *as though* authorization had been obtained.
+
+**If policy is unavailable, break-glass may restore NOVA's ability to perform authorization. It
+never replaces authorization.** Protected data remains fail-closed throughout (`I-17`, `I-75`).
+The correct sequence is: break-glass → policy restored → normal authorization → data access.
+There is no path from break-glass to data that skips the middle two steps.
 
 **B-2 — Human-only.** No agent, workflow, or automation may invoke it.
 
@@ -83,16 +107,28 @@ recorded, and is visible in Activity. Silent break-glass is indistinguishable fr
 **B-4 — Time-boxed.** Break-glass access expires quickly and automatically; it is not a mode
 NOVA can be left in.
 
-**B-5 — Scoped to recovery.** It permits restoring service — re-authenticating, repairing
-policy, lifting a stop. It does not permit executing client work or reaching credentials.
+**B-5 — Scoped to recovery, consistent with B-1.** Its permitted actions are exactly the
+control-plane recoveries listed in `B-1`. `B-5` adds no capability beyond `B-1`; the two state
+the same boundary from different directions, deliberately, so neither can be read as the
+loophole in the other.
 
-**B-6 — Its own credential path.** Break-glass credentials are stored and protected
-separately, rotated after every use, and never reachable by NOVA's own components.
+**B-6 — Its own credential path.** Break-glass credentials are stored and protected separately
+and are never reachable by NOVA's own components.
 
-**The residual risk, stated:** break-glass is by construction a path around normal controls.
-It is bounded by `B-1`, `B-4`, and `B-5`, and made loud by `B-3`, but it is a deliberate
-weakness accepted in exchange for not being locked out of one's own system. An attacker who
-obtains break-glass credentials obtains recovery-level access.
+**B-7 — Rotation must not assume a healthy platform.** *(Added 2026-08-12, L-5.)* Break-glass
+credentials are used precisely when NOVA is degraded or offline, so **rotation cannot depend on
+NOVA being able to rotate them.** The architecture requires that rotation be possible
+out-of-band, independently of NOVA's availability, and that a credential used during an outage
+be treated as spent and rotated at the earliest opportunity — with the interval between use and
+rotation recorded as exposure. The mechanism is deferred (`D-38`); the requirement that it not
+depend on NOVA's own health is not.
+
+**The residual risk, stated:** break-glass is a path around normal *availability* controls. It
+is bounded to the control plane by `B-1` and `B-5`, time-boxed by `B-4`, and made loud by `B-3`
+— but an attacker obtaining break-glass credentials obtains **control-plane recovery access**,
+which includes the ability to repair (and therefore potentially to alter) policy infrastructure.
+That is a genuine and accepted weakness. It is *not* direct access to client data, and the
+architecture must not be implemented in a way that makes it so.
 
 ---
 
