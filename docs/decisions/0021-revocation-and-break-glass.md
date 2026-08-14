@@ -1,7 +1,8 @@
 # 0021 — Revocation Takes Effect at the Next Decision; Break-Glass Is Bounded
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-12 — Section 04
+**Accepted:** 2026-08-13 by James
 **Section:** 04
 
 ## Decision

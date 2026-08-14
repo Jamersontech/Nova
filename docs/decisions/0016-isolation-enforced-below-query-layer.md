@@ -1,7 +1,8 @@
 # 0016 — Isolation Is Enforced Below the Query Layer
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-12 — Section 04
+**Accepted:** 2026-08-13 by James
 **Section:** 04
 **Resolves:** `D-33` — as a requirement, not a technology
 

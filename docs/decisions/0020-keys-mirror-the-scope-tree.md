@@ -1,7 +1,8 @@
 # 0020 — Encryption Keys Mirror the Scope Tree
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-12 — Section 04
+**Accepted:** 2026-08-13 by James
 **Section:** 04
 **Partially resolves:** `D-35` — requirements; mechanism deferred to 38
 

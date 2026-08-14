@@ -1,7 +1,8 @@
 # 0019 — Secrets Storage Is Separate, Broker-Only, and Per-Scope Isolated
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-12 — Section 04
+**Accepted:** 2026-08-13 by James
 **Section:** 04
 **Partially resolves:** `D-10` — requirements, not the product
 

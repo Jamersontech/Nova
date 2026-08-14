@@ -1,7 +1,8 @@
 # 0018 — Multi-Factor, Phishing-Resistant Authentication with Step-Up
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-12 — Section 04
+**Accepted:** 2026-08-13 by James
 **Section:** 04
 **Partially resolves:** `D-09` — the model, not the provider
 

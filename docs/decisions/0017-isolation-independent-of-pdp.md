@@ -1,7 +1,8 @@
 # 0017 — Isolation Enforcement Is Independent of the Policy Decision Point
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-12 — Section 04
+**Accepted:** 2026-08-13 by James
 **Section:** 04
 **Partially mitigates:** `T-19` (compromised PDP)
 

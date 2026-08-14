@@ -1,7 +1,8 @@
 # 0023 — Audit Record Writer Authority and the Control-Plane Audit Partition
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-13 — Section 04
+**Accepted:** 2026-08-13 by James
 **Section:** 04
 **Resolves:** `S4-P7` / `S4-P8` — who is authorized to write every audit record NOVA requires
 **Also authorizes:** the Section 04 amendments to `DATA_ARCHITECTURE.md` and

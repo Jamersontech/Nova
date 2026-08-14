@@ -1,7 +1,8 @@
 # 0022 — Section 04 Amendments to Accepted Architecture
 
-**Status:** Proposed
+**Status:** **Accepted**
 **Proposed:** 2026-08-13 — Section 04
+**Accepted:** 2026-08-13 by James
 **Section:** 04
 **Purpose:** Formally authorize the Section 04 amendments to Active/Accepted documents that ADRs
 `0016`–`0021` require but do not explicitly authorize.
