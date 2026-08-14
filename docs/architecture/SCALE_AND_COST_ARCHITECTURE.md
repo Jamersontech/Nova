@@ -107,8 +107,7 @@ that they terminate rather than degrade, and that they fail closed above `PREPAR
 **The ceiling belongs to the root execution, not to each execution.** ***PROPOSED — added by
 Section 06, not yet accepted*** *(2026-08-14; authority
 [ADR 0029](../decisions/0029-delegated-authority.md) and
-[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).* **Section 05 wrote the ceiling per execution and thereby left the
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* **Section 05 wrote the ceiling per execution and thereby left the
 vector it had just named open**: a delegation tree of N executions received N ceilings, so a child
 could manufacture capacity its parent never held. **Every descendant now consumes from the root
 execution's single budget** (`I-108`). A child cannot mint capacity, receive a fresh budget, raise

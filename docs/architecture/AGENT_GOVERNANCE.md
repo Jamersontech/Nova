@@ -1,6 +1,6 @@
 # Agent Governance
 
-**Status:** **Proposed** — Section 06, pending James's approval.
+**Status:** **Active** — Section 06, accepted by James 2026-08-14 (ADRs `0029`–`0031`).
 **Covers:** how delegated authority is derived, bounded, budgeted and ended; which agent
 operations are governed at which change class; and what an approval binds.
 **Extends:** [`AGENT_ARCHITECTURE.md`](./AGENT_ARCHITECTURE.md) (Section 02, Active),

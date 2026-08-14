@@ -81,7 +81,7 @@ to multiple clients' data.
 **Termination** is always available: on completion, failure, denial, escalation withdrawal,
 or emergency stop. A running agent can always be stopped.
 
-> ¹ **CORRECTED BY SECTION 06 — PROPOSED, not yet accepted.** *(2026-08-14.)* **As accepted
+> ¹ **CORRECTED BY SECTION 06 — ACCEPTED by James 2026-08-14.** *(2026-08-14.)* **As accepted
 > 2026-08-12 the bullet read** *"The runtime cannot **issue** a token exceeding it, regardless of
 > what the orchestrator requests."* **That wording is wrong as accepted**, not merely loose: `I-87`
 > requires every consumer to reject a token *"fabricated by anything other than the Context
@@ -100,8 +100,7 @@ or emergency stop. A running agent can always be stopped.
 > deliberately introduces none (`AG-12`).
 >
 > Authority: [ADR 0029](../decisions/0029-delegated-authority.md) and
-> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both
-> **Proposed**; the accepted text is restored verbatim if either is rejected.
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14.
 
 ---
 

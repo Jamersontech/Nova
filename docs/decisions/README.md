@@ -239,20 +239,22 @@ day. **No Section 04 architecture was changed** — only the sentences describin
 
 ---
 
-### Section 06 — Proposed, awaiting James
+### Section 06 — **Accepted by James 2026-08-14**
 
 | # | Decision | Status |
 | --- | --- | --- |
-| [0029](./0029-delegated-authority.md) | Delegated authority is verified at issuance by the sole issuer, structurally bounded (strict narrowing, no ancestry cycles, explicit re-delegation), budgeted per delegation tree, and cannot outlive its granting execution identity | Proposed |
-| [0030](./0030-agent-governance-and-approval-binding.md) | Agent lifecycle operations classified under the **existing** C1/C2/C3 model; an approval binds nine effective-authorization properties | Proposed |
-| [0031](./0031-section-06-amendments-to-accepted-architecture.md) | Section 06 amendments to accepted architecture — authorizes all thirteen | Proposed |
+| [0029](./0029-delegated-authority.md) | Delegated authority is verified at issuance by the sole issuer, structurally bounded (strict narrowing, no ancestry cycles, explicit re-delegation), budgeted per delegation tree, and cannot outlive its granting execution identity | **Accepted** |
+| [0030](./0030-agent-governance-and-approval-binding.md) | Agent lifecycle operations classified under the **existing** C1/C2/C3 model; an approval binds nine effective-authorization properties | **Accepted** |
+| [0031](./0031-section-06-amendments-to-accepted-architecture.md) | Section 06 amendments to accepted architecture — authorizes all thirteen | **Accepted** |
 
 ### Amendment-authority audit — Section 06 edits to Active/Accepted documents
 
 **No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
 All thirteen are authorized by
-[ADR 0031](./0031-section-06-amendments-to-accepted-architecture.md), are **Proposed**, and are
-marked in place. **Three are corrections of accepted text that is wrong**, not additions — rows 1,
+[ADR 0031](./0031-section-06-amendments-to-accepted-architecture.md) and were **accepted with ADRs
+`0029`–`0031` on 2026-08-14; their in-place Proposed markings were cleared at acceptance** — the
+step Section 04's acceptance omitted, which is why eighteen stale markings still sit in Section 04
+material (recorded as outstanding in [`../ROADMAP.md`](../ROADMAP.md)). **Three are corrections of accepted text that is wrong**, not additions — rows 1,
 3 and 10 — and are flagged as such because a correction deserves more scrutiny than an addition.
 
 | # | Document | Section / status | What Section 06 changes |

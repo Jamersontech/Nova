@@ -1,7 +1,8 @@
 # 0030 — Agent Governance Classification and What an Approval Binds
 
-**Status:** **Proposed**
+**Status:** **Accepted**
 **Proposed:** 2026-08-14 — Section 06
+**Accepted:** 2026-08-14 by James
 **Section:** 06
 **Resolves:** `S6-D4`, `S6-D5`
 

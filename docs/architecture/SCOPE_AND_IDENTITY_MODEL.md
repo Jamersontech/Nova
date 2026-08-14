@@ -149,10 +149,9 @@ permitted** — unbounded delegation is how temporary access becomes permanent.
 
 Re-delegation is allowed only where the original delegation permits it, and narrows again.
 
-> ¹ **AMENDED BY SECTION 06 — PROPOSED, not yet accepted.** *(2026-08-14; authority
+> ¹ **AMENDED BY SECTION 06 — ACCEPTED by James 2026-08-14.** *(2026-08-14; authority
 > [ADR 0029](../decisions/0029-delegated-authority.md) and
-> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
-> the accepted list is restored verbatim if either is rejected.)*
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14.)*
 >
 > **The two new fields fix a rule that tested data the record did not carry.** As accepted, the
 > paragraph above conditions re-delegation on *"where the original delegation permits it"* while

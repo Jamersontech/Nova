@@ -57,10 +57,9 @@ clients mid-conversation. The surface shows the active context at all times
 **Inheritance** narrows only. A child context may be a subset of its parent's scope, never
 a sibling, never broader.
 
-**Issuance is verified.** ***PROPOSED — added by Section 06, not yet accepted*** *(2026-08-14;
+**Issuance is verified.** ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14;
 authority [ADR 0029](../decisions/0029-delegated-authority.md) and
-[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).* **The Context service is the sole issuer of Context Tokens**,
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* **The Context service is the sole issuer of Context Tokens**,
 including the narrowed tokens dispatched agents carry — already implied by `I-87`, which obliges
 every consumer to reject a token "fabricated by anything other than the Context service", and by
 [`SYSTEM_LAYERS.md`](./SYSTEM_LAYERS.md) §5 point 1. **The Agent Runtime requests narrowing; it
@@ -146,7 +145,7 @@ B's; the call is denied.
 | Referenced resource is outside the active scope | Deny and report. Do not widen context to accommodate |
 | Context expired mid-workflow | Pause the workflow, request re-establishment |
 | Agent requests scope beyond its grant | Deny, record, escalate |
-| Request exceeds the agent definition, the parent token, or a delegation bound | **Refuse issuance entirely.** No partial token; recorded (`I-106`) — *Section 06, Proposed* |
+| Request exceeds the agent definition, the parent token, or a delegation bound | **Refuse issuance entirely.** No partial token; recorded (`I-106`) — *Section 06* |
 
 The consistent principle: **when context is uncertain, the system stops rather than
 guesses.** Acting in the wrong client context is a security incident

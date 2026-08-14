@@ -151,11 +151,9 @@ so that what NOVA may do autonomously is always inspectable.
 **An approval authorizes one action, in one context, at one time.** It never becomes a
 precedent, and it is never inferred from a previous approval.
 
-**What makes it the *same* action at execution time.** ***PROPOSED — added by Section 06, not yet
-accepted*** *(2026-08-14; authority
+**What makes it the *same* action at execution time.** ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
-[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).* The sentence above fixes **how many times** an approval may be
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* The sentence above fixes **how many times** an approval may be
 used. It did not fix **what it is an approval of** — so between approval and execution the agent
 definition, its tool set, its effective rights, its delegation chain or its budget could change and
 the approval would still appear to apply.

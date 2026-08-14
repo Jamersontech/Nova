@@ -177,7 +177,7 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 
 > ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority ADRs
 > [0024](../decisions/0024-model-gateway-is-an-enforcement-point.md)–[0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md),
-> removed if they are rejected).*
+> all **Accepted** 2026-08-14).*
 
 | Risk | Detail | Owner |
 | --- | --- | --- |
@@ -192,9 +192,9 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 
 ## 3.6 Risks Identified in Section 06 — delegated authority
 
-> ***PROPOSED — added by Section 06, not yet accepted*** *(2026-08-14; authority ADRs
+> ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority ADRs
 > [0029](../decisions/0029-delegated-authority.md)–[0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md),
-> removed if they are rejected).*
+> all **Accepted** 2026-08-14).*
 
 | Risk | Detail | Owner |
 | --- | --- | --- |

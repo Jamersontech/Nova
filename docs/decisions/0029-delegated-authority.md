@@ -1,7 +1,8 @@
 # 0029 — Delegated Authority Is Verified at Issuance, Structurally Bounded, and Cannot Outlive Its Source
 
-**Status:** **Proposed**
+**Status:** **Accepted**
 **Proposed:** 2026-08-14 — Section 06
+**Accepted:** 2026-08-14 by James
 **Section:** 06
 **Resolves:** `S6-D1`, `S6-D2`, `S6-D3`, `S6-D6`
 

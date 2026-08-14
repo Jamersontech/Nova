@@ -86,10 +86,9 @@ An agent may not:
 These prohibitions are enforced by design, not by instruction alone. An architecture in
 which an agent *could* violate them but is *told* not to does not satisfy this document. ¹
 
-> ¹ **QUALIFIED BY SECTION 06 — PROPOSED, not yet accepted.** *(2026-08-14; authority
+> ¹ **QUALIFIED BY SECTION 06 — ACCEPTED by James 2026-08-14.** *(2026-08-14; authority
 > [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
-> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed.
-> The accepted sentence is restored verbatim if either is rejected.)* **The prohibitions stand
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14.)* **The prohibitions stand
 > unchanged. The claim about their enforcement did not survive examination, and the honest position
 > is recorded rather than defended.**
 >

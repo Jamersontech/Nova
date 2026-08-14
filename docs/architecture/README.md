@@ -28,7 +28,7 @@ document; everything else elaborates one part of it.
 | [`CONTEXT_ARCHITECTURE.md`](./CONTEXT_ARCHITECTURE.md) | How NOVA knows *where* it is working |
 | [`MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`](./MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md) | Memory, knowledge, documents, live data |
 | [`AGENT_ARCHITECTURE.md`](./AGENT_ARCHITECTURE.md) | Internal agents; vs. external coding agents |
-| [`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) | How delegated authority is derived, bounded, budgeted and ended; agent governance classes; what an approval binds *(§6 — Proposed)* |
+| [`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) | How delegated authority is derived, bounded, budgeted and ended; agent governance classes; what an approval binds *(§6)* |
 | [`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) | The orchestrator; workflows |
 | [`EXECUTION_ARCHITECTURE.md`](./EXECUTION_ARCHITECTURE.md) | Coding agents; the KAIRO client model |
 | [`DATA_ARCHITECTURE.md`](./DATA_ARCHITECTURE.md) | Entities, relationships, invariants |
@@ -41,8 +41,8 @@ document; everything else elaborates one part of it.
 | [`CROSS_SCOPE_DATA_RULES.md`](./CROSS_SCOPE_DATA_RULES.md) | Aggregation, derived data, side channels, cross-domain *(§3)* |
 | [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) | Tools, integrations, credentials |
 | [`MODEL_ARCHITECTURE.md`](./MODEL_ARCHITECTURE.md) | Provider-neutral model access |
-| [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) | What may be sent to a model, where, and under whose authority *(§5 — Proposed)* |
-| [`MODEL_TRUST_AND_AUTHORITY.md`](./MODEL_TRUST_AND_AUTHORITY.md) | What model output may cause, and what it may never establish *(§5 — Proposed)* |
+| [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) | What may be sent to a model, where, and under whose authority *(§5)* |
+| [`MODEL_TRUST_AND_AUTHORITY.md`](./MODEL_TRUST_AND_AUTHORITY.md) | What model output may cause, and what it may never establish *(§5)* |
 | [`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) | Events, traces, audit |
 | [`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) | Failure, retry, partial completion |
 | [`USER_INTERFACE_ARCHITECTURE.md`](./USER_INTERFACE_ARCHITECTURE.md) | Information architecture; devices |

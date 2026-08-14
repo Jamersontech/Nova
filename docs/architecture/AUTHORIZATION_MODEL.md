@@ -65,10 +65,9 @@ configured.
 **Every outcome is recorded** — allow, deny, and approval-required alike. Denials are the
 more interesting signal.
 
-**Where `I-07`'s intersection is enforced.** ***PROPOSED — added by Section 06, not yet accepted***
+**Where `I-07`'s intersection is enforced.** ***Added by Section 06 — ACCEPTED by James 2026-08-14***
 *(2026-08-14; authority [ADR 0029](../decisions/0029-delegated-authority.md) and
-[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).* **The ten steps above are unchanged.** This note exists because a
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* **The ten steps above are unchanged.** This note exists because a
 reader checking where `I-07` is enforced finds nothing here and would reasonably conclude nothing
 enforces it.
 

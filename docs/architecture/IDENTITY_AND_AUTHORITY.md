@@ -155,10 +155,9 @@ costs one question.
 | **Replacing an agent definition** ¹ | **C3** | A replacement is a new definition carrying authority-bearing fields |
 | **Instantiating an agent execution** ¹ | **not governance** | Execution, bounded at token issuance (`I-106`) |
 
-> ¹ ***PROPOSED — added by Section 06, not yet accepted*** *(2026-08-14; authority
+> ¹ ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 > [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
-> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
-> removed if either is rejected).* **No new change class is created and no existing class is
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* **No new change class is created and no existing class is
 > reinterpreted.** §4 already classes "New components… tool definitions" as C2 and "agent authority"
 > as C3, and the row above already classes *agent permissions* C3 — but **no agent lifecycle
 > operation was named anywhere**, so agent *creation*, the operation that fixes an agent's

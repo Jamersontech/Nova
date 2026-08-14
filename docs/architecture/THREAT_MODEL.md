@@ -356,7 +356,7 @@ answer is simply not consulted or not obeyed.
 | **Data access PEP** | Grants, risk ceiling, classification, conditions on the read/write path | **Cross-client isolation holds — but only once `D-33` is implemented and verified.** Structural storage isolation sits beneath the PEP, never consults it, and restricts to the bound scope (`I-77`, `R-9`, ADR 0016). **`I-60`–`I-63` are `[PHYS]` and unbuilt**, so **today a compromised Data access PEP does yield cross-client data**; the confinement is a property of the future implemented system, not the present one |
 | **Tool call PEP** | Risk-class and scope checks on tool invocation | The Credential Broker performs its **own** scope check (`S-3`, broker step 2) rather than trusting the caller |
 | **Credential PEP** | The scope check at credential request | Binding state, expiry, revocation and permitted-operation checks are the broker's own (steps 3–4), and are not the PEP's to skip |
-| **Orchestration / Agent Runtime PEP** | Narrowing on dispatch; an agent could **request** a token it should not have | ***Corrected by Section 06 — PROPOSED*** *(2026-08-14, ADRs [0029](../decisions/0029-delegated-authority.md)/[0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md))*: **the previous answer — "rights remain an intersection (`I-07`)" — was circular**, since the intersection was what the compromised component computed. **The runtime does not issue tokens.** Context is the sole issuer (`I-87`) and refuses any request exceeding the parent token, the agent definition, James's grants, or the delegation bounds (`I-106`, `I-107`). A runtime-minted token fails integrity detection at every point. `I-08` and the downstream points still hold |
+| **Orchestration / Agent Runtime PEP** | Narrowing on dispatch; an agent could **request** a token it should not have | ***Corrected by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14, ADRs [0029](../decisions/0029-delegated-authority.md)/[0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md))*: **the previous answer — "rights remain an intersection (`I-07`)" — was circular**, since the intersection was what the compromised component computed. **The runtime does not issue tokens.** Context is the sole issuer (`I-87`) and refuses any request exceeding the parent token, the agent definition, James's grants, or the delegation bounds (`I-106`, `I-107`). A runtime-minted token fails integrity detection at every point. `I-08` and the downstream points still hold |
 
 **Residual:** **Real and only partly bounded.** A compromised PEP is an authorization failure
 *within* the scope it is bound to, and nothing detects it from the authorization trail — the same
@@ -369,7 +369,7 @@ enforcement-point behaviour is **undesigned**, exactly as it is for the PDP. Det
 from effects, not from records.
 
 ### T-33 Delegation-tree abuse
-*Added 2026-08-14 — **PROPOSED**, Section 06. Authority
+*Added 2026-08-14 — Section 06, **Accepted** by James 2026-08-14. Authority
 [ADR 0029](../decisions/0029-delegated-authority.md) and
 [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md).*
 
@@ -389,7 +389,7 @@ chains will hit the lattice floor and stop; that is intended and will occasional
 And every control here is enforced by the Context service, so `T-23a` bounds all of them.
 
 ### T-34 Approval substitution
-*Added 2026-08-14 — **PROPOSED**, Section 06.*
+*Added 2026-08-14 — Section 06, **Accepted** by James 2026-08-14.*
 
 **Failure:** James approves an action; between approval and execution the agent definition, its
 tool set, its effective rights, its delegation chain or its budget changes; the materially

@@ -30,7 +30,7 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 03 — Data, Scope, Identity & Memory Architecture | **Complete — Accepted by James 2026-08-12 (as amended)** |
 | 04 — Security, Identity & Permissions | **Complete — ADRs `0016`–`0023` Accepted by James 2026-08-13** |
 | 05 — AI Architecture & Model Gateway | **Complete — ADRs `0024`–`0028` Accepted by James 2026-08-14** |
-| 06 — Agent Architecture & Agent Governance | **PROPOSED, awaiting James's approval** |
+| 06 — Agent Architecture & Agent Governance | **Complete — ADRs `0029`–`0031` Accepted by James 2026-08-14** |
 | 07 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
@@ -258,7 +258,7 @@ a compromised PDP alone no longer yields cross-client data. **The independence i
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
 
-## Section 06 — PROPOSED, awaiting James's approval
+## Section 06 — **Complete: ADRs `0029`–`0031` Accepted by James 2026-08-14**
 
 **Agent Architecture & Agent Governance.** Section 05 was accepted on 2026-08-14 and Section 06
 begun the same day at James's instruction. `AGENT_ARCHITECTURE.md` (Section 02) and
@@ -267,7 +267,7 @@ begun the same day at James's instruction. `AGENT_ARCHITECTURE.md` (Section 02) 
 **Delivered — all Proposed:** [`architecture/AGENT_GOVERNANCE.md`](./architecture/AGENT_GOVERNANCE.md),
 ADRs `0029`–`0031`, invariants `I-106`–`I-109`, threats `T-33`–`T-34`.
 
-**Six decisions, approved by James in principle 2026-08-14 and recorded as Proposed ADRs.** Token
+**Six decisions, approved and accepted by James on 2026-08-14.** Token
 issuance is verified by the Context service, the sole issuer — **the runtime requests narrowing and
 never mints** (`I-106`), which is where `I-07`'s intersection stops being asserted. Delegation is
 **strictly narrowing, acyclic, and explicitly re-delegable** with `may_redelegate` defaulting to
@@ -289,10 +289,12 @@ claim covers five of seven prohibitions, six as of Section 06 — **prohibition 
 enforced and NOVA has no component that could enforce it.** The overclaim is corrected, not
 defended.
 
-**Section 06 amends thirteen accepted documents**, all marked Proposed in place and authorized
-through [ADR 0031](./decisions/0031-section-06-amendments-to-accepted-architecture.md). **No ADR is
-accepted.** `I-01`–`I-105` are **unmodified**. `D-25a` remains deferred, blocked on `D-01`/`D-04`;
-`D-25` was not reopened.
+**Section 06 amends thirteen accepted documents**, all authorized through
+[ADR 0031](./decisions/0031-section-06-amendments-to-accepted-architecture.md) and all **accepted
+with it on 2026-08-14**; their in-place Proposed markings were cleared at acceptance, so no stale
+removal condition is left behind. `I-01`–`I-105` are **unmodified**. `D-25a` remains deferred,
+blocked on `D-01`/`D-04`; `D-25` was not reopened. Changing any Section 06 decision now requires a
+superseding ADR, not an edit.
 
 **Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
 reordered.

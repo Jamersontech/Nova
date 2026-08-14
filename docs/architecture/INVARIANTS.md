@@ -307,11 +307,9 @@ decided and implemented.
 
 ## Added by Section 06 — Agent Architecture & Agent Governance
 
-> **`I-106`–`I-109` are PROPOSED, not accepted.** *(Added 2026-08-14.)* This file is Active
-> Section 03 material and every change to it is C3. **Everything from `I-106` down is proposed
-> through Section 06 and stands or falls with ADRs `0029`–`0031`, which are Proposed.** If those
-> ADRs are rejected, these invariants are removed rather than retained. `I-01`–`I-105` are
-> **unmodified** by Section 06.
+> **`I-106`–`I-109` were accepted by James on 2026-08-14 with ADRs `0029`–`0031`.** *(Added and
+> accepted 2026-08-14.)* This file is Active Section 03 material and every change to it is C3.
+> `I-01`–`I-105` are **unmodified** by Section 06.
 
 *Same status as every invariant above: REQUIREMENT, unverified.*
 

@@ -317,10 +317,9 @@ degraded basis to stay within budget.
 (`SCALE_AND_COST_ARCHITECTURE.md` §4), which is what makes an abnormal consumption pattern
 visible as a signal rather than only as an invoice.
 
-**`MG-18a` — The ceiling belongs to the ROOT execution.** ***Amended by Section 06 — PROPOSED,
-not yet accepted*** *(2026-08-14; authority
+**`MG-18a` — The ceiling belongs to the ROOT execution.** ***Amended by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 [ADR 0029](../decisions/0029-delegated-authority.md) and
-[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed).*
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).*
 `MG-18` as accepted reads *per execution*, which left the very vector it names open: a delegation
 tree is N executions and would receive N ceilings. **Every descendant consumes from the root
 execution's single budget** (`I-108`,
