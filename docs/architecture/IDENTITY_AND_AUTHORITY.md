@@ -146,6 +146,26 @@ costs one question.
 | Technology decisions | C3 | James, on proposal with alternatives and lock-in analysis |
 | Agent permissions | C3 | James. No agent may alter its own or another's |
 | Adding a business/client/project | C1 | Configuration within approved architecture — NOVA may do this on James's instruction |
+| **Creating an agent** ¹ | **C3** | Creation necessarily sets Permissions, Allowed Context and Allowed Tools — mandatory fields — so it always sets agent authority |
+| **Registering or changing an agent definition** ¹ | **C2** | A new component, the direct analogue of a tool definition |
+| …where it sets or changes Permissions, Allowed Context, Allowed Tools, or risk ceiling ¹ | **C3** | Agent permissions are already C3 in the row above |
+| **Changing an agent's model / capability profile** ¹ | **C2** | Not an authority — egress is decided per call by Section 05 (`I-94`, `I-97`, `I-98`) |
+| **Activating an agent** ¹ | part of the governed registration/creation act | Separating them would create a window in which a definition is approved but its activation is not |
+| **Suspending or revoking an agent** ¹ | **C1** | Restriction. Gating removal like granting would make the safety operation slower than the dangerous one |
+| **Replacing an agent definition** ¹ | **C3** | A replacement is a new definition carrying authority-bearing fields |
+| **Instantiating an agent execution** ¹ | **not governance** | Execution, bounded at token issuance (`I-106`) |
+
+> ¹ ***PROPOSED — added by Section 06, not yet accepted*** *(2026-08-14; authority
+> [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
+> removed if either is rejected).* **No new change class is created and no existing class is
+> reinterpreted.** §4 already classes "New components… tool definitions" as C2 and "agent authority"
+> as C3, and the row above already classes *agent permissions* C3 — but **no agent lifecycle
+> operation was named anywhere**, so agent *creation*, the operation that fixes an agent's
+> authority in the first place, had no class and could be read as C1 configuration. That was the
+> shortest available path from model output to a privileged agent. **Registration and activation
+> are authorization; instantiation is execution; none of this is configuration.** Full model:
+> [`../architecture/AGENT_GOVERNANCE.md`](../architecture/AGENT_GOVERNANCE.md) §5.
 
 **On the roadmap specifically:** `ROADMAP.md` says sections are not strictly sequential and
 may be combined. That statement describes *James's* latitude, not an agent's. An agent

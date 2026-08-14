@@ -57,6 +57,32 @@ clients mid-conversation. The surface shows the active context at all times
 **Inheritance** narrows only. A child context may be a subset of its parent's scope, never
 a sibling, never broader.
 
+**Issuance is verified.** ***PROPOSED — added by Section 06, not yet accepted*** *(2026-08-14;
+authority [ADR 0029](../decisions/0029-delegated-authority.md) and
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
+removed if either is rejected).* **The Context service is the sole issuer of Context Tokens**,
+including the narrowed tokens dispatched agents carry — already implied by `I-87`, which obliges
+every consumer to reject a token "fabricated by anything other than the Context service", and by
+[`SYSTEM_LAYERS.md`](./SYSTEM_LAYERS.md) §5 point 1. **The Agent Runtime requests narrowing; it
+never mints.**
+
+Before issuing, Context refuses any request whose resulting token would exceed **any** of: the
+requesting execution's own integrity-verified token; the named **agent definition's** Allowed
+Context, Allowed Tools and Permissions; James-created grants; or the delegation constraints of
+`I-107`. **This is the only point at which all four `I-07` inputs exist together**, and it is where
+`I-07` stops being asserted and starts being checked (`I-106`,
+[`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) §2).
+
+**Refusal is total and fail-closed:** on mismatch, on a token failing integrity, on an unreadable
+or incomplete agent definition, or on any uncertainty — **no token is issued**, the request is
+denied, and the refusal is recorded. **There is no partial issuance.**
+
+**This does not make Context an authorization decider.** §1's separation holds: the check can only
+**refuse to issue**, never permit what the PDP denied. **And it does not mitigate compromise of the
+Context service** — a compromised Context service issues genuine tokens and would be performing
+this check on itself. `T-23a` is unchanged. It does add one dependency: Context must read the agent
+registry.
+
 **Expiration.** Contexts are time-bound. An abandoned context does not remain usable
 indefinitely — particularly one carrying execute rights.
 
@@ -120,6 +146,7 @@ B's; the call is denied.
 | Referenced resource is outside the active scope | Deny and report. Do not widen context to accommodate |
 | Context expired mid-workflow | Pause the workflow, request re-establishment |
 | Agent requests scope beyond its grant | Deny, record, escalate |
+| Request exceeds the agent definition, the parent token, or a delegation bound | **Refuse issuance entirely.** No partial token; recorded (`I-106`) — *Section 06, Proposed* |
 
 The consistent principle: **when context is uncertain, the system stops rather than
 guesses.** Acting in the wrong client context is a security incident

@@ -144,7 +144,34 @@ James → NOVA → coordinator → specialist → tool → external service
 ```
 
 A delegation carries: delegator, delegate, scope (⊆ delegator's), rights (⊆ delegator's),
-expiry, and purpose. **A delegation with no expiry is not permitted** — unbounded
-delegation is how temporary access becomes permanent.
+expiry, purpose, **`may_redelegate`** and **`ancestry`**. ¹ **A delegation with no expiry is not
+permitted** — unbounded delegation is how temporary access becomes permanent.
 
 Re-delegation is allowed only where the original delegation permits it, and narrows again.
+
+> ¹ **AMENDED BY SECTION 06 — PROPOSED, not yet accepted.** *(2026-08-14; authority
+> [ADR 0029](../decisions/0029-delegated-authority.md) and
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
+> the accepted list is restored verbatim if either is rejected.)*
+>
+> **The two new fields fix a rule that tested data the record did not carry.** As accepted, the
+> paragraph above conditions re-delegation on *"where the original delegation permits it"* while
+> the field list contained **no such field** — an implementer had nothing to check.
+> **`may_redelegate` is explicit and defaults to false**, so a capability an agent may *use* is not
+> thereby one it may *pass on*. **`ancestry`** records the chain of delegators, which is what makes
+> cycle refusal possible.
+>
+> **Four bounding rules** ([`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) §3, `I-107`), all checked
+> at issuance (`I-106`):
+>
+> 1. **Strict narrowing.** Strictly narrower in at least one of scope, rights, tools, or risk
+>    ceiling, **and** strictly earlier expiry. **This is what bounds depth** — each step descends a
+>    finite authority lattice — which is why no numeric depth limit exists.
+> 2. **No ancestry cycles.** Refused if the delegate already appears in its own `ancestry`.
+> 3. **Explicit re-delegation**, per the field above.
+> 4. **No fan-out count limit.** Parallel children are bounded by the shared root-execution budget
+>    (`I-108`), which already governs the resource fan-out consumes.
+>
+> **A delegation cannot outlive its delegator's execution identity** — completion, failure,
+> termination, revocation and emergency stop alike; the delegate fails closed at its next
+> enforcement point (`V-2`, `AG-11`).

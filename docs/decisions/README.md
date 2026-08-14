@@ -239,5 +239,42 @@ day. **No Section 04 architecture was changed** — only the sentences describin
 
 ---
 
+### Section 06 — Proposed, awaiting James
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0029](./0029-delegated-authority.md) | Delegated authority is verified at issuance by the sole issuer, structurally bounded (strict narrowing, no ancestry cycles, explicit re-delegation), budgeted per delegation tree, and cannot outlive its granting execution identity | Proposed |
+| [0030](./0030-agent-governance-and-approval-binding.md) | Agent lifecycle operations classified under the **existing** C1/C2/C3 model; an approval binds nine effective-authorization properties | Proposed |
+| [0031](./0031-section-06-amendments-to-accepted-architecture.md) | Section 06 amendments to accepted architecture — authorizes all thirteen | Proposed |
+
+### Amendment-authority audit — Section 06 edits to Active/Accepted documents
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+All thirteen are authorized by
+[ADR 0031](./0031-section-06-amendments-to-accepted-architecture.md), are **Proposed**, and are
+marked in place. **Three are corrections of accepted text that is wrong**, not additions — rows 1,
+3 and 10 — and are flagged as such because a correction deserves more scrutiny than an addition.
+
+| # | Document | Section / status | What Section 06 changes |
+| --- | --- | --- | --- |
+| 1 | [`../architecture/AGENT_ARCHITECTURE.md`](../architecture/AGENT_ARCHITECTURE.md) §2, §3 | 02 · Active | **CORRECTION** — "the runtime cannot *issue* a token" is impossible under `I-87`; the runtime requests, Context issues. Child lifetime; no suspended state |
+| 2 | [`../ai/AGENT_PRINCIPLES.md`](../ai/AGENT_PRINCIPLES.md) §4 | 01 · Active | The "enforced by design" claim qualified per prohibition; prohibition 6 recorded as unenforced |
+| 3 | [`../architecture/SCOPE_AND_IDENTITY_MODEL.md`](../architecture/SCOPE_AND_IDENTITY_MODEL.md) §5 | 03 · Active | **CORRECTION** — `may_redelegate` and `ancestry` added; §5's re-delegation rule tested a field the record lacked. Four bounding rules |
+| 4 | [`../architecture/IDENTITY_AND_AUTHORITY.md`](../architecture/IDENTITY_AND_AUTHORITY.md) §5 | 02 · Active | Agent lifecycle governance rows. **No new change class** |
+| 5 | [`../architecture/CONTEXT_ARCHITECTURE.md`](../architecture/CONTEXT_ARCHITECTURE.md) §2, §5 | 02 · Active | Issuance verification; conflict row |
+| 6 | [`../architecture/AUTHORIZATION_MODEL.md`](../architecture/AUTHORIZATION_MODEL.md) §3 | 03 · Active | Note on where `I-07` is enforced. **The ten steps are unchanged** |
+| 7 | [`../architecture/PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) §5 | 02 · Active | The nine-property approval binding |
+| 8 | [`../architecture/SCALE_AND_COST_ARCHITECTURE.md`](../architecture/SCALE_AND_COST_ARCHITECTURE.md) §4 | 02 · Active | Ceiling belongs to the root execution |
+| 9 | [`../architecture/MODEL_GATEWAY_ARCHITECTURE.md`](../architecture/MODEL_GATEWAY_ARCHITECTURE.md) §7 | **05 · Active** | `MG-18a` — same. Amends Section 05 material accepted the same day, because Section 05 shipped the gap |
+| 10 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | **CORRECTION** — `T-24`'s Agent-Runtime row was circular. `T-33`, `T-34` added |
+| 11 | [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1 | 03 · Active | Agent-definition lifecycle and delegation categories. **No new audit authority** |
+| 12 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | `I-106`–`I-109`. **`I-01`–`I-105` unmodified** |
+| 13 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.6 | 03 · Active | Six Section 06 residual risks |
+
+**Registers and status records, not amendments:** `ROADMAP.md`, `docs/README.md`,
+`DEFERRED_DECISIONS.md` (`D-25a`), `architecture/README.md` and this file.
+
+---
+
 Decisions that were consciously postponed are tracked separately in
 [`DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md).

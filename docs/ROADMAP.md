@@ -30,7 +30,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 03 — Data, Scope, Identity & Memory Architecture | **Complete — Accepted by James 2026-08-12 (as amended)** |
 | 04 — Security, Identity & Permissions | **Complete — ADRs `0016`–`0023` Accepted by James 2026-08-13** |
 | 05 — AI Architecture & Model Gateway | **Complete — ADRs `0024`–`0028` Accepted by James 2026-08-14** |
-| 06 and beyond | Not started |
+| 06 — Agent Architecture & Agent Governance | **PROPOSED, awaiting James's approval** |
+| 07 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -256,6 +257,45 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 06 — PROPOSED, awaiting James's approval
+
+**Agent Architecture & Agent Governance.** Section 05 was accepted on 2026-08-14 and Section 06
+begun the same day at James's instruction. `AGENT_ARCHITECTURE.md` (Section 02) and
+`ai/AGENT_PRINCIPLES.md` (Section 01) fix what an agent *is* and are **extended, not replaced**.
+
+**Delivered — all Proposed:** [`architecture/AGENT_GOVERNANCE.md`](./architecture/AGENT_GOVERNANCE.md),
+ADRs `0029`–`0031`, invariants `I-106`–`I-109`, threats `T-33`–`T-34`.
+
+**Six decisions, approved by James in principle 2026-08-14 and recorded as Proposed ADRs.** Token
+issuance is verified by the Context service, the sole issuer — **the runtime requests narrowing and
+never mints** (`I-106`), which is where `I-07`'s intersection stops being asserted. Delegation is
+**strictly narrowing, acyclic, and explicitly re-delegable** with `may_redelegate` defaulting to
+false (`I-107`) — no numeric depth or fan-out limits, because strict narrowing bounds depth
+structurally. The **cost ceiling belongs to the root execution and is shared by the whole
+delegation tree** (`I-108`), closing a capacity-minting gap **Section 05 introduced**. Agent
+lifecycle operations are classified under the **existing** C1/C2/C3 model — no new class. An
+approval binds **nine effective-authorization properties** (`I-109`). A child never outlives its
+granting execution identity.
+
+**Three corrections of accepted text**, called out in
+[ADR 0031](./decisions/0031-section-06-amendments-to-accepted-architecture.md): `AGENT_ARCHITECTURE.md`
+said the *runtime* issues tokens (impossible under `I-87`); `SCOPE_AND_IDENTITY_MODEL.md` §5
+conditioned re-delegation on a field the record lacked; `THREAT_MODEL.md` T-24 answered the
+runtime-compromise row circularly.
+
+**One honest correction to Section 01 material:** `AGENT_PRINCIPLES.md` §4's *"enforced by design"*
+claim covers five of seven prohibitions, six as of Section 06 — **prohibition 6 is not mechanically
+enforced and NOVA has no component that could enforce it.** The overclaim is corrected, not
+defended.
+
+**Section 06 amends thirteen accepted documents**, all marked Proposed in place and authorized
+through [ADR 0031](./decisions/0031-section-06-amendments-to-accepted-architecture.md). **No ADR is
+accepted.** `I-01`–`I-105` are **unmodified**. `D-25a` remains deferred, blocked on `D-01`/`D-04`;
+`D-25` was not reopened.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 05 — **Complete: ADRs `0024`–`0028` Accepted by James 2026-08-14**
 

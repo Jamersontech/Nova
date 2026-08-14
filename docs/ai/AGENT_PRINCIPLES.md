@@ -84,7 +84,30 @@ An agent may not:
 7. Take an irreversible action that has not been approved under the human-control model.
 
 These prohibitions are enforced by design, not by instruction alone. An architecture in
-which an agent *could* violate them but is *told* not to does not satisfy this document.
+which an agent *could* violate them but is *told* not to does not satisfy this document. ¹
+
+> ¹ **QUALIFIED BY SECTION 06 — PROPOSED, not yet accepted.** *(2026-08-14; authority
+> [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed.
+> The accepted sentence is restored verbatim if either is rejected.)* **The prohibitions stand
+> unchanged. The claim about their enforcement did not survive examination, and the honest position
+> is recorded rather than defended.**
+>
+> **Five are mechanically enforced:** 1 (`I-08`, `I-10` — no grant path exists), 2 (`I-73` and C3
+> governance), 3 (`I-16`, `I-86`, ADR 0016), 5 (`I-24`, Credential Broker step 2), 7 (`I-09`, risk
+> class, `I-101`, `I-109`).
+>
+> **Prohibition 4 is enforced only as of Section 06.** Its *tool* half was always covered by the
+> closed list at the tool enforcement point; its **agent** half — escalating by invoking a more
+> privileged agent — had no mechanism until issuance verification and the delegation bounds
+> (`I-106`, `I-107`, [`../architecture/AGENT_GOVERNANCE.md`](../architecture/AGENT_GOVERNANCE.md)
+> §2–§3).
+>
+> **Prohibition 6 is not mechanically enforced, and Section 06 does not claim to enforce it.**
+> `I-39` and `PROVENANCE_AND_TRUST.md` §5 state the rule, but **no enforcement point inspects agent
+> output for epistemic honesty**, and NOVA has no component that could. It is a review and
+> evaluation criterion (§8, Section 41). Stating this is preferable to leaving a sentence that
+> claims more than the architecture delivers.
 
 ---
 

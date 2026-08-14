@@ -65,6 +65,24 @@ configured.
 **Every outcome is recorded** — allow, deny, and approval-required alike. Denials are the
 more interesting signal.
 
+**Where `I-07`'s intersection is enforced.** ***PROPOSED — added by Section 06, not yet accepted***
+*(2026-08-14; authority [ADR 0029](../decisions/0029-delegated-authority.md) and
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
+removed if either is rejected).* **The ten steps above are unchanged.** This note exists because a
+reader checking where `I-07` is enforced finds nothing here and would reasonably conclude nothing
+enforces it.
+
+Two of `I-07`'s four inputs are enforced by this sequence: **grants** at step 5 — and only James
+creates grants (`I-10`) — and the **token's** scope and risk ceiling at steps 3 and 6, integrity-
+bound to the Context service (`I-87`, `P-12`). The **agent definition** is not an input to this
+sequence and never becomes one. It is verified **at token issuance** by the Context service, which
+refuses to issue beyond it (`I-106`,
+[`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) §2). **The PDP is deliberately not made an
+agent-definition intersection engine:** that would put a registry read on the hot path against
+`P-7` and give one component two jobs. Issuance is also the only point where all four inputs exist
+together — after issuance the token is already integrity-bound and every enforcement point is
+obliged to honour it.
+
 ---
 
 ## 4. Fail-Closed

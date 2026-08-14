@@ -190,6 +190,21 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **Per-call PDP evaluation on the model path is unproven** | `I-94` puts a decision on a hot path and produces an `I-18` record per decision. `SCALE_AND_COST_ARCHITECTURE.md` §2 already names audit volume as a pressure point. If this proves unworkable the fix is a cheaper way to obtain the decision, **not** a return to unenforced egress | 05 / 33 |
 | **`D-08` remains open, so the data-policy set has no members yet** | `I-97` constrains routing to a permitted provider set. No provider is selected (`Q-06`, `Q-03`), so the constraint is currently a constraint over an empty configuration. `PR-2`, `PR-3` and `PR-5` are assurances NOVA cannot verify (`D-39`) | 05 / 37 / 38 |
 
+## 3.6 Risks Identified in Section 06 — delegated authority
+
+> ***PROPOSED — added by Section 06, not yet accepted*** *(2026-08-14; authority ADRs
+> [0029](../decisions/0029-delegated-authority.md)–[0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md),
+> removed if they are rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **The Context service gains a new dependency and remains the single root** | `I-106` requires Context to read the agent registry to verify issuance. That is a new trust dependency in the most critical trusted component, and **`AG-3` is a check Context performs on itself** — a compromised Context service issues genuine tokens naming anything and would pass its own check. `T-23a` is **unchanged and not improved** by Section 06 | 06 / 31 / 38 |
+| **A shared root budget lets one child starve its siblings** | `I-108` deliberately prefers starvation to capacity-minting. A single greedy descendant can consume the tree's budget and stall legitimate siblings, and nothing arbitrates between them | 06 / 34 |
+| **The approval-binding boundary is a per-field judgment** | `I-109` binds effective authorization and excludes implementation metadata. **A field wrongly classed as metadata reopens `T-34` while looking correct**, and nothing detects a misclassification. Binding more would produce approval fatigue, which this document already records as a security failure | 06 / 31 |
+| **Prohibition 6 is unenforced and now says so** | *"Present inference as verified fact"* has no enforcement point and NOVA has no component that could inspect agent output for epistemic honesty. `AGENT_PRINCIPLES.md` §4's blanket enforcement claim is corrected rather than defended. It is a review and evaluation criterion only | 06 / 41 |
+| **Strict narrowing will stop legitimate chains** | `I-107` bounds depth by descending a finite lattice. A legitimate long delegation chain hits the floor and stops. This is intended behaviour, not a defect — but it will be met as friction and the temptation will be to widen a dimension to keep going | 06 |
+| **Agent creation is now always C3 in practice** | Every new agent needs James. `AGENT_PRINCIPLES.md` §1's "when in doubt, do not create the agent" becomes operationally enforced. The failure mode to watch is the opposite one: creating **fewer, broader** general-purpose agents to avoid repeat approval, which trades approval friction for over-broad authority | 06 / 21 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture

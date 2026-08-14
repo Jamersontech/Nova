@@ -356,7 +356,7 @@ answer is simply not consulted or not obeyed.
 | **Data access PEP** | Grants, risk ceiling, classification, conditions on the read/write path | **Cross-client isolation holds — but only once `D-33` is implemented and verified.** Structural storage isolation sits beneath the PEP, never consults it, and restricts to the bound scope (`I-77`, `R-9`, ADR 0016). **`I-60`–`I-63` are `[PHYS]` and unbuilt**, so **today a compromised Data access PEP does yield cross-client data**; the confinement is a property of the future implemented system, not the present one |
 | **Tool call PEP** | Risk-class and scope checks on tool invocation | The Credential Broker performs its **own** scope check (`S-3`, broker step 2) rather than trusting the caller |
 | **Credential PEP** | The scope check at credential request | Binding state, expiry, revocation and permitted-operation checks are the broker's own (steps 3–4), and are not the PEP's to skip |
-| **Orchestration / Agent Runtime PEP** | Narrowing on dispatch; an agent could receive a token it should not have | Rights remain an intersection (`I-07`); no mechanism widens authority (`I-08`); the downstream points still run |
+| **Orchestration / Agent Runtime PEP** | Narrowing on dispatch; an agent could **request** a token it should not have | ***Corrected by Section 06 — PROPOSED*** *(2026-08-14, ADRs [0029](../decisions/0029-delegated-authority.md)/[0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md))*: **the previous answer — "rights remain an intersection (`I-07`)" — was circular**, since the intersection was what the compromised component computed. **The runtime does not issue tokens.** Context is the sole issuer (`I-87`) and refuses any request exceeding the parent token, the agent definition, James's grants, or the delegation bounds (`I-106`, `I-107`). A runtime-minted token fails integrity detection at every point. `I-08` and the downstream points still hold |
 
 **Residual:** **Real and only partly bounded.** A compromised PEP is an authorization failure
 *within* the scope it is bound to, and nothing detects it from the authorization trail — the same
@@ -367,6 +367,43 @@ present tense; `I-60`–`I-63` are `[PHYS]` and unbuilt, so **until then this co
 exist** and a compromised Data access PEP is a cross-client exposure.)* Independent verification of
 enforcement-point behaviour is **undesigned**, exactly as it is for the PDP. Detection would be
 from effects, not from records.
+
+### T-33 Delegation-tree abuse
+*Added 2026-08-14 — **PROPOSED**, Section 06. Authority
+[ADR 0029](../decisions/0029-delegated-authority.md) and
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md).*
+
+**Failure:** An agent uses delegation itself as the attack: unbounded depth, cycles (`A → B → A`),
+mass fan-out, or a grandchild obtaining a fresh cost budget — exhausting resources, or laundering
+authority through descendants until the composition exceeds what any single participant held.
+
+**Defense:** Every delegation is **strictly narrowing** in at least one dimension with strictly
+earlier expiry, so depth terminates on a finite authority lattice; **ancestry cycles are refused**;
+**re-delegation is explicit and defaults to false**; and **the entire tree shares the root
+execution's single budget** (`I-107`, `I-108`). All four are checked at issuance by the Context
+service (`I-106`), which is the only component that can issue a token at all.
+
+**Residual:** **One runaway child can starve its siblings** — accepted deliberately, because the
+alternative is a child that cannot be starved because it mints its own budget. Legitimate long
+chains will hit the lattice floor and stop; that is intended and will occasionally be inconvenient.
+And every control here is enforced by the Context service, so `T-23a` bounds all of them.
+
+### T-34 Approval substitution
+*Added 2026-08-14 — **PROPOSED**, Section 06.*
+
+**Failure:** James approves an action; between approval and execution the agent definition, its
+tool set, its effective rights, its delegation chain or its budget changes; the materially
+different action executes under the original approval. The approval record looks entirely valid.
+
+**Defense:** Nine properties are **binding** from approval to execution — action, resource, scope,
+effective rights, risk class, tool set, argument envelope, delegation ancestry, cost ceiling
+(`I-109`). A differing binding means the approval does not apply and execution does not proceed
+under it. The binding reuses `I-93`'s deterministic identity; no new mechanism.
+
+**Residual:** The boundary between "changes effective rights" and "implementation metadata" is a
+judgment an implementer makes per field, and a field wrongly classed as metadata reopens this
+attack while looking correct. Unverified until Section 31. Binding **more** would produce approval
+fatigue, which `KNOWN_RISKS.md` records as a security failure in its own right.
 
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a

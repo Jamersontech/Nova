@@ -28,6 +28,7 @@ document; everything else elaborates one part of it.
 | [`CONTEXT_ARCHITECTURE.md`](./CONTEXT_ARCHITECTURE.md) | How NOVA knows *where* it is working |
 | [`MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`](./MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md) | Memory, knowledge, documents, live data |
 | [`AGENT_ARCHITECTURE.md`](./AGENT_ARCHITECTURE.md) | Internal agents; vs. external coding agents |
+| [`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) | How delegated authority is derived, bounded, budgeted and ended; agent governance classes; what an approval binds *(§6 — Proposed)* |
 | [`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) | The orchestrator; workflows |
 | [`EXECUTION_ARCHITECTURE.md`](./EXECUTION_ARCHITECTURE.md) | Coding agents; the KAIRO client model |
 | [`DATA_ARCHITECTURE.md`](./DATA_ARCHITECTURE.md) | Entities, relationships, invariants |

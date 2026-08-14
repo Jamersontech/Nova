@@ -110,6 +110,22 @@ references and identifiers — never content, never secrets.
 | **External transmission** | What left NOVA, to which service, under which scope |
 | **Model interactions** | Profile, provider, scope, cost, outcome — not prompt content by default |
 | **Administrative changes** | Policy, classification changes, scope creation, reclassification |
+| **Agent definition lifecycle** ² | Registration, change, activation, suspension, revocation, replacement — and every failure of these |
+| **Delegation** ² | Delegation issued, refused, expired; re-delegation refused; token-issuance refusal (`I-106`); budget-exhaustion denial |
+
+> ² ***PROPOSED — added by Section 06, not yet accepted*** *(2026-08-14; authority
+> [ADR 0029](../decisions/0029-delegated-authority.md),
+> [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), all Proposed;
+> both rows removed if they are rejected).* **No new audit authority is created** — ADR 0023's
+> three cover every event here. Delegation appeared in `I-92`'s control-plane list but not in this
+> canonical category list, and agent-definition lifecycle appeared in neither.
+>
+> **Authority:** agent-definition lifecycle and delegation issuance/expiry are **`W-3`**
+> (control-plane — they concern no client scope, ADR 0023's `HIGH-1` rule applied unchanged);
+> issuance refusals, delegation refusals and budget denials are **`W-2`** (the decision is the
+> authority for the record of itself); agent **execution** remains **`W-1`** as above. Approval and
+> approval-binding mismatch (`I-109`) are `W-3`, where `S4-P9` D3 already places approvals.
 
 **Writer authority for each category.** ***PROPOSED — added by Section 04, not yet accepted***
 *(2026-08-13, `S4-P9`; authorized by

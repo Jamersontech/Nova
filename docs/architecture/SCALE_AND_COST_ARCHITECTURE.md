@@ -104,6 +104,20 @@ invoice. **Ceiling values are deferred** to Section 34 (`D-40`); what is fixed i
 that they terminate rather than degrade, and that they fail closed above `PREPARE` (`I-105`,
 [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) §7).
 
+**The ceiling belongs to the root execution, not to each execution.** ***PROPOSED — added by
+Section 06, not yet accepted*** *(2026-08-14; authority
+[ADR 0029](../decisions/0029-delegated-authority.md) and
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both Proposed;
+removed if either is rejected).* **Section 05 wrote the ceiling per execution and thereby left the
+vector it had just named open**: a delegation tree of N executions received N ceilings, so a child
+could manufacture capacity its parent never held. **Every descendant now consumes from the root
+execution's single budget** (`I-108`). A child cannot mint capacity, receive a fresh budget, raise
+the root ceiling, or move capacity into an independent budget. A parent **may** carve a smaller
+child ceiling — optional and itself narrowing; it is not mandatory, because requiring it would
+force an allocation policy the architecture does not decide. Exhaustion behaves exactly as above.
+**Accepted cost:** one runaway child can starve its siblings — preferable to a child that cannot be
+starved because it mints its own budget.
+
 ---
 
 ## 5. Not Decided Here
