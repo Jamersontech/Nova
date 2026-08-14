@@ -64,6 +64,11 @@ Work Orders).
 The Section 03 model is **Active** — ADRs `0009`–`0015` were accepted by James on 2026-08-12
 as amended, with the documented residual risks explicitly accepted rather than resolved.
 
-The Section 04 model is **Proposed**, pending James's approval of ADRs `0016`–`0021`.
+The Section 04 model is **Active** — ADRs `0016`–`0023` were accepted by James on 2026-08-13.
+*(Status corrected 2026-08-14: this line still read "Proposed, pending James's approval of ADRs
+`0016`–`0021`" — accurate before the acceptance and false after it, and it also predated ADRs
+`0022`–`0023`.)*
 
-Next: **Section 05 — AI Architecture & Model Gateway** (not started).
+The Section 05 model is **Proposed** — ADRs `0024`–`0028` await James's approval.
+
+Next: **Section 06**.

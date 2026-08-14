@@ -173,7 +173,19 @@ remains deferred** (no database or other technology to be selected; owner 29) an
 **`D-33` is a Section 04 security decision** concerning enforcement below the query layer —
 see [`decisions/DEFERRED_DECISIONS.md`](./decisions/DEFERRED_DECISIONS.md).
 
-## Section 04 — PROPOSED, UNDER REVIEW
+## Section 04 — **Complete: ADRs `0016`–`0023` Accepted by James 2026-08-13**
+
+> **Status heading corrected 2026-08-14.** It read *"PROPOSED, UNDER REVIEW"*, contradicting the
+> progress table at the top of this same file. **Everything below this line is the Section 04
+> record as written during that section and is left unedited** — including the "Not approved"
+> paragraph, which describes the state Section 04 was in when it was written, not the state today.
+> No Section 04 architecture is changed by this correction.
+>
+> **A wider stale-marking sweep is outstanding and is deliberately not done here.** Roughly
+> eighteen in-place amendment footnotes across Active documents still describe the Section 04
+> amendments as *Proposed, removed if ADR 0022/0023 is rejected*. Those conditions cannot now fire
+> — the ADRs are Accepted — but rewriting removal conditions inside Active documents is a larger
+> action than correcting a status line, and it is James's call, not an agent's.
 
 **Security, Identity & Permissions.** Produced isolation enforcement, authentication,
 secrets, encryption, policy-engine requirements and security operations — plus ADRs
