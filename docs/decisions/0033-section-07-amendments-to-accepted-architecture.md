@@ -4,7 +4,8 @@
 **Proposed:** 2026-08-14 — Section 07
 **Section:** 07
 **Purpose:** Implement `S7-D2`–`S7-D5` and authorize every Section 07 amendment to an
-Active/Accepted document, in one record, enumerated individually.
+Active/Accepted document, in one record, enumerated individually. **Extended by Section 09** to
+carry `S9-D1` (§2a), which completes ADR 0032's definition of an authoritative source.
 
 ## Decision
 
@@ -129,6 +130,43 @@ revoked-authority labelling. **Why required:** ADR 0032 and `S7-D2`–`S7-D5`.
 gains delegation ancestry and the persistence requirement. **Why required:** §3 as accepted names a
 mutable axis with no owner — the critical finding. **Amendment status:** **Proposed**, marked in
 place.
+
+### 2a. `PROVENANCE_AND_TRUST.md` §2.1 and `MEMORY_MODEL.md` §4.1 — **source observation identity** *(Section 09)*
+
+***Added by Section 09, folded into this ADR rather than minting a new one.*** `S9-D1` is the
+missing half of the decision [ADR 0032](./0032-trust-promotion-authority.md) makes, and this ADR
+already amends the exact section it lands in (§2 above). Splitting one provenance decision across
+two ADRs would make the family harder to read, not easier; the amendment is labelled Section 09 so
+its origin is not lost.
+
+**The gap.** `I-110` requires a source used for trust promotion to be **identifiable** and its
+verification **reproducible**, and `PROVENANCE_AND_TRUST.md` §2 has required *"source identity"*
+since Section 03 — **but nothing defined what identifies a source.** `I-110` was therefore not
+implementable: an engineer had to pick an identity scheme, and the candidates differ in security
+properties. A bare URL cannot distinguish a legitimate revision from content substituted under a
+stable identifier; a digest alone makes every revision a different source, so revalidation never
+succeeds for a living document.
+
+**Amended:** a source is identified by the **observation** NOVA made of it — **source identifier ·
+content digest · `retrieved_at`**. The identifier identifies the source; the digest and timestamp
+identify the observation. Same identifier and digest is one source observed twice; same identifier
+with a different digest is the same source changed, superseding without overwriting; different
+identifiers with identical content are distinct sources. `MEMORY_MODEL.md` §4.1's revalidation
+becomes a digest comparison, and an unreachable source **denies promotion** rather than retaining
+status.
+
+**Why this needs no new invariant.** It defines a field `PROVENANCE_AND_TRUST.md` §2 already
+requires, so **`I-110` remains the governing security invariant** and becomes implementable. It
+introduces **no parallel provenance system**: `retrieved_at` is `recorded_at`
+(`DATA_LIFECYCLE.md` §2), supersession is §3 and `I-43`, immutability is `I-38`, and observations
+enter lineage under `I-31`. **The observation is recorded by the retrieving component, never
+asserted by a model** — `I-110`(a) and `I-102` applied, which is what makes a fabricated citation
+fail closed: it has no observation to re-fetch.
+
+**No algorithm is selected.** "Cryptographic digest" is a property; the mechanism defers with the
+platform substrate (`D-02`, `D-06`).
+
+**Amendment status:** **Proposed**, marked in place.
 
 ### 3. `MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md` (Section 02 · Active) — §5, §7
 

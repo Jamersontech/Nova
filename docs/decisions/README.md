@@ -344,5 +344,24 @@ correct rather than ambiguous once `PERMISSION_ARCHITECTURE.md` §5 defines an e
 
 ---
 
+### Section 09 — Proposed, awaiting James
+
+**No new ADR and no new invariant.** Section 09's single decision — `S9-D1`, **source identity** —
+is folded into [ADR 0033](./0033-section-07-amendments-to-accepted-architecture.md) **§2a**, which
+already amends `PROVENANCE_AND_TRUST.md` §2 and owns the same decision family. It completes
+[ADR 0032](./0032-trust-promotion-authority.md)'s definition of an authoritative source: `I-110`
+required a source to be *identifiable* and *reproducibly checkable*, and nothing defined what
+identifies one. **`I-110` remains the governing security invariant** and is now implementable.
+
+| Document | Section / status | What Section 09 changes |
+| --- | --- | --- |
+| [`../architecture/PROVENANCE_AND_TRUST.md`](../architecture/PROVENANCE_AND_TRUST.md) §2.1 | 03 · Active | Defines a **source observation**: identifier · content digest · `retrieved_at` |
+| [`../architecture/MEMORY_MODEL.md`](../architecture/MEMORY_MODEL.md) §4.1 | 03 · Active | Revalidation becomes a digest comparison; unreachable source denies promotion |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.9 | 03 · Active | Three Section 09 residuals, two of them recorded rather than resolved |
+
+Both amendments are **Proposed** under ADR 0033 and marked in place.
+
+---
+
 Decisions that were consciously postponed are tracked separately in
 [`DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md).

@@ -124,7 +124,24 @@ every future retrieval.*
 trust changes, or on an age horizon. Revalidation either promotes it (a verified source now
 supports it), leaves it quarantined, or marks it disputed. **Revalidation never deletes it** —
 provenance is immutable (`I-38`), and a false claim that was believed is itself a fact worth
-retaining.
+retaining. ²
+
+> ² ***PROPOSED — added by Section 09, not yet accepted*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, Proposed;
+> removed if rejected).* **"Re-fetched" is now a comparison, not just a retrieval.** Provenance
+> records a **source observation** — identifier, content digest, `retrieved_at`
+> ([`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §2.1) — so revalidation re-fetches the
+> identifier and compares digests:
+>
+> - **same digest** → the exact content relied upon still holds;
+> - **different digest** → the source changed; the new observation **supersedes** without
+>   overwriting (`I-43`), and the prior observation remains a true record of what was relied upon;
+> - **unreachable** → the check cannot be completed, so **§4.3 denies promotion** (`I-110`
+>   fails closed) and the item degrades by the ordinary confirmation horizon
+>   ([`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §4) rather than being deleted or
+>   silently retained at its old status.
+>
+> This is what makes `I-110`(b) *identifiable* and (c) *reproducibly checkable* implementable.
 
 **Contradiction.** When quarantined memory conflicts with higher-trust memory, the higher
 trust stands and the conflict is recorded; it is never silently discarded

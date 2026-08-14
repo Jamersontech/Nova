@@ -77,4 +77,6 @@ The Section 07 model is **Proposed** — ADRs `0032`–`0033` await James's appr
 
 The Section 08 model is **Proposed** — ADRs `0034`–`0035` await James's approval.
 
-Next: **Section 09 — Knowledge & Research System**.
+The Section 09 model is **Proposed** — its single decision (`S9-D1`, source identity) is folded into ADR `0033`.
+
+Next: **Section 10 — Tool & Capability Architecture**.

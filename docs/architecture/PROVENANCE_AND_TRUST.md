@@ -43,10 +43,70 @@ records history, and history does not change when opinion does.
 | `system.verified` | NOVA checked it against an authoritative source | High |
 | `system.unverified` | Recorded but never checked | **Low** |
 
-Provenance includes: source identity, timestamp, the execution and context that produced it,
+Provenance includes: source identity ⁴, timestamp, the execution and context that produced it,
 the source items it derived from — the **lineage** chain
 ([`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) §5) — and, where the producing execution was a
 delegate, its **delegation ancestry**. ³
+
+### 2.1 Source identity is the identity of an observation
+
+> ⁴ ***PROPOSED — added by Section 09, not yet accepted*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, Proposed;
+> removed if rejected).* **`I-110` requires a source used for trust promotion to be "identifiable"
+> and its verification "reproducible", and the line above has required "source identity" since
+> Section 03 — but nothing defined what identifies a source.** `I-110` was therefore not
+> implementable: an engineer had to choose an identity scheme, and the available schemes have
+> materially different security properties.
+
+**A source is identified by the observation NOVA made of it**, recorded as three parts:
+
+```text
+Source observation
+├── source identifier   the stable identifier of the underlying source — a canonical URL
+│                       (resolved through redirects) or an equivalent provider or publisher
+│                       identifier for the resource actually retrieved
+├── content digest      a cryptographic digest of the exact content observed
+└── retrieved_at        when this observation was made
+```
+
+**The identifier identifies the source; the digest and timestamp identify the observation.** That
+split is what the definition exists to preserve:
+
+| Two observations | Meaning |
+| --- | --- |
+| Same identifier, same digest | **The same source, unchanged.** Not a new source — one source, observed twice |
+| Same identifier, different digest | **The same source, changed.** A new observation that **supersedes** rather than overwrites (`I-43`, [`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) §3); both are retained |
+| Different identifier, same digest | **Two sources carrying identical content.** Distinct identities; identical content is not shared identity |
+| Identifier resolves to different content than a prior observation, with no legitimate revision | **Substitution** — detectable precisely because the prior digest was recorded |
+
+**No new mechanism is introduced.** `retrieved_at` is `recorded_at`
+([`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) §2); a changed digest supersedes under §3; observations
+are immutable because provenance is (`I-38`); a derived item names the **observations** it used, not
+merely the sources, under the existing lineage requirement (`I-31`). **This is not a parallel
+provenance system.**
+
+**The observation is recorded by the component that performed the retrieval, at retrieval time. It
+is never asserted by a model.** This is `I-110`(a) and `I-102` applied: a model may not supply a
+source identifier, may not supply a digest, and may not attest that a retrieval occurred. **A
+fabricated citation therefore has no observation** — no digest, no retrieval record, nothing to
+re-fetch — and fails `I-110`'s *"unidentifiable source"* branch closed, however legitimate the
+identifier looks.
+
+**A search result is its own observation.** A snippet returned by a search or aggregation provider
+is `integration.supplied` content whose identifier is that provider's result and whose digest is the
+snippet. The underlying document, if actually fetched, is a **separate observation** with its own
+identifier and digest. **Citing the document while having read only the snippet is therefore not
+expressible** — the provenance names what was read.
+
+**What this makes possible.** Revalidation ([`MEMORY_MODEL.md`](./MEMORY_MODEL.md) §4.1) can ask a
+question it previously could not: *is the exact content this claim relied upon still there?*
+Re-fetch the identifier, compare the digest. Equal → the observation still holds. Different → the
+source changed, and the prior observation stands as a true record of what was relied upon.
+Unreachable → **the check cannot be completed, so `I-110` denies promotion** and the existing item
+degrades by the ordinary confirmation horizon (§4) rather than being deleted or silently trusted.
+
+**No algorithm is selected.** "Cryptographic digest" is a property, not a choice of function;
+the mechanism is deferred with the rest of the platform substrate (`D-02`, `D-06`).
 
 ---
 

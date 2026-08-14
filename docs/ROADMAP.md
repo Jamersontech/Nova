@@ -33,7 +33,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 06 — Agent Architecture & Agent Governance | **Complete — ADRs `0029`–`0031` Accepted by James 2026-08-14** |
 | 07 — Context & Memory Architecture | **PROPOSED, awaiting James's approval** |
 | 08 — Reasoning, Planning & Orchestration | **PROPOSED, awaiting James's approval** |
-| 09 and beyond | Not started |
+| 09 — Knowledge & Research System | **PROPOSED, awaiting James's approval** |
+| 10 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -259,6 +260,34 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 09 — PROPOSED, awaiting James's approval
+
+**Knowledge & Research System.** **The least greenfield section so far, and deliberately the
+smallest.** Discovery found the research *domain* barely named — `citation` appeared once,
+`synthesis` and `freshness` not at all — while the research *security machinery* was almost entirely
+built by Sections 03, 05, 07 and 08. Repetition-as-corroboration, model-asserted verification,
+model summaries posing as sources, claim-specific source authority, stale-but-authoritative
+sources, injection expanding a research plan, and cross-scope research were **each already blocked
+by an existing invariant**, most of them named explicitly in `I-110`.
+
+**One genuine decision: `S9-D1` — source identity.** `PROVENANCE_AND_TRUST.md` §2 has required
+*"source identity"* since Section 03, and `I-110` requires a source to be **identifiable** and
+**reproducibly checkable** — but nothing defined what identifies a source, so `I-110` was not
+implementable. A source is now identified by the **observation** NOVA made of it: **source
+identifier · content digest · `retrieved_at`** (§2.1).
+
+**No new invariant and no new ADR.** `I-110` remains the governing security invariant and becomes
+implementable; the definition is folded into
+[ADR 0033](./decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, which already
+amends the exact section and owns the same decision family. **No new architecture document.**
+
+**Two findings recorded rather than resolved:** an aggregate of individually PUBLIC sources can be
+sensitive while `I-27` keeps it PUBLIC — **Section 37's**, not Section 09's; and promoting a
+synthesis promotes every claim inside it, which is a residual rather than an open decision.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 08 — PROPOSED, awaiting James's approval
 

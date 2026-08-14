@@ -235,6 +235,18 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **A compromised orchestrator still authors plans** | `I-112`/`I-113` bound what an authorized plan may reach; they do not prevent a compromised orchestrator constructing one. `T-19`, `T-24` and `T-36` are unchanged in that respect | 08 / 31 / 38 |
 | **Planner and Verifier may be correlated** | `I-102` requires a different instance above `PREPARE` and only *prefers* a different provider. A verifier that shares the Planner's poisoned inputs can drive re-planning loops that are budget-bounded but not judgment-bounded (`T-32`) | 08 / 41 |
 
+## 3.9 Risks Identified in Section 09 — knowledge and research
+
+> ***PROPOSED — added by Section 09, not yet accepted*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, Proposed;
+> removed if rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **Volatile sources produce an observation per retrieval** | A dynamic page or an API returning fresh content each call yields a distinct digest every time, so each retrieval is a separate observation. That is honest — each one *is* different content — but it grows provenance and storage on exactly the sources research touches most, and compounds the memory-volume pressure already recorded above | 09 / 07 / 33 |
+| **An aggregate of individually public sources can be sensitive** | `I-27` gives a derived item the **strictest source** classification; if every source is PUBLIC the conclusion is PUBLIC however sensitive it is. `I-57` covers only *cross-client* aggregates. **Recorded, not resolved — this belongs to Section 37 (Privacy & Data Governance)** and Section 09 deliberately does not decide it | 37 |
+| **Promoting a synthesis promotes every claim in it** | `I-110` operates on an *item*; ADR 0032's authority judgment is *per claim*. A synthesis stored as one item is promoted as one item, so a single unsupported claim inside it rides along at the elevated trust. The promotable unit is already defined repository-wide, so this is a residual rather than an open decision | 09 / 41 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture
