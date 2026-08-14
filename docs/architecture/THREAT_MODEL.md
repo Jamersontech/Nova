@@ -471,7 +471,7 @@ the operation closed; it does not detect a writer that silently drops records wh
 success.
 
 ### T-28 Injected tool arguments
-*Added 2026-08-14 — **PROPOSED**, Section 05. Authority
+*Added 2026-08-14 — Section 05, **Accepted** by James 2026-08-14. Authority
 [ADR 0025](../decisions/0025-model-output-is-an-untrusted-derivation.md) and
 [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md).*
 
@@ -495,7 +495,7 @@ Section 31. This threat existed before Section 05 and was **unnamed**, which is 
 statement than calling it new.
 
 ### T-29 Compromised Model Gateway
-*Added 2026-08-14 — **PROPOSED**, Section 05.*
+*Added 2026-08-14 — Section 05, **Accepted** by James 2026-08-14.*
 
 **Failure:** The gateway is compromised. It is the single egress chokepoint for every model call,
 it performs redaction, it holds provider credentials, and after Section 05 it is an enforcement
@@ -517,7 +517,7 @@ its integrity. Making the gateway an enforcement point **created no new capabili
 held the content and the credentials — but it does make the concentration explicit.
 
 ### T-30 Provider-side correlation across scopes
-*Added 2026-08-14 — **PROPOSED**, Section 05.*
+*Added 2026-08-14 — Section 05, **Accepted** by James 2026-08-14.*
 
 **Failure:** One provider credential serves every scope permitted to use that provider, so the
 provider sees every scope's traffic as one customer and can correlate across clients — the
@@ -534,7 +534,7 @@ extends `T-15`: once content leaves, provider behaviour governs. Whether attesta
 self-hosting closes any of it is `D-39`.
 
 ### T-31 Routing and fallback coercion
-*Added 2026-08-14 — **PROPOSED**, Section 05.*
+*Added 2026-08-14 — Section 05, **Accepted** by James 2026-08-14.*
 
 **Failure:** A request reaches a provider the scope's data policy does not permit. Two routes:
 injected content persuades the model to request a different profile or provider; or the primary
@@ -552,7 +552,7 @@ cannot proceed, and Section 05 accepts that rather than degrading. Correctness o
 depends on `PR-3` and `PR-4`, which are provider assurances NOVA cannot verify (`D-39`).
 
 ### T-32 Verifier capture
-*Added 2026-08-14 — **PROPOSED**, Section 05.*
+*Added 2026-08-14 — Section 05, **Accepted** by James 2026-08-14.*
 
 **Failure:** A model check reports success on a result that is wrong — because the checker is the
 same model reading the same injected content, or because the check was treated as evidence and used
@@ -601,7 +601,7 @@ Stated narrowly, because over-claiming is itself a risk:
 | Shared-resource blast radius | Inherent to sharing |
 | Secrets-storage compromise | Single highest-value target; technology undecided |
 
-> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; authority ADRs
+> ¹ ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority ADRs
 > [0025](../decisions/0025-model-output-is-an-untrusted-derivation.md),
 > [0026](../decisions/0026-model-verification-is-corroboration.md),
 > [0027](../decisions/0027-provider-credentials-are-control-plane-credentials.md) and

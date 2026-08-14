@@ -109,7 +109,7 @@ carries no evidential weight and may never promote an item's epistemic status.
 5. **Contradiction is surfaced, not silently resolved**
    ([`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) §4).
 
-> ¹ **EXTENDED BY SECTION 05 — PROPOSED, not yet accepted.** *(2026-08-14.)* Requirement 2 and
+> ¹ **EXTENDED BY SECTION 05 — ACCEPTED by James 2026-08-14.** *(2026-08-14.)* Requirement 2 and
 > `I-31` are written about **stored derived items**. **A model call's output is usually not
 > stored** — it is produced, used within the execution to choose a step or fill a tool argument,
 > and discarded. That transient path is exactly how injected instruction reaches an action, and it
@@ -127,5 +127,5 @@ carries no evidential weight and may never promote an item's epistemic status.
 > through an unlabelled model call. Authority:
 > [ADR 0025](../decisions/0025-model-output-is-an-untrusted-derivation.md) and
 > [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
-> **Proposed**. Full model:
+> **Accepted** 2026-08-14. Full model:
 > [`MODEL_TRUST_AND_AUTHORITY.md`](./MODEL_TRUST_AND_AUTHORITY.md) §2.

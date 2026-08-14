@@ -126,7 +126,7 @@ so no future session mistakes acceptance for absence.
 | **Deletion is bounded** | The cascade reaches recorded lineage within NOVA-controlled storage only. Delivered exports, data sent to external systems, model-provider retention, and unrecorded derivations are **beyond reach** |
 | **Injection persistence is contained, not removed** | Quarantine and revalidation limit influence; a patient attacker supplying plausible uncontradicted content is not detected (T-10) |
 | **Aggregation disclosure is bounded by policy, not arithmetic** | Small-N aggregates leak; max/min/ranking disclose individual values. Prohibitions are rules to enforce, not mathematical impossibilities. `D-36` is unset, so client-facing cross-client aggregates are barred entirely for now |
-| **`[PHYS]` invariants are unsatisfied until implementation** | *(Inventory refreshed 2026-08-13, N-13 — this row listed only the six Section 03 markings and predated Section 04's.)* The full current set is `I-03`, `I-21`, `I-33`, `I-45`, `I-47`, `I-55`, `I-60`–`I-63`, `I-66`, `I-68`, `I-69`, `I-71`, `I-72`, `I-80`, `I-86`, `I-87`, `I-88`, `I-90`, and **`I-96`** *(Section 05, Proposed — 2026-08-14)* — each with a named dependency in [`INVARIANTS.md`](./INVARIANTS.md). All depend on physical choices not yet made |
+| **`[PHYS]` invariants are unsatisfied until implementation** | *(Inventory refreshed 2026-08-13, N-13 — this row listed only the six Section 03 markings and predated Section 04's.)* The full current set is `I-03`, `I-21`, `I-33`, `I-45`, `I-47`, `I-55`, `I-60`–`I-63`, `I-66`, `I-68`, `I-69`, `I-71`, `I-72`, `I-80`, `I-86`, `I-87`, `I-88`, `I-90`, and **`I-96`** *(Section 05, Accepted 2026-08-14)* — each with a named dependency in [`INVARIANTS.md`](./INVARIANTS.md). All depend on physical choices not yet made |
 | **All 93 invariants are unverified** | Every one is a REQUIREMENT, none is a VERIFIED IMPLEMENTATION PROPERTY, until Section 31. *(Count corrected 2026-08-13, N-13: the row said 59, then 88, 89, 90; the current count is 93. `I-60`–`I-93` are additionally **Proposed**, not accepted.)* |
 | **Administrator error is unmitigable** | An over-broad grant or an unread approval by James is authorized breadth, not escalation |
 
@@ -175,7 +175,7 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 
 ## 3.5 Risks Identified in Section 05 — the model path
 
-> ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; authority ADRs
+> ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority ADRs
 > [0024](../decisions/0024-model-gateway-is-an-enforcement-point.md)–[0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md),
 > removed if they are rejected).*
 

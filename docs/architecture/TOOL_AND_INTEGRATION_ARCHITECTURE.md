@@ -48,11 +48,11 @@ error behaviour      failure modes and what each means
 audit behaviour      what is recorded (never secrets or payload contents by default)
 idempotency          whether a retry is safe
 cost profile         expected cost, if material
-consequence-         which arguments determine WHAT THE ACTION AFFECTS       ← PROPOSED, Section 05
+consequence-         which arguments determine WHAT THE ACTION AFFECTS       ← Section 05
 determining args     rather than how it is expressed
 ```
 
-> **`consequence-determining args` — PROPOSED by Section 05, not yet accepted.** *(2026-08-14.)*
+> **`consequence-determining args` — added by Section 05, ACCEPTED by James 2026-08-14.** *(2026-08-14.)*
 > **As accepted 2026-08-12 the field list ended at `cost profile`.** Schema validation establishes
 > that an argument is **well-formed**; it does not establish that it is **authorized**.
 > `recipient: "attacker@example.com"` passes every type check `send_email` declares. Because the
@@ -152,7 +152,7 @@ Established in Section 1 ([`../DOMAIN_MODEL.md`](../DOMAIN_MODEL.md) §8); the m
 handle to a narrow capability — never the client's primary secret. When the work order
 ends, the handle is revoked whether or not the agent finished.
 
-**Control-plane credentials.** ***PROPOSED — added by Section 05, not yet accepted***
+**Control-plane credentials.** ***Added by Section 05 — ACCEPTED by James 2026-08-14***
 *(2026-08-14.)* The rules above govern credentials that reach an external system **on behalf of a
 scope**. A **model-provider credential does not**: it authorizes NOVA to talk to a provider, and
 authorizes access to **no client scope**. It cannot be per-scope — one provider account serves
@@ -172,7 +172,7 @@ stops *every* scope reaching that provider at once, and because one credential s
 the **provider can correlate all of them as one customer** (`T-30`) — not mitigated, not claimed
 to be. Authority:
 [ADR 0027](../decisions/0027-provider-credentials-are-control-plane-credentials.md) and
-[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both **Proposed**.
+[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14.
 
 ---
 

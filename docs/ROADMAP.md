@@ -29,7 +29,7 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 02 — System Architecture & Master Blueprint | **Complete — architecture Accepted by James 2026-08-12** |
 | 03 — Data, Scope, Identity & Memory Architecture | **Complete — Accepted by James 2026-08-12 (as amended)** |
 | 04 — Security, Identity & Permissions | **Complete — ADRs `0016`–`0023` Accepted by James 2026-08-13** |
-| 05 — AI Architecture & Model Gateway | **PROPOSED, awaiting James's approval** |
+| 05 — AI Architecture & Model Gateway | **Complete — ADRs `0024`–`0028` Accepted by James 2026-08-14** |
 | 06 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
@@ -257,7 +257,7 @@ a compromised PDP alone no longer yields cross-client data. **The independence i
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
 
-## Section 05 — PROPOSED, awaiting James's approval
+## Section 05 — **Complete: ADRs `0024`–`0028` Accepted by James 2026-08-14**
 
 **AI Architecture & Model Gateway.** Section 04 was accepted on 2026-08-13, and Section 05 was
 begun on 2026-08-14 at James's instruction.
@@ -282,10 +282,11 @@ fixed after the authorization that permits the action, and schema validity is a 
 are control-plane credentials** ([ADR 0027](./decisions/0027-provider-credentials-are-control-plane-credentials.md)),
 which leaves `I-23` unamended rather than adding an exception to it.
 
-**Section 05 amends thirteen accepted documents**, all marked Proposed in place and all authorized
-through [ADR 0028](./decisions/0028-section-05-amendments-to-accepted-architecture.md). **No ADR is
-accepted**; if one is rejected, the amendments it required are removed and the accepted text
-restored verbatim. `I-01`–`I-93` are **unmodified**.
+**Section 05 amends thirteen accepted documents**, all authorized through
+[ADR 0028](./decisions/0028-section-05-amendments-to-accepted-architecture.md) and all **accepted
+with it on 2026-08-14**; their in-place Proposed markings were cleared at acceptance, so no stale
+removal condition is left behind. `I-01`–`I-93` are **unmodified**. Changing any Section 05
+decision now requires a superseding ADR, not an edit.
 
 **`D-08` is not resolved.** Section 05 fixed the criteria a provider must satisfy (`PR-1`–`PR-9`)
 and selected none — the constraints that decide it are `Q-06` and `Q-03`, James's to answer. This

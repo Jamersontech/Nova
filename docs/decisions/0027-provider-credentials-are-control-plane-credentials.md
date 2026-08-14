@@ -1,7 +1,8 @@
 # 0027 — Provider Credentials Are Control-Plane Credentials
 
-**Status:** **Proposed**
+**Status:** **Accepted**
 **Proposed:** 2026-08-14 — Section 05
+**Accepted:** 2026-08-14 by James
 **Section:** 05
 
 ## Decision

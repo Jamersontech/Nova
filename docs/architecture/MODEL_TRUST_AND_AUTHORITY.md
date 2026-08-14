@@ -1,6 +1,6 @@
 # Model Trust and Authority
 
-**Status:** **Proposed** — Section 05, pending James's approval.
+**Status:** **Active** — Section 05, accepted by James 2026-08-14 (ADRs `0025`, `0026`, `0028`).
 **Covers:** what model output is, what it may cause, and what it may never establish — taint
 propagation, tool-argument authority, risk classification, and the limits of model verification.
 **Extends:** [`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) and

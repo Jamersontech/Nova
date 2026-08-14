@@ -82,10 +82,10 @@ already using, for instance. NOVA pauses and asks unless a compensation is decla
 - Repeated failure escalates rather than retrying indefinitely.
 - Circuit breaking: an integration failing consistently is marked unhealthy and dependent
   work pauses rather than hammering it.
-- **Model calls retry under their own rule.** *(Added 2026-08-14 — **PROPOSED**, Section 05;
+- **Model calls retry under their own rule.** *(Added 2026-08-14 — Section 05, **Accepted** by James 2026-08-14;
   authority [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
-  [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), removed if
-  either is rejected.)* The discipline above is written about **tools**, where idempotency is
+  [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
+  **Accepted** 2026-08-14.)* The discipline above is written about **tools**, where idempotency is
   declared metadata. **A model call is idempotent in itself and not in its consequences.** So:
   a retried or rerouted model call **re-issues no side effect** — if its tool calls were already
   dispatched, the model call is not retried and the *step* is re-planned or escalated (§2, "model

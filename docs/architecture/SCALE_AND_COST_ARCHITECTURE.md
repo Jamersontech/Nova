@@ -89,11 +89,10 @@ answer than always using the strongest model. This is accepted for low-risk work
 **not** accepted for high-risk work, where the risk class overrides the cost preference —
 a cheap wrong deployment costs more than an expensive right one.
 
-**On the model path, cost is also a safety property.** ***PROPOSED — added by Section 05, not yet
-accepted*** *(2026-08-14; authority
+**On the model path, cost is also a safety property.** ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
-[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), removed if either
-is rejected).* Unbounded model consumption is a denial of service reachable by **injected
+[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both **Accepted**
+2026-08-14).* Unbounded model consumption is a denial of service reachable by **injected
 content**: text that induces long reasoning, large retrieval, or recursive delegation consumes
 budget without ever crossing an authorization boundary. So every execution carries a **model cost
 and token ceiling**, and reaching it **terminates and escalates** — never a silent fall back to a

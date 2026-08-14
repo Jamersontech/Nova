@@ -57,7 +57,7 @@ storage and platform choices support them. These are marked **[PHYS]** below.
 | **I-90** | Whether a single audit partition can be served on its own, without a component that spans partitions, is a property of the storage and audit mechanism. **`I-89` is deliberately *not* marked `[PHYS]`** — the prohibition on a universal audit reader is NOVA's own architectural choice (`S4-P2`, Option D) and holds under any mechanism; only its *feasibility* is mechanism-dependent, and that is what this row records | `D-35`, `D-02`, `D-11` |
 | **I-96** ¹ | Whether an item's classification can be established at egress time, and whether redaction can be **confirmed applied** rather than merely attempted, are properties of the classification mechanism and of the gateway implementation. Nothing in the conceptual model makes redaction verifiable — which is why `I-96` **denies rather than degrades**: an unverifiable removal must not be assumed successful. **`I-94`, `I-95`, `I-97`, `I-98` and `I-99`–`I-105` are deliberately *not* `[PHYS]`** — each is a rule NOVA decides and holds to under any mechanism, and their *correct implementation* is an ordinary correctness concern, not a physical dependency | `D-08`, `D-33`, `D-02` |
 
-> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; authority
+> ¹ ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 > [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
 > [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md)).*
 
@@ -272,11 +272,9 @@ decided and implemented.
 
 ## Added by Section 05 — AI Architecture & Model Gateway
 
-> **`I-94`–`I-105` are PROPOSED, not accepted.** *(Added 2026-08-14.)* This file is Active
-> Section 03 material and every change to it is C3. **Everything from `I-94` down is proposed
-> through Section 05 and stands or falls with ADRs `0024`–`0028`, which are Proposed.** If those
-> ADRs are rejected, these invariants are removed rather than retained. `I-01`–`I-93` are
-> **unmodified** by Section 05.
+> **`I-94`–`I-105` were accepted by James on 2026-08-14 with ADRs `0024`–`0028`.** *(Added and
+> accepted 2026-08-14.)* This file is Active Section 03 material and every change to it is C3.
+> `I-01`–`I-93` are **unmodified** by Section 05.
 
 *Same status as every invariant above: REQUIREMENT, unverified.*
 

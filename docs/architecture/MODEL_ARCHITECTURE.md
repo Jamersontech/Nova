@@ -53,7 +53,7 @@ including, where required, that certain scopes' data must not reach certain prov
 all. Constitution §13 (data ownership) and Section 37 (privacy) depend on this being one
 chokepoint rather than a rule agents are asked to remember.
 
-> ¹ **AMENDED BY SECTION 05 — PROPOSED, not yet accepted.** *(2026-08-14.)* **As accepted
+> ¹ **AMENDED BY SECTION 05 — ACCEPTED by James 2026-08-14.** *(2026-08-14.)* **As accepted
 > 2026-08-12 the two cells read** *"Routing (via the router)"* and *"Whether the request is
 > permitted — Policy decides."* Policy was named as the decider and **no enforcement point was
 > named**, so redaction and data policy were duties a component judged for itself. Section 05
@@ -61,7 +61,7 @@ chokepoint rather than a rule agents are asked to remember.
 > gateway can only deny (`I-94`, `I-77`). Authority:
 > [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
 > [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
-> **Proposed**; the accepted text is restored verbatim if they are rejected. Full model:
+> **Accepted** 2026-08-14. Full model:
 > [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md).
 
 ---
@@ -89,7 +89,7 @@ task difficulty, or high risk class — not habitual.
 checker should not be the same instance that produced it, and preferably not the same
 provider. Self-verification by the same model in the same call is weak evidence.
 
-> ² **AMENDED BY SECTION 05 — PROPOSED, not yet accepted.** *(2026-08-14.)* Two changes, neither
+> ² **AMENDED BY SECTION 05 — ACCEPTED by James 2026-08-14.** *(2026-08-14.)* Two changes, neither
 > removing accepted text.
 >
 > **Data policy** was accepted as one row among eight. Read as a weighted factor it can be traded
@@ -109,7 +109,7 @@ provider. Self-verification by the same model in the same call is weak evidence.
 >
 > Authority: ADRs [0024](../decisions/0024-model-gateway-is-an-enforcement-point.md),
 > [0026](../decisions/0026-model-verification-is-corroboration.md) and
-> [0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), all **Proposed**.
+> [0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), all **Accepted** 2026-08-14.
 
 ---
 
@@ -128,7 +128,7 @@ provider. Self-verification by the same model in the same call is weak evidence.
 `HIGH-IMPACT EXECUTE` decision to a weaker model to keep things moving is a failure
 disguised as resilience. The correct behaviour is to pause and say so.
 
-> ³ **AMENDED BY SECTION 05 — PROPOSED, not yet accepted.** *(2026-08-14.)* **Every row above that
+> ³ **AMENDED BY SECTION 05 — ACCEPTED by James 2026-08-14.** *(2026-08-14.)* **Every row above that
 > reroutes, fails over, or retries is bounded by the permitted provider set** (`I-97`). As accepted
 > the table says *"fail over to an equivalent-profile provider"* with no data-policy qualification
 > — read literally it permits a degraded system to reach a provider a scope was never permitted to
@@ -140,7 +140,7 @@ disguised as resilience. The correct behaviour is to pause and say so.
 > first call's allow (`I-104`,
 > [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) §6). Authority:
 > ADRs [0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
-> [0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both **Proposed**.
+> [0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14.
 
 ---
 
@@ -161,7 +161,7 @@ No provider, no model, no routing thresholds, no self-hosting question. Recorded
 and `D-20`. Section 05 owns them. What Section 2 fixes is that **the decision, whenever it
 is made, is reversible.**
 
-**Section 05 did not select a provider either.** *(Added 2026-08-14 — Proposed.)* It fixed the
+**Section 05 did not select a provider either.** *(Added 2026-08-14 — Accepted by James 2026-08-14.)* It fixed the
 criteria a provider must satisfy (`PR-1`–`PR-9`) and left `D-08` open, because the constraints
 that decide it are `Q-06` (residency, budget, privacy) and `Q-03` (surfaces) — James's to answer.
 `D-20` is partially resolved: routing **constraints** are fixed, thresholds are not. See

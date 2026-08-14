@@ -50,11 +50,11 @@ flowchart TB
 | **External service** | NOVA from the outside world | Scoped requests out; data in, marked untrusted | Credential scoped to that service in that scope |
 | **Model provider** ¹ | NOVA from a model provider | Content from **one** scope out, redacted and classification-filtered; generated text in, **untrusted, never instruction** | **Per-call PDP decision at the Model Gateway** covering token, every item's classification, and the destination provider |
 
-> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; this file is Active
+> ¹ ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; this file is Active
 > Section 02 material, so this row and the Model Gateway row in §5 are amendments proposed through
 > [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
-> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), removed if
-> either is rejected).* **This document claims to enumerate *every* boundary, and model egress was
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
+> **Accepted** 2026-08-14).* **This document claims to enumerate *every* boundary, and model egress was
 > absent** — the one path on which NOVA's data leaves its trust boundary to a third party had no
 > row here and no enforcement point in
 > [`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §2.

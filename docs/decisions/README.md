@@ -193,22 +193,24 @@ product choice deferred. **`D-02` was not touched.**
 **Changing an accepted decision requires a superseding ADR**, not an edit to the original.
 A superseded record keeps its text and is marked `Superseded` with a pointer forward.
 
-### Section 05 — Proposed, awaiting James
+### Section 05 — **Accepted by James 2026-08-14**
 
 | # | Decision | Status |
 | --- | --- | --- |
-| [0024](./0024-model-gateway-is-an-enforcement-point.md) | Model egress is the **sixth** Policy Enforcement Point; one scope per request; data policy constrains the candidate provider set, including on fallback | Proposed |
-| [0025](./0025-model-output-is-an-untrusted-derivation.md) | Model output is a derivation carrying its inputs' provenance whether or not it is stored; **tool arguments are authorized, not merely validated**; risk classification is one-way with respect to models | Proposed |
-| [0026](./0026-model-verification-is-corroboration.md) | A model check never promotes epistemic status, satisfies an approval, or lowers a risk class; independence required above `PREPARE` | Proposed |
-| [0027](./0027-provider-credentials-are-control-plane-credentials.md) | Provider credentials sit outside the client scope tree, leaving `I-23` **unamended** rather than adding an exception to it | Proposed |
-| [0028](./0028-section-05-amendments-to-accepted-architecture.md) | Section 05 amendments to accepted architecture — authorizes all thirteen | Proposed |
+| [0024](./0024-model-gateway-is-an-enforcement-point.md) | Model egress is the **sixth** Policy Enforcement Point; one scope per request; data policy constrains the candidate provider set, including on fallback | **Accepted** |
+| [0025](./0025-model-output-is-an-untrusted-derivation.md) | Model output is a derivation carrying its inputs' provenance whether or not it is stored; **tool arguments are authorized, not merely validated**; risk classification is one-way with respect to models | **Accepted** |
+| [0026](./0026-model-verification-is-corroboration.md) | A model check never promotes epistemic status, satisfies an approval, or lowers a risk class; independence required above `PREPARE` | **Accepted** |
+| [0027](./0027-provider-credentials-are-control-plane-credentials.md) | Provider credentials sit outside the client scope tree, leaving `I-23` **unamended** rather than adding an exception to it | **Accepted** |
+| [0028](./0028-section-05-amendments-to-accepted-architecture.md) | Section 05 amendments to accepted architecture — authorizes all thirteen | **Accepted** |
 
 ### Amendment-authority audit — Section 05 edits to Active/Accepted documents
 
 **No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
 Every row is authorized by [ADR 0028](./0028-section-05-amendments-to-accepted-architecture.md),
-which enumerates each individually with its reason and removal condition. All are **Proposed** and
-marked in place.
+which enumerates each individually with its reason. **All thirteen were accepted with ADRs
+`0024`–`0028` on 2026-08-14, and their in-place Proposed markings were cleared at acceptance** —
+the step Section 04's acceptance omitted, which is why eighteen stale markings still sit in
+Section 04 material (recorded as outstanding in [`../ROADMAP.md`](../ROADMAP.md)).
 
 | # | Document | Section / status | What Section 05 changes |
 | --- | --- | --- | --- |

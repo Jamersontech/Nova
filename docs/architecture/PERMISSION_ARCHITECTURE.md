@@ -62,12 +62,11 @@ requirement on a mechanism that does not yet exist (`I-87` is `[PHYS]`); **forge
 to be impossible**, and it does nothing against a compromised Context service issuing genuine
 tokens (`T-23a`).
 
-**Model egress is the sixth enforcement point.** ***PROPOSED — added by Section 05, not yet
-accepted*** *(2026-08-14; this file is Active Section 02 material, so this paragraph and the
+**Model egress is the sixth enforcement point.** ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; this file is Active Section 02 material, so this paragraph and the
 `Model egress` node above are amendments proposed through
 [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
-[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), removed if either
-is rejected.)* Every model call is an authorization decision evaluated per call against the
+[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
+**Accepted** 2026-08-14.)* Every model call is an authorization decision evaluated per call against the
 Context Token, the classification of every item in the request, and the destination provider
 (`I-94`, [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) §2). Model egress is
 the point at which NOVA's data leaves NOVA's trust boundary to a third party; before Section 05 it

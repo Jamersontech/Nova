@@ -69,6 +69,6 @@ The Section 04 model is **Active** — ADRs `0016`–`0023` were accepted by Jam
 `0016`–`0021`" — accurate before the acceptance and false after it, and it also predated ADRs
 `0022`–`0023`.)*
 
-The Section 05 model is **Proposed** — ADRs `0024`–`0028` await James's approval.
+The Section 05 model is **Active** — ADRs `0024`–`0028` were accepted by James on 2026-08-14.
 
 Next: **Section 06**.

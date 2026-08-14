@@ -37,10 +37,9 @@ outward while appearing to be new objects.
 
 **Model training is the one flat prohibition.** Everything else has a governed path.
 
-> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; authority
+> ¹ ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 > [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
-> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both Proposed;
-> the row is removed if either is rejected).* This document examines every mechanism with one
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both Accepted 2026-08-14).* This document examines every mechanism with one
 > question — *could this become a side channel from one scope into another?* — and **the model
 > request had not been asked it.** A prompt assembled from two clients' content is two clients'
 > content in one buffer, sent to one third party, under one request: a join point of exactly the

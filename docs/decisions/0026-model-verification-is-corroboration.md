@@ -1,7 +1,8 @@
 # 0026 — Model Verification Is Corroboration, Never Evidence
 
-**Status:** **Proposed**
+**Status:** **Accepted**
 **Proposed:** 2026-08-14 — Section 05
+**Accepted:** 2026-08-14 by James
 **Section:** 05
 
 ## Decision

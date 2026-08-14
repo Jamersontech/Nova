@@ -137,10 +137,10 @@ future implementer knows exactly where enforcement is mandatory:
 A call that arrives at any of these without a valid token is denied and recorded.
 There is no "internal" call path that skips them.
 
-> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; authority
+> ¹ ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 > [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
-> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), removed if
-> either is rejected).* **This list is where a future implementer learns enforcement is mandatory,
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
+> **Accepted** 2026-08-14).* **This list is where a future implementer learns enforcement is mandatory,
 > and model egress was not on it** — the one path on which NOVA's data leaves its trust boundary
 > to a third party. Like point 5 it is **per call**, not per request or session, because the
 > request content and the destination provider do not exist at plan time (`I-94`). Emergency stop

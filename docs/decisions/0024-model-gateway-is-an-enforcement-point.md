@@ -1,7 +1,8 @@
 # 0024 — The Model Gateway Is a Policy Enforcement Point
 
-**Status:** **Proposed**
+**Status:** **Accepted**
 **Proposed:** 2026-08-14 — Section 05
+**Accepted:** 2026-08-14 by James
 **Section:** 05
 **Partially resolves:** `D-20` — routing constraints; thresholds deferred
 

@@ -276,7 +276,7 @@ interfaces, each independently replaceable:
 > **Proposed**. Until James accepts it, **the amended text above is not accepted architecture**,
 > and it is **removed — restoring the original row verbatim — if ADR 0022 is rejected.**
 
-> ³ **AMENDED BY SECTION 05 — PROPOSED, not yet accepted.** *(2026-08-14.)* **As accepted on
+> ³ **AMENDED BY SECTION 05 — ACCEPTED by James 2026-08-14.** *(2026-08-14.)* **As accepted on
 > 2026-08-12 this row read:** *Model Gateway | Provider-neutral model access and routing | Prompt
 > content.* Section 05 makes model egress the **sixth Policy Enforcement Point**: the gateway asks
 > the PDP per model call and can only deny (`I-94`, `I-77`). It also holds provider credentials,
@@ -286,7 +286,7 @@ interfaces, each independently replaceable:
 > **Authority:** [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md),
 > [ADR 0027](../decisions/0027-provider-credentials-are-control-plane-credentials.md) and
 > [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), all
-> **Proposed**. Removed — restoring the original row and removing the arrow — if they are rejected.
+> **Accepted** 2026-08-14.
 > Full model: [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md).
 
 **Why this decomposition.** The failure mode being avoided is a Core that becomes a

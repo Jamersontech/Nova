@@ -1,6 +1,6 @@
 # Model Gateway Architecture
 
-**Status:** **Proposed** — Section 05, pending James's approval.
+**Status:** **Active** — Section 05, accepted by James 2026-08-14 (ADRs `0024`, `0027`, `0028`).
 **Covers:** the Model Gateway as an enforcement point, model egress authorization, redaction,
 routing and fallback under data policy, provider credentials, retry semantics, and model cost
 control.
