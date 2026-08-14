@@ -32,7 +32,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 05 — AI Architecture & Model Gateway | **Complete — ADRs `0024`–`0028` Accepted by James 2026-08-14** |
 | 06 — Agent Architecture & Agent Governance | **Complete — ADRs `0029`–`0031` Accepted by James 2026-08-14** |
 | 07 — Context & Memory Architecture | **PROPOSED, awaiting James's approval** |
-| 08 and beyond | Not started |
+| 08 — Reasoning, Planning & Orchestration | **PROPOSED, awaiting James's approval** |
+| 09 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -258,6 +259,43 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 08 — PROPOSED, awaiting James's approval
+
+**Reasoning, Planning & Orchestration.** **No new architecture document was created.**
+`ORCHESTRATION_ARCHITECTURE.md` already owns the Planner, the pipeline, the orchestrator contract
+and the workflow engine, and the plan belongs to exactly those sections — splitting it out would
+separate the plan from the pipeline that produces and consumes it. Rationale recorded in
+[ADR 0035](./decisions/0035-section-08-amendments-to-accepted-architecture.md).
+
+**Delivered — all Proposed:** ADRs `0034`–`0035`, invariants `I-112`–`I-113`, threat `T-36`.
+
+**The core finding.** The plan was treated as the unit of authorization by four accepted documents
+and **defined by none of them** — the only enumeration was `ORCHESTRATION_ARCHITECTURE.md:31`'s
+*"A plan: steps, dependencies, required rights"*. No record, identity, version, immutability rule,
+lifecycle, taint carrier, or re-authorization rule. **Every other security object in NOVA has a
+schema**; the plan did not. So `I-40`'s rule that untrusted content may not escalate a plan had
+nothing to attach to, `I-109` had nothing to bind to, and nothing detected a plan changing between
+authorization and execution. **Sections 05 and 07 built taint carefully and delivered it to a
+boundary with no receiver.**
+
+**Authorization granularity was also contradictory** across `ORCHESTRATION_ARCHITECTURE.md` §2
+(*"the full plan is authorized as a unit"*), `AUTHORIZATION_MODEL.md` §1/§3 (ten singular steps),
+`PERMISSION_ARCHITECTURE.md` §5 (*"one action, in one context, at one time"*) and
+`EXECUTION_ARCHITECTURE.md` §2.1 (*"James approves the plan"*).
+
+**Three decisions.** The plan is a **security object** with deterministic identity reusing `I-93`'s
+construction, immutable after authorization (`I-112`). Authorization is an **envelope plus a
+per-action check** — the third application of the `MT-8`/`I-106` pattern — which reconciles all four
+documents **without modifying the PDP** (`I-113`). **Re-planning creates a new plan** and never
+inherits authorization; **resumption re-checks the binding** and fails closed.
+
+**Section 08 amends seven accepted documents**, all marked Proposed in place and authorized through
+[ADR 0035](./decisions/0035-section-08-amendments-to-accepted-architecture.md). **No ADR is
+accepted.** `I-01`–`I-111` are **unmodified**.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 07 — PROPOSED, awaiting James's approval
 

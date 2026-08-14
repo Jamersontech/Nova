@@ -65,6 +65,20 @@ silently duplicated.
 can cause more damage than the failure — deleting a provisioned environment a client is
 already using, for instance. NOVA pauses and asks unless a compensation is declared safe.
 
+**Resumption re-checks authorization; it does not inherit it.** ***PROPOSED — added by Section 08,
+not yet accepted*** *(2026-08-14; authority
+[ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both Proposed;
+removed if either is rejected).* Point 5 above says resumption restarts from the last verified step.
+**It was silent on whether the authorization still holds** — and this section's own premise is that
+earlier steps did real work, which means the world the later steps were authorized against has
+changed. A transfer that succeeded changes the balance the next step was authorized against.
+
+Before the next step runs, `I-109`'s binding is **re-checked against current state**, and execution
+**fails closed** if it no longer matches, requiring fresh authorization where the risk class
+requires it (`I-113`). **Nothing here is re-derived by the Planner**: a plan that must change is a
+new plan (`I-112`) and returns through Permission Evaluation.
+
 ---
 
 ## 4. Retry Discipline
@@ -82,6 +96,17 @@ already using, for instance. NOVA pauses and asks unless a compensation is decla
 - Repeated failure escalates rather than retrying indefinitely.
 - Circuit breaking: an integration failing consistently is marked unhealthy and dependent
   work pauses rather than hammering it.
+- **Plans retry under their own rule.** *(Added 2026-08-14 — **PROPOSED**, Section 08; authority
+  [ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+  [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), removed if either
+  is rejected.)* Idempotency was declared for **tools** (metadata) and defined for **model calls**
+  (`I-104`); **plan-level idempotency was undefined.** A plan is immutable once authorized
+  (`I-112`), so **a plan is never "retried" in a form different from the one authorized**: either
+  the same authorized plan resumes — with its binding re-checked per §3 — or a **new plan** is
+  produced, which is a new authorization object, not a retry. **Re-planning loops fail closed to
+  escalation** when they cannot continue safely, and are bounded by the **root execution budget**
+  (`I-105`, `I-108`) rather than by a separate iteration counter: the Planner and Verifier calls
+  they consume are model calls drawing on that same budget.
 - **Model calls retry under their own rule.** *(Added 2026-08-14 — Section 05, **Accepted** by James 2026-08-14;
   authority [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
   [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both

@@ -75,4 +75,6 @@ The Section 06 model is **Active** — ADRs `0029`–`0031` were accepted by Jam
 
 The Section 07 model is **Proposed** — ADRs `0032`–`0033` await James's approval.
 
-Next: **Section 08 — Reasoning, Planning & Orchestration**.
+The Section 08 model is **Proposed** — ADRs `0034`–`0035` await James's approval.
+
+Next: **Section 09 — Knowledge & Research System**.

@@ -312,5 +312,37 @@ changes no lifecycle stage.
 
 ---
 
+### Section 08 — Proposed, awaiting James
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0034](./0034-the-plan-is-a-security-object.md) | **The plan is a security object** with declared schema, deterministic identity and immutability after authorization; authorization is an **envelope plus a per-action check**; re-planning creates a new plan | Proposed |
+| [0035](./0035-section-08-amendments-to-accepted-architecture.md) | Section 08 amendments — authorizes all seven, and records why `PLANNING_ARCHITECTURE.md` was **not** created | Proposed |
+
+### Amendment-authority audit — Section 08 edits to Active/Accepted documents
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+All seven are authorized by [ADR 0035](./0035-section-08-amendments-to-accepted-architecture.md),
+are **Proposed**, and are marked in place.
+
+| # | Document | Section / status | What Section 08 changes |
+| --- | --- | --- | --- |
+| 1 | [`../architecture/ORCHESTRATION_ARCHITECTURE.md`](../architecture/ORCHESTRATION_ARCHITECTURE.md) §1, §2, §2.1, §2.2, §4 | 02 · Active | Plan object schema, identity, immutability; envelope authorization and composition; re-plan loop; resumption re-check |
+| 2 | [`../architecture/PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) §5 | 02 · Active | Envelope approval distinguished from action approval. **One-action rule unchanged** |
+| 3 | [`../architecture/AUTHORIZATION_MODEL.md`](../architecture/AUTHORIZATION_MODEL.md) §3 | 03 · Active | What the ten steps evaluate and what they do not. **Steps unchanged; PDP not a composition engine** |
+| 4 | [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) §3, §4 | 02 · Active | Resumption re-checks authorization; plan-level retry semantics |
+| 5 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | `I-112`–`I-113`. **`I-01`–`I-111` unmodified** |
+| 6 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-36`. `T-03`, `T-19`, `T-24` residuals **not reduced** |
+| 7 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.8 | 03 · Active | Six Section 08 residual risks |
+
+**Deliberately not amended:** `EXECUTION_ARCHITECTURE.md` — its *"James approves the plan"* becomes
+correct rather than ambiguous once `PERMISSION_ARCHITECTURE.md` §5 defines an envelope approval.
+
+**No new document.** `PLANNING_ARCHITECTURE.md` was considered and rejected — see ADR 0035.
+
+**Registers and status records, not amendments:** `ROADMAP.md`, `docs/README.md` and this file.
+
+---
+
 Decisions that were consciously postponed are tracked separately in
 [`DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md).

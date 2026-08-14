@@ -173,6 +173,26 @@ fresh approval is required where the risk class requires approval at all. **The 
 approved action cannot silently become a materially different action because the agent executing it
 changed.
 
+**An envelope approval is not an action approval.** ***PROPOSED — added by Section 08, not yet
+accepted*** *(2026-08-14; authority
+[ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both Proposed;
+removed if either is rejected).* `EXECUTION_ARCHITECTURE.md` §2.1 says *"James approves the plan"*
+while the rule above says an approval authorizes **one action** — two different objects, with no
+statement of how they relate.
+
+**Both are true and they are different things.** A **plan approval** authorizes an **envelope**
+(scope, risk ceiling, tool set, cost ceiling, composition) and is what
+[`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) §2.2 evaluates. **It never
+becomes blanket authorization for the actions inside it**: each action is still evaluated
+independently by the unmodified ten-step sequence, and an action outside the envelope is denied even
+where it would be permitted alone (`I-113`).
+
+**The one-action rule above is unchanged.** It governs action approvals, and an envelope approval
+does not substitute for one. **Re-planning produces a new plan and therefore a new envelope
+requiring fresh approval where the risk class requires it** — an approval is never inherited because
+the objective is unchanged.
+
 **Approval requests must be answerable.** A request stating what will change, in which
 scope, what it costs, and what happens if it is wrong is a decision James can make in
 seconds. A request saying "approve this workflow?" is not.

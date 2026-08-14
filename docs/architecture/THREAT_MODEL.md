@@ -435,6 +435,37 @@ high-trust wrong item, and nothing detects that afterwards — `I-110` makes tru
 curation from sources verified at first recording rather than through later promotion. `T-10`'s slow
 poisoning residual is **unchanged**.
 
+### T-36 Plan-boundary abuse
+*Added 2026-08-14 — **PROPOSED**, Section 08. Authority
+[ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md).*
+
+**Failure:** The plan is the unit of authorization, and the Planner is a model. Four attack shapes
+follow. **Mutation** — the plan changes between authorization and execution, substituting tools,
+scope, risk class, delegation, cost ceiling or argument envelope. **Bypass** — a verifier-driven
+re-plan produces a materially different plan that executes under the prior authorization.
+**Staleness** — a plan's first action changes the world and later actions execute under an
+authorization evaluated against the world before that change. **Composition** — every action is
+individually permitted and their combination is not.
+
+**Defense:** The plan is a **security object with deterministic identity and immutability after
+authorization** (`I-112`), so mutation produces a new plan requiring new authorization and a reused
+identity is detectable. **Re-planning always creates a new plan** that returns through Permission
+Evaluation, never inheriting the prior authorization (`I-113`). **Resumption re-checks `I-109`'s
+binding against current state and fails closed** on mismatch. **Composition is bounded by the
+declared envelope**, evaluated at the enforcement points rather than by adding steps to the PDP.
+The plan carries `I-99`/`I-111` taint to the authorization boundary, which is what makes `I-40`
+enforceable rather than merely stated.
+
+**Residual:** **Composition is governable, not solved.** A plan whose declared envelope is wide
+enough to contain a dangerous sequence is authorized correctly and is still dangerous — the same
+limit ADR 0025 records for over-wide argument envelopes, and nothing detects an over-wide envelope.
+**Detection depends on what the plan declares**, so an under-declared plan defeats composition
+checking while looking complete. **A compromised orchestrator still constructs any plan it likes**;
+what Section 08 adds is that the plan is now compared against its authorization at each enforcement
+point, which bounds the reach rather than preventing the construction (`T-19`, `T-24` unchanged).
+`T-03`'s injection residual is **unchanged**: injection can still shape a plan within its envelope.
+
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a
 new TRUSTED-zone responsibility ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),

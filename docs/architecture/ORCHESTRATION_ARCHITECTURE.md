@@ -27,7 +27,7 @@ flowchart LR
 | Component | Owns | Never owns |
 | --- | --- | --- |
 | **Interpreter** | Structured intent from expression | Deciding what to do about it |
-| **Planner** | A plan: steps, dependencies, required rights | Executing anything |
+| **Planner** | A plan — a **security object** with declared schema and identity (§2.1) | Executing anything; **authorizing the plan it produced** |
 | **Dispatcher** | Delegating steps to agents with narrowed tokens | Doing work itself |
 | **Verifier** | Checking results against success criteria | Producing results |
 | **Assembler** | The answer James sees, with what was done | Deciding what happened |
@@ -65,6 +65,105 @@ Two properties of this order matter:
   authorized as a unit rather than step-by-step surprises mid-execution.
 - **Verification is a distinct stage.** "The tool returned 200" is not verification.
   Verification checks the declared success criteria — and may send the plan back.
+
+**A returned plan re-enters the pipeline at Planning, not at Execution.** ***PROPOSED — added by
+Section 08, not yet accepted*** *(2026-08-14; authority
+[ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both Proposed;
+removed if either is rejected).* Re-planning produces a **new plan** with a new identity, which
+passes through Permission Evaluation and Approval again (§2.1, §2.2, `I-113`). **A re-planned plan
+never inherits the prior plan's authorization because the objective is unchanged.**
+
+---
+
+## 2.1 The Plan Is a Security Object
+
+***PROPOSED — added by Section 08, not yet accepted*** *(2026-08-14; same authority as above).*
+
+**The gap this closes.** §1 previously enumerated a plan as *"steps, dependencies, required
+rights"* — three words in a table cell, and the only description of it in the repository. Every
+other security object in NOVA has a declared schema: the Context Token
+([`MASTER_ARCHITECTURE.md`](./MASTER_ARCHITECTURE.md) §2.2), a Delegation
+([`SCOPE_AND_IDENTITY_MODEL.md`](./SCOPE_AND_IDENTITY_MODEL.md) §5), a Credential Binding
+([`AUTHORIZATION_MODEL.md`](./AUTHORIZATION_MODEL.md) §5), a Session
+([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §4), an agent definition, a tool definition.
+**The plan was the one object the authorization model treats as its unit while having no structure**
+— so `I-40`'s rule that untrusted content may not escalate a plan had nothing to attach to, `I-109`
+had nothing to bind to, and nothing could detect a plan changing between authorization and
+execution.
+
+```text
+Plan
+├── identity            deterministic, derived as I-93 derives event identity
+├── steps               ordered, each naming its action, resource and required rights
+├── dependencies        which steps require which predecessors verified
+├── required rights     the union the plan needs — never wider than the requester holds
+├── declared risk class the highest class any step carries
+├── scope               the single bound scope this plan operates in (I-95, I-86)
+├── provenance/taint    the union of contributing provenance and the lowest trust among
+│                       them, carried under I-99 and persisted under I-111
+└── cost estimate       drawn against the root execution budget (I-105, I-108)
+```
+
+**`I-112` fixes four properties:**
+
+**Identity is deterministic**, derived by the construction `I-93` already established for audit
+records and `I-109` already reuses for approval binding. **No new identity mechanism is invented.**
+
+**The plan is immutable once authorized.** Any material change — a step, a resource, a right, the
+risk class, the scope, the tool set, the cost — **produces a new plan with a new identity requiring
+new authorization.** A plan whose identity is reused after mutation is not the plan that was
+authorized.
+
+**Taint is a persisted security property, not prose.** The plan carries the union of its inputs'
+provenance and the lowest trust among them, under `I-99` and `I-111` — **not a parallel provenance
+system.** This is what makes `I-40` enforceable: a plan influenced by untrusted or quarantined
+content carries that fact to the authorization boundary, and cannot exceed `PREPARE` without
+approval naming the source. **`I-40` is not weakened; it is given the carrier it always required.**
+
+**A plan is never authoritative because a model produced it.** The Planner is a model
+([`MODEL_TRUST_AND_AUTHORITY.md`](./MODEL_TRUST_AND_AUTHORITY.md) §1), its output is
+`model.generated` at low trust (`I-99`), and producing a plan confers nothing (`I-20`). The plan
+becomes authoritative only when authorized — never before, and never by assertion.
+
+---
+
+## 2.2 Envelope Authorization and Per-Action Checking
+
+***PROPOSED — added by Section 08, not yet accepted*** *(2026-08-14; same authority as above).*
+
+**Four accepted documents described plan authorization at three different granularities:** §2 above
+(*"the full plan is authorized as a unit"*), `AUTHORIZATION_MODEL.md` §1 and §3 (*"this **specific
+action** against this **specific resource**"*, ten singular steps),
+`PERMISSION_ARCHITECTURE.md` §5 (*"one action, in one context, at one time"*), and
+`EXECUTION_ARCHITECTURE.md` §2.1 (*"James approves the plan"*). An engineer building the
+Planner→PDP interface had to choose between defensible readings that produce materially different
+systems. **`I-113` reconciles them without amending the PDP.**
+
+```text
+Plan authorization  → ENVELOPE: scope, risk ceiling, tool set, cost ceiling, composition
+Each action         → the unmodified ten-step sequence, at its own enforcement point
+                      ∈ envelope → proceed
+                      ∉ envelope → deny, even if the action alone would be permitted
+```
+
+**Neither substitutes for the other.** Plan authorization **never** replaces per-action
+authorization, and per-action authorization **never** permits exceeding the envelope. This is the
+same structure `MT-8` uses for tool arguments and `I-106` uses for token issuance — a third
+application of a pattern the architecture already relies on, not a new one.
+
+**Composition is bounded by the envelope.** A plan's individually permissible actions **must not
+exceed the authorized envelope when taken together.** Permitted read + permitted write + permitted
+send do not silently compose into an unauthorized higher-level operation. The plan declares enough
+(§2.1) for enforcement to evaluate the collection rather than only its members.
+
+**The PDP is not modified and does not become a composition engine.** It keeps evaluating exactly
+what it evaluates today; the envelope constrains what may be submitted to it. `P-7` and `P-11`
+stand.
+
+**Stated honestly:** this makes composition **governable, not solved.** A plan whose declared
+envelope is wide enough to contain a dangerous sequence is authorized correctly and is still
+dangerous — the same limit ADR 0025 records for over-wide argument envelopes.
 
 ---
 
@@ -127,3 +226,12 @@ token spanning both — it holds two, used separately.
 
 **Partial completion is a first-class outcome**, not an error state to be hidden. Handling
 is defined in [`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md).
+
+**Resumption re-checks the authorization binding.** ***PROPOSED — added by Section 08, not yet
+accepted*** *(2026-08-14; same authority as §2.1).* A workflow that resumes from its last verified
+step re-checks `I-109`'s binding against **current** state before the next step, and **fails closed**
+if it no longer matches (`I-113`). This is the case §3 of
+[`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) describes as normal: a plan's first
+action changes the world, and the authorization for its second action was evaluated against the
+world before that change. **Resumption is not a continuation of the old authorization; it is a fresh
+check of whether the old authorization still holds.**

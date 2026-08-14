@@ -82,6 +82,23 @@ agent-definition intersection engine:** that would put a registry read on the ho
 together — after issuance the token is already integrity-bound and every enforcement point is
 obliged to honour it.
 
+**What this sequence evaluates, and what it does not.** ***PROPOSED — added by Section 08, not yet
+accepted*** *(2026-08-14; authority
+[ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both Proposed;
+removed if either is rejected).* **The ten steps above are unchanged.** They evaluate **one action
+against one resource**, exactly as §1 and §2 state.
+
+[`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) §2 also says *"the full plan is
+authorized as a unit"*. **Both are true, and they are different decisions.** Plan authorization is a
+separate **envelope** decision fixing scope, risk ceiling, tool set, cost ceiling and composition
+(§2.2 there, `I-113`); the sequence above then runs **per action** inside that envelope. **Neither
+substitutes for the other:** an envelope never authorizes an action, and an action's allow never
+permits exceeding the envelope.
+
+**The PDP is not made a plan-composition engine.** Composition is checked against the declared
+envelope at the enforcement points, not by adding steps here — `P-7` and `P-11` stand.
+
 ---
 
 ## 4. Fail-Closed

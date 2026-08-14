@@ -220,6 +220,21 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **Revocation labelling surfaces often and decides nothing** | `S7-D5` exposes revoked creating authority at retrieval and deliberately does not re-weight. That is correct — revocation happens for many reasons and only some impeach what was learned — but it puts a judgment in front of the consumer on every affected retrieval | 07 |
 | **Quarantine still contains rather than ends injection persistence** | Unchanged from Section 03. A patient attacker supplying consistently plausible content that nothing contradicts is not detected (`T-10`), and Section 07 does not claim otherwise | 07 / 40 |
 
+## 3.8 Risks Identified in Section 08 — planning and orchestration
+
+> ***PROPOSED — added by Section 08, not yet accepted*** *(2026-08-14; authority ADRs
+> [0034](../decisions/0034-the-plan-is-a-security-object.md)–[0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md),
+> removed if they are rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **An over-wide plan envelope silently restores every attack it exists to stop** | `I-113` bounds composition against the **declared** envelope. An envelope written wide enough to be convenient admits the dangerous sequence and looks identical to a correct one at every enforcement point. This is the third instance of the same failure mode — over-wide argument envelopes (ADR 0025) and over-wide agent envelopes (ADR 0029) preceded it — and nothing detects any of them | 08 / 31 |
+| **Composition is governable, not solved** | NOVA cannot enumerate every dangerous composition in advance. `I-113` makes the collection evaluable; it does not make the evaluation complete | 08 / 39 |
+| **Every re-plan costs a full authorization cycle** | Verifier-driven re-planning is normal, not exceptional, so this is latency and PDP load on a common path. The pressure will be to make re-planning inherit authorization "when the objective is unchanged" — which is precisely what `I-113` forbids, because "unchanged" would be judged by the Planner | 08 / 33 |
+| **Plan declaration quality is now load-bearing** | Composition checking, taint carriage and envelope enforcement all read what the plan declares. An under-declared plan defeats them while satisfying the schema | 08 / 31 / 41 |
+| **A compromised orchestrator still authors plans** | `I-112`/`I-113` bound what an authorized plan may reach; they do not prevent a compromised orchestrator constructing one. `T-19`, `T-24` and `T-36` are unchanged in that respect | 08 / 31 / 38 |
+| **Planner and Verifier may be correlated** | `I-102` requires a different instance above `PREPARE` and only *prefers* a different provider. A verifier that shares the Planner's poisoned inputs can drive re-planning loops that are budget-bounded but not judgment-bounded (`T-32`) | 08 / 41 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture
