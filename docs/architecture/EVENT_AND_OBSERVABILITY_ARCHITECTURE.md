@@ -101,7 +101,7 @@ references and identifiers — never content, never secrets.
 | **Denial** | Every denied decision, with the failing step |
 | **Grants** | Creation, modification, expiry, revocation |
 | **Approvals** | What was approved, by whom, when, for which single action |
-| **Memory** | Creation, correction, supersession, deletion, and **elevation** to a parent scope |
+| **Memory** | Creation, correction, supersession, deletion, **elevation** to a parent scope, and **trust promotion — granted and refused alike** ³ |
 | **Derivation** | Every derived item with its complete source lineage |
 | **Deletion** | The tombstone: identity, scope, classification, time, authorization |
 | **Credentials** | Requests, issuance, use, rotation, revocation — by **reference only** |
@@ -120,6 +120,15 @@ references and identifiers — never content, never secrets.
 > three cover every event here. Delegation appeared in `I-92`'s control-plane list but not in this
 > canonical category list, and agent-definition lifecycle appeared in neither.
 >
+> ³ ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority
+> [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both Proposed;
+> removed if either is rejected).* **No new audit authority is created** — a trust promotion
+> concerns a client scope, so the decision is **`W-2`** and the resulting write **`W-1`**, in that
+> scope's partition, exactly as ADR 0023 already provides. **Refusals are recorded too**: a denied
+> promotion is the more interesting signal, and `I-110` fails closed, so refusal is the expected
+> outcome of an unsupported request rather than an error.
+
 > **Authority:** agent-definition lifecycle and delegation issuance/expiry are **`W-3`**
 > (control-plane — they concern no client scope, ADR 0023's `HIGH-1` rule applied unchanged);
 > issuance refusals, delegation refusals and budget denials are **`W-2`** (the decision is the

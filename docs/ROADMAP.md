@@ -31,7 +31,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 04 — Security, Identity & Permissions | **Complete — ADRs `0016`–`0023` Accepted by James 2026-08-13** |
 | 05 — AI Architecture & Model Gateway | **Complete — ADRs `0024`–`0028` Accepted by James 2026-08-14** |
 | 06 — Agent Architecture & Agent Governance | **Complete — ADRs `0029`–`0031` Accepted by James 2026-08-14** |
-| 07 and beyond | Not started |
+| 07 — Context & Memory Architecture | **PROPOSED, awaiting James's approval** |
+| 08 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -257,6 +258,40 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 07 — PROPOSED, awaiting James's approval
+
+**Context & Memory Architecture.** Discovery found context and memory **already densely specified**
+across five Active documents — `CONTEXT_ARCHITECTURE.md`, `MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`,
+`MEMORY_MODEL.md`, `DATA_LIFECYCLE.md`, `PROVENANCE_AND_TRUST.md`. **Section 07 is not a greenfield
+section, and no new architecture document was created.** `CONTEXT_ARCHITECTURE.md` needed **no
+amendment at all**: it already answers every context question Section 07 raised.
+
+**Delivered — all Proposed:** ADRs `0032`–`0033`, invariants `I-110`–`I-111`, threat `T-35`.
+
+**The critical finding.** `I-39` gates fact status on *provenance **and** trust*. Provenance is
+immutable (`I-38`), classification-lowering is owned (`I-30`), approval and grants are James's
+(`I-09`, `I-10`), and a model check cannot promote epistemic status (`I-102`) — **but trust was the
+one axis in that gate with no authority attached.** `PROVENANCE_AND_TRUST.md` said trust *"may
+change"*; `MEMORY_MODEL.md` said revalidation *"promotes it"*; `system.verified` was defined as
+*"NOVA checked it against an authoritative source"* with **neither term defined anywhere in the
+repository**. An unowned promotion converted contained untrusted content into apparent fact
+**without violating any invariant**. `I-110` closes it, and defines *authoritative source*.
+
+**Four supporting decisions:** `model.generated` joins the existing quarantine set; delegate memory
+carries its delegation ancestry and **survival is not authority**; `I-99`'s union provenance and
+lowest trust **survive persistence and are restored at retrieval** (`I-111`) — which is what
+`I-100`'s tool-argument ceiling actually depends on; and retrieval **surfaces** a revoked creating
+authority without automatically re-weighting it.
+
+**Section 07 amends eight accepted documents**, all marked Proposed in place and authorized through
+[ADR 0033](./decisions/0033-section-07-amendments-to-accepted-architecture.md). **No ADR is
+accepted.** `I-01`–`I-109` are **unmodified**. `D-24`/`D-24a` remain deferred — retrieval mechanics,
+decay algorithms and storage depend on `D-02`/`D-06`, and confidence-horizon **durations** are
+values, not security decisions.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 06 — **Complete: ADRs `0029`–`0031` Accepted by James 2026-08-14**
 

@@ -44,16 +44,41 @@ records history, and history does not change when opinion does.
 | `system.unverified` | Recorded but never checked | **Low** |
 
 Provenance includes: source identity, timestamp, the execution and context that produced it,
-and the source items it derived from — the **lineage** chain
-([`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) §5).
+the source items it derived from — the **lineage** chain
+([`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) §5) — and, where the producing execution was a
+delegate, its **delegation ancestry**. ³
 
 ---
 
 ## 3. Trust
 
 Trust is a property of the **source**, evaluated at use time, and may change without
-rewriting history. A previously reliable integration that starts returning malformed data
+rewriting history. ² A previously reliable integration that starts returning malformed data
 loses trust; everything it supplied keeps its provenance and is re-weighted.
+
+> ² **AMENDED BY SECTION 07 — PROPOSED, not yet accepted.** *(2026-08-14; authority
+> [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both Proposed;
+> the accepted text is restored verbatim if either is rejected.)*
+>
+> **"May change" named a mutable axis with no owner, and it was the one axis in `I-39`'s gate that
+> had none.** Provenance is immutable (`I-38`), classification-lowering is owned (`I-30`), approval
+> and grants are James's (`I-09`, `I-10`), and a model check cannot promote epistemic status
+> (`I-102`) — but nothing said who could **raise trust**, or who could assign `system.verified`,
+> whose own definition (*"NOVA checked it against an authoritative source"*) left both **NOVA** and
+> **authoritative source** undefined.
+>
+> **Raising trust is now an explicitly authorized, recorded, C3 operation** (`I-110`,
+> [`MEMORY_MODEL.md`](./MEMORY_MODEL.md) §4.3): never automatic, never by an agent, never
+> model-mediated, and never inferred from repetition, confidence, consensus, or internal origin.
+> **`system.verified` requires an authoritative source** — external to the model's own output,
+> identifiable, reproducibly checkable, and itself trust- and data-policy-compliant. **A model
+> saying "I verified this" is never evidence; a model summary of a source is not the source.**
+> Uncertainty or a failed check **denies the promotion**; the elevated status is never retained
+> provisionally.
+>
+> **Lowering trust is unchanged** — the paragraph above stands, and restriction is not gated like
+> elevation.
 
 **Readable ≠ trustworthy.** NOVA can read a client's website and store its content at full
 fidelity while treating every claim in it as low-trust and every instruction in it as
@@ -93,6 +118,23 @@ integration.supplied + stale          → assumption
 
 **Confidence is not provenance and not trust.** A model's certainty about its own output
 carries no evidential weight and may never promote an item's epistemic status.
+
+> ³ **AMENDED BY SECTION 07 — PROPOSED, not yet accepted.** *(2026-08-14; same authority as ².)*
+> Two additions to what provenance carries, both required for rules elsewhere to be enforceable:
+>
+> **Delegation ancestry.** Memory written by a delegated child is **scope-owned** and survives the
+> child correctly (`SCOPE_AND_IDENTITY_MODEL.md` §2) — but **survival is not authority.** Without
+> recorded ancestry, a broader ancestor retrieving that memory has no way to know it was produced
+> under narrower authority. Reuses `I-107`'s `ancestry` field; creates no separate authority
+> hierarchy for memory, and does **not** make delegate memory invalid.
+>
+> **Persistence.** `I-99` requires model output to carry the **union** of its inputs' provenance and
+> the **lowest** trust among them, *"whether or not it is stored"* — but nothing required the
+> storage layer to persist that union or retrieval to restore it. **Persistence must not discard
+> provenance, collapse multiple sources into one, raise trust, remove taint, or replace the union
+> with the latest writer alone** (`I-111`). `I-100`'s untrusted-derived tool-argument ceiling is
+> evaluated against exactly this, so a collapsing write defeats it silently. **This is a security
+> property, not an implementation detail.**
 
 ---
 

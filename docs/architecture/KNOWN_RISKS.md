@@ -205,6 +205,21 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **Strict narrowing will stop legitimate chains** | `I-107` bounds depth by descending a finite lattice. A legitimate long delegation chain hits the floor and stops. This is intended behaviour, not a defect — but it will be met as friction and the temptation will be to widen a dimension to keep going | 06 |
 | **Agent creation is now always C3 in practice** | Every new agent needs James. `AGENT_PRINCIPLES.md` §1's "when in doubt, do not create the agent" becomes operationally enforced. The failure mode to watch is the opposite one: creating **fewer, broader** general-purpose agents to avoid repeat approval, which trades approval friction for over-broad authority | 06 / 21 |
 
+## 3.7 Risks Identified in Section 07 — context and memory
+
+> ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority ADRs
+> [0032](../decisions/0032-trust-promotion-authority.md)–[0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md),
+> removed if they are rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **`I-110` makes trust increases attributable, not correct** | The four authoritative-source properties are mechanical; **whether a named source is authoritative for a given claim is a human judgment made per promotion**. A source wrongly judged authoritative yields a high-trust wrong item and nothing detects it afterwards (`T-35`) | 07 / 40 / 41 |
+| **Promotion is a new approval-fatigue surface** | If promotions are frequent they train exactly the reflexive approval this document already records as a security failure. The mitigation is behavioural, not architectural: durable knowledge should arrive through curation from sources verified at first recording, not through later promotion | 07 / 26 |
+| **Quarantining all model-generated memory slows learning** | `MEMORY_MODEL.md` §2's "curation from verified sources" becomes enforced, so the convenient path — an agent's good summary quietly becoming durable knowledge — is closed. Accepted deliberately; it will be felt as friction and the temptation will be to un-quarantine | 07 |
+| **Union provenance grows with derivation depth** | `I-111` forbids collapsing provenance, so a much-derived item carries a long ancestry. Storage, retrieval and prompt-assembly cost grow with it, and `SCALE_AND_COST_ARCHITECTURE.md` §2 does not currently model this pressure point | 07 / 33 |
+| **Revocation labelling surfaces often and decides nothing** | `S7-D5` exposes revoked creating authority at retrieval and deliberately does not re-weight. That is correct — revocation happens for many reasons and only some impeach what was learned — but it puts a judgment in front of the consumer on every affected retrieval | 07 |
+| **Quarantine still contains rather than ends injection persistence** | Unchanged from Section 03. A patient attacker supplying consistently plausible content that nothing contradicts is not detected (`T-10`), and Section 07 does not claim otherwise | 07 / 40 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture

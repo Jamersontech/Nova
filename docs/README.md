@@ -73,4 +73,6 @@ The Section 05 model is **Active** — ADRs `0024`–`0028` were accepted by Jam
 
 The Section 06 model is **Active** — ADRs `0029`–`0031` were accepted by James on 2026-08-14.
 
-Next: **Section 07 — Context & Memory Architecture**.
+The Section 07 model is **Proposed** — ADRs `0032`–`0033` await James's approval.
+
+Next: **Section 08 — Reasoning, Planning & Orchestration**.

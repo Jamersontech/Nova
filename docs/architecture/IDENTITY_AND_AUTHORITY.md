@@ -154,6 +154,19 @@ costs one question.
 | **Suspending or revoking an agent** ¹ | **C1** | Restriction. Gating removal like granting would make the safety operation slower than the dangerous one |
 | **Replacing an agent definition** ¹ | **C3** | A replacement is a new definition carrying authority-bearing fields |
 | **Instantiating an agent execution** ¹ | **not governance** | Execution, bounded at token issuance (`I-106`) |
+| **Raising an item's trust** ² | **C3** | Never automatic, never by an agent, never model-mediated. `system.verified` requires an authoritative non-model source. Governed exactly as *downward reclassification* is (`I-30`) — see below |
+
+> ² ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority
+> [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both Proposed;
+> removed if either is rejected).* **No new change class is created.** `I-39` gates fact status on
+> *provenance **and** trust*. Provenance is immutable (`I-38`), classification-lowering is owned
+> (`I-30`), approval and grants are James's — **trust was the one axis in that gate with no
+> authority attached**, so an unowned promotion could convert contained untrusted content into
+> apparent fact without violating any invariant. Raising trust is now explicitly authorized,
+> records seven fields, and **fails closed** (`I-110`,
+> [`MEMORY_MODEL.md`](./MEMORY_MODEL.md) §4.3). **Lowering trust is not governed here** —
+> restriction is not gated like elevation.
 
 > ¹ ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 > [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and

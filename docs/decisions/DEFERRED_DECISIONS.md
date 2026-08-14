@@ -173,7 +173,7 @@ which is the single authoritative list** *(corrected 2026-08-13, N-5)*, of which
 | # | Unresolved | Why it remains open | Information required | Owner |
 | --- | --- | --- | --- | --- |
 | D-23a | Context Lock *implementation* | Design settled; mechanics depend on the orchestration runtime | Runtime and UI surface choices | 08 / 16 |
-| D-24a | Memory retrieval, decay, storage | Boundaries settled; mechanics depend on storage and retrieval technology | `D-02`, `D-06` | 07 |
+| D-24a | Memory retrieval, decay, storage — **still deferred after Section 07.** Section 07 fixed the *trust and taint* half (`I-110`, `I-111`, [ADR 0032](./0032-trust-promotion-authority.md)) and selected **no storage or retrieval technology**. Confidence-horizon **durations** (`MEMORY_MODEL.md` §4.2) are values, not security decisions, and remain here *(2026-08-14 — **PROPOSED**)* | Boundaries settled; mechanics depend on storage and retrieval technology | `D-02`, `D-06` | 07 |
 | D-25a | Agent runtime implementation — **still deferred after Section 06.** Section 06 fixed the *governance and authority* half (`I-106`–`I-109`, [ADR 0029](./0029-delegated-authority.md), [ADR 0030](./0030-agent-governance-and-approval-binding.md)) and selected **no runtime, platform, language, or scheduler**. `D-25` was **not** reopened *(2026-08-14 — **Accepted** by James 2026-08-14)* | Model settled; execution mechanics depend on the platform | `D-01`, `D-04` | 06 |
 | D-28a | Budgets, thresholds, billing | Requires real cost data from actual usage | Observed costs once running | 34 |
 | D-29b | Export formats and serialization | Design settled in Section 03; formats depend on the storage choice | `D-02` | 37 / 44 |

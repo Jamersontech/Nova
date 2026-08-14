@@ -405,6 +405,36 @@ judgment an implementer makes per field, and a field wrongly classed as metadata
 attack while looking correct. Unverified until Section 31. Binding **more** would produce approval
 fatigue, which `KNOWN_RISKS.md` records as a security failure in its own right.
 
+### T-35 Trust-promotion abuse
+*Added 2026-08-14 — **PROPOSED**, Section 07. Authority
+[ADR 0032](../decisions/0032-trust-promotion-authority.md) and
+[ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md).*
+
+**Failure:** Untrusted content enters at Low trust and is correctly contained — quarantined,
+`PREPARE`-ceilinged, barred from fact status. Later its **trust is raised**, or it is re-provenanced
+`system.verified`. `I-39`'s gate now passes and everything downstream — planning, tool arguments,
+risk classification — consumes it as fact. **No invariant was violated**, because until Section 07
+no invariant governed the operation, and the audit trail showed a legitimate revalidation.
+
+**Defense:** Promotion is an explicitly authorized, recorded, **C3** operation — never automatic,
+never by an agent, never model-mediated, never inferred from repetition, confidence, consensus or
+internal origin (`I-110`). Seven fields are recorded or it does not happen. `system.verified`
+requires an **authoritative source** with four mechanical properties, of which the first —
+**external to the model's own output** — defeats the model-launders-its-own-claim path, and a model
+summary of a source is not the source. Enforcement is at the write/revalidation path **before**
+downstream eligibility, and it **fails closed**. `model.generated` is quarantined
+(`MEMORY_MODEL.md` §4.1), so model output cannot reach durable higher trust without passing through
+this gate.
+
+**Residual:** **Real, and it is a judgment residual rather than a mechanism one.** The four source
+properties are mechanical; **whether a particular named source is authoritative for a particular
+claim is a human judgment made per promotion.** A source wrongly judged authoritative produces a
+high-trust wrong item, and nothing detects that afterwards — `I-110` makes trust increases
+*attributable*, not *correct*. If promotions become frequent they train the reflexive approval
+`KNOWN_RISKS.md` records as a security failure, which argues for durable knowledge arriving through
+curation from sources verified at first recording rather than through later promotion. `T-10`'s slow
+poisoning residual is **unchanged**.
+
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a
 new TRUSTED-zone responsibility ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),

@@ -278,5 +278,39 @@ material (recorded as outstanding in [`../ROADMAP.md`](../ROADMAP.md)). **Three 
 
 ---
 
+### Section 07 — Proposed, awaiting James
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0032](./0032-trust-promotion-authority.md) | **Trust promotion authority** — raising trust is an explicitly authorized, recorded, C3 operation; never automatic, never by an agent, never model-mediated. `system.verified` requires an authoritative source, and the term is defined | Proposed |
+| [0033](./0033-section-07-amendments-to-accepted-architecture.md) | `model.generated` quarantined; delegate memory carries ancestry and survival is not authority; union provenance survives persistence; revoked creating authority surfaced at retrieval. Authorizes all eight amendments | Proposed |
+
+### Amendment-authority audit — Section 07 edits to Active/Accepted documents
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+All eight are authorized by
+[ADR 0033](./0033-section-07-amendments-to-accepted-architecture.md), are **Proposed**, and are
+marked in place.
+
+| # | Document | Section / status | What Section 07 changes |
+| --- | --- | --- | --- |
+| 1 | [`../architecture/MEMORY_MODEL.md`](../architecture/MEMORY_MODEL.md) §4, §4.1, §4.3 | 03 · Active | `model.generated` quarantined; new §4.3 trust promotion; three retrieval requirements |
+| 2 | [`../architecture/PROVENANCE_AND_TRUST.md`](../architecture/PROVENANCE_AND_TRUST.md) §2, §3 | 03 · Active | Trust-change authority; delegation ancestry and persistence in provenance |
+| 3 | [`../architecture/MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`](../architecture/MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md) §5, §7 | 02 · Active | Promotion in hygiene; taint restoration in retrieval discipline |
+| 4 | [`../architecture/IDENTITY_AND_AUTHORITY.md`](../architecture/IDENTITY_AND_AUTHORITY.md) §5 | 02 · Active | Trust-promotion row. **No new change class** |
+| 5 | [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1 | 03 · Active | Promotion granted and refused in the Memory category. **No new audit authority** |
+| 6 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | `I-110`–`I-111`. **`I-01`–`I-109` unmodified** |
+| 7 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-35`. `T-10`'s residual **not reduced** |
+| 8 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.7 | 03 · Active | Six Section 07 residual risks |
+
+**Deliberately not amended:** `CONTEXT_ARCHITECTURE.md` — Section 07 found **no context decision to
+make**; it already answers every context question raised. `DATA_LIFECYCLE.md` — a trust operation
+changes no lifecycle stage.
+
+**Registers and status records, not amendments:** `ROADMAP.md`, `docs/README.md`,
+`DEFERRED_DECISIONS.md` (`D-24a`) and this file.
+
+---
+
 Decisions that were consciously postponed are tracked separately in
 [`DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md).
