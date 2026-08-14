@@ -33,8 +33,22 @@ outward while appearing to be new objects.
 | **Caches** | **Yes** | Keyed by scope **and** token; never shared across scopes; invalidated on revocation and deletion |
 | **Backups** | **Yes** | Preserve scope partitioning; restoring one scope must not restore another's data |
 | **Derived data generally** | **Yes** | Strictest-source inheritance, lineage recorded, deletion cascades through recorded lineage within NOVA-controlled storage |
+| **The model request** ¹ | **Yes** | **One scope per request.** Cross-scope work reaching a model is N single-scope calls aggregated above them; model context is discarded at scope change and no conversation, cache, or provider-side session is shared across scopes (`I-95`) |
 
 **Model training is the one flat prohibition.** Everything else has a governed path.
+
+> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; authority
+> [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both Proposed;
+> the row is removed if either is rejected).* This document examines every mechanism with one
+> question — *could this become a side channel from one scope into another?* — and **the model
+> request had not been asked it.** A prompt assembled from two clients' content is two clients'
+> content in one buffer, sent to one third party, under one request: a join point of exactly the
+> same kind as a shared index or a cross-scope cache, and the storage rules above do not reach it.
+>
+> The answer is the one already established for aggregation in §3 and §6 — **decompose per scope,
+> aggregate above** — applied to the model path. It creates no new pattern. Full model:
+> [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) §3.1.
 
 ---
 

@@ -48,6 +48,23 @@ flowchart TB
 | **Tool** | Intent from operation | Structured calls with a valid token | Token covering scope; tool in the agent's closed list |
 | **Credential** | NOVA from external secrets | **Secrets never cross inward to agents** | Broker injects at the call boundary only |
 | **External service** | NOVA from the outside world | Scoped requests out; data in, marked untrusted | Credential scoped to that service in that scope |
+| **Model provider** ¹ | NOVA from a model provider | Content from **one** scope out, redacted and classification-filtered; generated text in, **untrusted, never instruction** | **Per-call PDP decision at the Model Gateway** covering token, every item's classification, and the destination provider |
+
+> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; this file is Active
+> Section 02 material, so this row and the Model Gateway row in §5 are amendments proposed through
+> [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), removed if
+> either is rejected).* **This document claims to enumerate *every* boundary, and model egress was
+> absent** — the one path on which NOVA's data leaves its trust boundary to a third party had no
+> row here and no enforcement point in
+> [`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §2.
+>
+> **One scope per request** (`I-95`): the model prompt is a join point of the same kind as a
+> storage channel, and cross-scope work reaching a model is N single-scope calls aggregated above
+> them, never one call holding both. **SECURITY-CRITICAL never crosses** and no grant, approval or
+> profile permits it; **SENSITIVE-PERSONAL** crosses only on explicit approval; redaction that
+> cannot be confirmed is a **denial**, not a degradation (`I-96`). Full model:
+> [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md).
 
 ---
 
@@ -127,6 +144,7 @@ reach?*
 | One integration credential | One external service in one scope | Any other service or scope |
 | The orchestrator | Planning and dispatch | Credentials; Policy decisions; enforcement points still deny |
 | A model provider | Prompt content routed to it | Credentials; scopes; enforcement |
+| **The Model Gateway** ¹ | Content of every model call it handles, and the provider credentials it holds | Client scopes — a provider credential authorizes **no scope** (`I-103`); it decides no authorization and can only deny (`I-77`); it cannot widen the permitted provider set, since the PDP decides it |
 
 The row that justifies the whole design is the last-but-one: **compromising the
 orchestrator — the most central component — still does not yield credentials or bypass

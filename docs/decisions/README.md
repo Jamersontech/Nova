@@ -113,18 +113,18 @@ Section 02 aggregation finding, and `0015` extends ADR 0002 without altering the
 resolved** — recorded in [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md)
 §3.2. Acceptance is not closure.
 
-### Section 04 — Proposed, awaiting James
+### Section 04 — **Accepted by James 2026-08-13**
 
 | # | Decision | Status |
 | --- | --- | --- |
-| [0016](./0016-isolation-enforced-below-query-layer.md) | Isolation is enforced below the query layer | Proposed |
-| [0017](./0017-isolation-independent-of-pdp.md) | Isolation enforcement is independent of the PDP | Proposed |
-| [0018](./0018-authentication-model.md) | Multi-factor, phishing-resistant authentication with step-up | Proposed |
-| [0019](./0019-secrets-store-separation.md) | Secrets storage is separate, broker-only, per-scope isolated | Proposed |
-| [0020](./0020-keys-mirror-the-scope-tree.md) | Encryption keys mirror the scope tree | Proposed |
-| [0021](./0021-revocation-and-break-glass.md) | Revocation at next decision; break-glass is bounded | Proposed |
-| [0022](./0022-section-04-amendments-to-accepted-architecture.md) | Section 04 amendments to accepted architecture — authorizes the nine documented amendments | Proposed |
-| [0023](./0023-audit-record-writer-authority.md) | Audit record writer authority; control-plane audit partition; audit-write failure behaviour. **Also authorizes the `DATA_ARCHITECTURE.md` and `EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` amendments that ADR 0022 does not cover** | Proposed |
+| [0016](./0016-isolation-enforced-below-query-layer.md) | Isolation is enforced below the query layer | **Accepted** |
+| [0017](./0017-isolation-independent-of-pdp.md) | Isolation enforcement is independent of the PDP | **Accepted** |
+| [0018](./0018-authentication-model.md) | Multi-factor, phishing-resistant authentication with step-up | **Accepted** |
+| [0019](./0019-secrets-store-separation.md) | Secrets storage is separate, broker-only, per-scope isolated | **Accepted** |
+| [0020](./0020-keys-mirror-the-scope-tree.md) | Encryption keys mirror the scope tree | **Accepted** |
+| [0021](./0021-revocation-and-break-glass.md) | Revocation at next decision; break-glass is bounded | **Accepted** |
+| [0022](./0022-section-04-amendments-to-accepted-architecture.md) | Section 04 amendments to accepted architecture — authorizes the nine documented amendments | **Accepted** |
+| [0023](./0023-audit-record-writer-authority.md) | Audit record writer authority; control-plane audit partition; audit-write failure behaviour. **Also authorizes the `DATA_ARCHITECTURE.md` and `EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` amendments that ADR 0022 does not cover** | **Accepted** |
 
 ### Amendment-authority audit — Section 04 edits to Active/Accepted documents
 
@@ -167,10 +167,13 @@ Two rules were deliberately **not** loosened in doing so:
 > this file is a C3 architectural change **requiring an ADR**."*
 > [ADR 0008](./0008-architectural-governance-model.md) — C3 changes are James's alone.
 
-**ADR 0022 satisfies both rather than amending either.** It is **Proposed**: until James accepts
-it, rows 1–9 remain amendments marked *Proposed* in place, and **every one is removed — restoring
-the accepted text verbatim — if ADR 0022 is rejected.** `0016`–`0021` cannot be accepted without
-also deciding `0022`.
+**ADR 0022 satisfies both rather than amending either.** *(Status corrected 2026-08-14: this
+paragraph described ADR 0022 as Proposed, which was accurate when written on 2026-08-13 and stale
+from the moment James accepted `0016`–`0023` later that day.)* **ADR 0022 is Accepted**, so rows
+1–9 are accepted architecture and the removal condition below did not fire. The condition is
+retained as the record of what would have happened: had ADR 0022 been rejected, every amendment
+would have been removed and the accepted text restored verbatim. `0016`–`0021` could not have
+been accepted without also deciding `0022`, and were not.
 
 **`DATA_ARCHITECTURE.md` is now amended — under ADR 0023, not ADR 0022.** *(2026-08-13, `S4-P9`.)*
 Its Audit Record row was the accepted statement that audit records are "Written by executions", which
@@ -189,6 +192,50 @@ product choice deferred. **`D-02` was not touched.**
 
 **Changing an accepted decision requires a superseding ADR**, not an edit to the original.
 A superseded record keeps its text and is marked `Superseded` with a pointer forward.
+
+### Section 05 — Proposed, awaiting James
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0024](./0024-model-gateway-is-an-enforcement-point.md) | Model egress is the **sixth** Policy Enforcement Point; one scope per request; data policy constrains the candidate provider set, including on fallback | Proposed |
+| [0025](./0025-model-output-is-an-untrusted-derivation.md) | Model output is a derivation carrying its inputs' provenance whether or not it is stored; **tool arguments are authorized, not merely validated**; risk classification is one-way with respect to models | Proposed |
+| [0026](./0026-model-verification-is-corroboration.md) | A model check never promotes epistemic status, satisfies an approval, or lowers a risk class; independence required above `PREPARE` | Proposed |
+| [0027](./0027-provider-credentials-are-control-plane-credentials.md) | Provider credentials sit outside the client scope tree, leaving `I-23` **unamended** rather than adding an exception to it | Proposed |
+| [0028](./0028-section-05-amendments-to-accepted-architecture.md) | Section 05 amendments to accepted architecture — authorizes all thirteen | Proposed |
+
+### Amendment-authority audit — Section 05 edits to Active/Accepted documents
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+Every row is authorized by [ADR 0028](./0028-section-05-amendments-to-accepted-architecture.md),
+which enumerates each individually with its reason and removal condition. All are **Proposed** and
+marked in place.
+
+| # | Document | Section / status | What Section 05 changes |
+| --- | --- | --- | --- |
+| 1 | [`../architecture/PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) §2 | 02 · Active | Sixth enforcement point added to the diagram and text |
+| 2 | [`../architecture/MASTER_ARCHITECTURE.md`](../architecture/MASTER_ARCHITECTURE.md) §4, §5 | 02 · Active | Policy arrow from the Model Gateway; gateway row gains egress enforcement and provider-credential custody (footnote ³) |
+| 3 | [`../architecture/MODEL_ARCHITECTURE.md`](../architecture/MODEL_ARCHITECTURE.md) §2–§4, §6 | 02 · Active | Where the permission decision is enforced; data policy as a constraint; verification limits; fallback bounded by the permitted set |
+| 4 | [`../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2, §5 | 02 · Active | `consequence-determining args` tool field; control-plane credential class |
+| 5 | [`../architecture/SECURITY_BOUNDARIES.md`](../architecture/SECURITY_BOUNDARIES.md) §2, §5 | 02 · Active | Model-provider boundary row; Model Gateway assumed-compromise row |
+| 6 | [`../architecture/PROVENANCE_AND_TRUST.md`](../architecture/PROVENANCE_AND_TRUST.md) §6 | 03 · Active | Requirement 2 extended to model output whether or not it is stored |
+| 7 | [`../architecture/CROSS_SCOPE_DATA_RULES.md`](../architecture/CROSS_SCOPE_DATA_RULES.md) §2 | 03 · Active | The model request named as a cross-scope join point |
+| 8 | [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) §4 | 02 · Active | Model-call retry semantics |
+| 9 | [`../architecture/SCALE_AND_COST_ARCHITECTURE.md`](../architecture/SCALE_AND_COST_ARCHITECTURE.md) §4 | 02 · Active | Cost ceilings terminate rather than degrade; fail closed above `PREPARE` |
+| 10 | [`../architecture/SYSTEM_LAYERS.md`](../architecture/SYSTEM_LAYERS.md) §5 | 02 · Active | Sixth boundary enforcement point |
+| 11 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | `I-94`–`I-105` added; `I-96` `[PHYS]` dependency row. **`I-01`–`I-93` unmodified** |
+| 12 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-28`–`T-32`; three rows added to §3. **No row added to §2** |
+| 13 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.5 | 03 · Active | Eight Section 05 residual risks; `[PHYS]` inventory updated |
+
+**Registers and status records, not amendments:** `ROADMAP.md` (Section 05 status),
+`DEFERRED_DECISIONS.md` (`D-08`, `D-20`, `D-39`, `D-40`), `architecture/README.md` and this file
+(indexes). Maintaining these is their purpose.
+
+**Two stale status markings were corrected, not rewritten** *(2026-08-14)*: `INVARIANTS.md`
+described `I-60`–`I-93` as PROPOSED pending ADRs `0016`–`0023`, and this file described ADR 0022
+as Proposed. Both were accurate on 2026-08-13 and stale once James accepted those ADRs later that
+day. **No Section 04 architecture was changed** — only the sentences describing its status.
+
+---
 
 Decisions that were consciously postponed are tracked separately in
 [`DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md).

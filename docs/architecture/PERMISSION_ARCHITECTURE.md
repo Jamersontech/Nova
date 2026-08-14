@@ -29,6 +29,7 @@ flowchart LR
         T["Tool call"]
         C["Credential Broker"]
         D["Data access"]
+        M["Model egress"]
     end
     PDP["POLICY DECISION POINT<br/>single authority"]
     O --> PDP
@@ -36,13 +37,15 @@ flowchart LR
     T --> PDP
     C --> PDP
     D --> PDP
+    M --> PDP
     PDP --> R["allow · deny · approval required"]
     PDP --> AU["audit record"]
 
     style PDP fill:#7c2d12,color:#fff
+    style M fill:#1e3a5f,color:#fff
 ```
 
-**One place decides; five places enforce.** Scattering authorization logic across
+**One place decides; six places enforce.** Scattering authorization logic across
 orchestration and tool code is how isolation quietly rots — each site drifts, and no one
 can answer "what is actually enforced?" A single PDP is testable in isolation
 ([`TESTING_ARCHITECTURE.md`](./TESTING_ARCHITECTURE.md)).
@@ -59,7 +62,20 @@ requirement on a mechanism that does not yet exist (`I-87` is `[PHYS]`); **forge
 to be impossible**, and it does nothing against a compromised Context service issuing genuine
 tokens (`T-23a`).
 
-**All five enforcement points remain in force after Section 04.** *(Noted 2026-08-12, H-1.)*
+**Model egress is the sixth enforcement point.** ***PROPOSED — added by Section 05, not yet
+accepted*** *(2026-08-14; this file is Active Section 02 material, so this paragraph and the
+`Model egress` node above are amendments proposed through
+[ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
+[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), removed if either
+is rejected.)* Every model call is an authorization decision evaluated per call against the
+Context Token, the classification of every item in the request, and the destination provider
+(`I-94`, [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) §2). Model egress is
+the point at which NOVA's data leaves NOVA's trust boundary to a third party; before Section 05 it
+was the only such path with no named enforcement point, which is why emergency stop (`I-19`) and
+revocation (`I-74`) — both defined as taking effect *at* enforcement points — did not reach it.
+**The gateway decides nothing** (`I-77`): like every enforcement point it can only deny.
+
+**All five original enforcement points remain in force after Section 04.** *(Noted 2026-08-12, H-1.)*
 Section 04 adds a structural storage isolation layer beneath the **Data access** PEP
 ([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md),
 [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)). It is **additional**: the Data

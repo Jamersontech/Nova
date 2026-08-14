@@ -470,6 +470,107 @@ verifies that a produced control-plane record arrived. `I-93` ensures a *known* 
 the operation closed; it does not detect a writer that silently drops records while reporting
 success.
 
+### T-28 Injected tool arguments
+*Added 2026-08-14 — **PROPOSED**, Section 05. Authority
+[ADR 0025](../decisions/0025-model-output-is-an-untrusted-derivation.md) and
+[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md).*
+
+**Failure:** Untrusted content reaches a model; the model's output fills a tool argument; the
+action executes with a target, recipient, magnitude or destination the attacker chose. **The
+authorization that permitted the action had already been granted** — the request pipeline
+authorizes the plan before Tool Selection and Execution, so argument *values* are fixed after it.
+Schema validation passes: `recipient: "attacker@example.com"` is a valid string.
+
+**Defense:** Consequence-determining arguments are checked against the authorization's envelope at
+the tool enforcement point (`I-100`); an out-of-envelope value is a denial and a security event
+(`SECURITY_BOUNDARIES.md` §6); an in-envelope value derived from untrusted content is ceilinged at
+`PREPARE` and requires approval naming the source (`I-40`, `I-58`). Detection of "derived from
+untrusted content" rests on taint propagation through model output (`I-99`).
+
+**Residual:** **Significant.** `T-03`'s residual is unchanged and this narrows only *reach*, never
+*influence*: injection can still cause wrong in-scope work with in-envelope arguments. Two further
+gaps are real — **an over-wide envelope silently restores the whole attack**, and **a taint-labelling
+bug is an authorization bug** while looking like nothing at all. Both are unverified until
+Section 31. This threat existed before Section 05 and was **unnamed**, which is the more honest
+statement than calling it new.
+
+### T-29 Compromised Model Gateway
+*Added 2026-08-14 — **PROPOSED**, Section 05.*
+
+**Failure:** The gateway is compromised. It is the single egress chokepoint for every model call,
+it performs redaction, it holds provider credentials, and after Section 05 it is an enforcement
+point. A compromised gateway can disclose the content of every model call it handles, skip
+redaction while reporting it applied, and use the provider credentials it holds.
+
+**Defense:** It **decides nothing** — it is an enforcement point and enforcement can only deny
+(`I-77`), so it cannot widen the permitted provider set or authorize a call the PDP denied. Its
+provider credentials authorize **no client scope** (`I-103`), so holding them yields nothing about
+any scope. It holds no client-scope credential, no data-key material, and no audit-read capability
+(`I-89`). It sees only what is sent through it.
+
+**Residual:** **Real and concentrated.** "Only what is sent through it" is every model call NOVA
+makes — a substantial disclosure surface, and one that spans scopes over time even though no single
+request does (`I-95`). **`I-96` is exactly as strong as the component enforcing it**, and a
+compromised gateway reporting successful redaction is indistinguishable from a working one. This is
+the same class of exposure `I-85` records for the PDP: a component's own report is not evidence of
+its integrity. Making the gateway an enforcement point **created no new capability** — it already
+held the content and the credentials — but it does make the concentration explicit.
+
+### T-30 Provider-side correlation across scopes
+*Added 2026-08-14 — **PROPOSED**, Section 05.*
+
+**Failure:** One provider credential serves every scope permitted to use that provider, so the
+provider sees every scope's traffic as one customer and can correlate across clients — the
+boundary NOVA works hardest to hold, observed from outside it.
+
+**Defense:** None that NOVA can enforce. Content is redacted and classification-filtered before
+egress (`I-96`), one request never mixes scopes (`I-95`), and `PR-2` requires a contractual
+no-training commitment.
+
+**Residual:** **Accepted, not mitigated** ([ADR 0027](../decisions/0027-provider-credentials-are-control-plane-credentials.md)).
+Per-scope provider accounts would not remove it — network origin, billing relationship and timing
+correlate anyway — and would add operational surface for no isolation gain inside NOVA. This
+extends `T-15`: once content leaves, provider behaviour governs. Whether attestation, contract, or
+self-hosting closes any of it is `D-39`.
+
+### T-31 Routing and fallback coercion
+*Added 2026-08-14 — **PROPOSED**, Section 05.*
+
+**Failure:** A request reaches a provider the scope's data policy does not permit. Two routes:
+injected content persuades the model to request a different profile or provider; or the primary
+provider is unavailable and failover reaches for whatever is up — the moment a degraded system is
+most likely to make exactly this mistake.
+
+**Defense:** Profile, provider and model are **declared, never generated** (`I-98`), so model
+output is not a routing input. Data policy **filters the candidate set** rather than being weighed
+against cost and latency, and the filter applies identically to failover, reroute and retry; an
+empty permitted set fails closed (`I-97`). Each attempt is separately authorized, so failover
+inherits no prior allow (`I-104`).
+
+**Residual:** Availability is genuinely reduced — a scope whose only permitted provider is down
+cannot proceed, and Section 05 accepts that rather than degrading. Correctness of the permitted set
+depends on `PR-3` and `PR-4`, which are provider assurances NOVA cannot verify (`D-39`).
+
+### T-32 Verifier capture
+*Added 2026-08-14 — **PROPOSED**, Section 05.*
+
+**Failure:** A model check reports success on a result that is wrong — because the checker is the
+same model reading the same injected content, or because the check was treated as evidence and used
+to discharge an approval or lower a risk class.
+
+**Defense:** A model check **never** promotes epistemic status, satisfies an approval, or lowers a
+class (`I-102`, `I-09`, `I-101`). Above `PREPARE` the checker is a different call and a different
+instance and does not receive the producing call's untrusted inputs unlabelled. Structurally,
+review agents are permanently read-only (`AGENT_ARCHITECTURE.md` §1) and Verification is a distinct
+stage against declared success criteria.
+
+**Residual:** **Correlated failure is not solved.** A different provider is *preferred and not
+required*, because requiring it would make verification unavailable wherever one permitted provider
+exists (`I-97`) — and a silently skipped check is worse than a same-provider one. So the same
+provider may serve both calls and may fail the same way. NOVA's verification above `PREPARE` rests
+on declared success criteria, structural read-only review, and James — **not** on a model checking
+a model.
+
 ---
 
 ## 2. What the Architecture Genuinely Prevents
@@ -494,8 +595,19 @@ Stated narrowly, because over-claiming is itself a risk:
 | Slow memory poisoning | Detection needs contradiction, which may never arrive |
 | Over-broad grants by James | The ultimate authority can authorize anything |
 | Provider-side leakage after egress | Outside NOVA's control |
+| Provider-side correlation of one scope's traffic with another's ¹ | One provider credential serves many scopes; per-scope accounts would not remove it (`T-30`) |
+| Injection choosing an *in-envelope* argument value ¹ | `I-100` bounds reach, never influence (`T-28`) |
+| A model check that is wrong in the same way as the call it checks ¹ | A different provider is preferred, not required (`T-32`) |
 | Shared-resource blast radius | Inherent to sharing |
 | Secrets-storage compromise | Single highest-value target; technology undecided |
+
+> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; authority ADRs
+> [0025](../decisions/0025-model-output-is-an-untrusted-derivation.md),
+> [0026](../decisions/0026-model-verification-is-corroboration.md),
+> [0027](../decisions/0027-provider-credentials-are-control-plane-credentials.md) and
+> [0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md)).* **No row in §2 is
+> added by Section 05.** Section 05 prevents nothing new; it names an unenforced boundary, bounds
+> what an injected argument can reach, and states three residuals that were previously unstated.
 
 ---
 

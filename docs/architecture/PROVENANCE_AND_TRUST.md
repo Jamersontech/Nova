@@ -100,7 +100,7 @@ carries no evidential weight and may never promote an item's epistemic status.
 
 1. **Never present inference or assumption as fact** (Constitution §14).
 2. **Never let provenance be lost in derivation** — a summary carries the union of its
-   sources' provenance and the *lowest* trust among them.
+   sources' provenance and the *lowest* trust among them. ¹
 3. **Never let untrusted content escalate a plan** — it may inform, never escalate
    ([`SECURITY_BOUNDARIES.md`](./SECURITY_BOUNDARIES.md) §3).
 4. **Record what was believed at decision time**, so a later audit can reconstruct not just
@@ -108,3 +108,24 @@ carries no evidential weight and may never promote an item's epistemic status.
    ([`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md)).
 5. **Contradiction is surfaced, not silently resolved**
    ([`DATA_LIFECYCLE.md`](./DATA_LIFECYCLE.md) §4).
+
+> ¹ **EXTENDED BY SECTION 05 — PROPOSED, not yet accepted.** *(2026-08-14.)* Requirement 2 and
+> `I-31` are written about **stored derived items**. **A model call's output is usually not
+> stored** — it is produced, used within the execution to choose a step or fill a tool argument,
+> and discarded. That transient path is exactly how injected instruction reaches an action, and it
+> was the one path carrying no labelling obligation.
+>
+> Section 05 states that **model output is a derivation whether or not it is stored** (`I-99`): it
+> carries the union of the provenance of every item in its request — system prompt, retrieved
+> memory, tool results, conversation history — and the **lowest trust** among them, in addition to
+> its own `model.generated`. Taint survives **transience**, **chaining** (a call reading a previous
+> call's output inherits its labels; the union is taken at every hop) and **summarization**.
+> Nothing here is new policy: it is requirement 2 applied where the derivation actually happens.
+>
+> **This is what makes `I-40` and `I-58` evaluable.** "Was this plan influenced by untrusted
+> content?" — the question both turn on — had no defined answer while the influence travelled
+> through an unlabelled model call. Authority:
+> [ADR 0025](../decisions/0025-model-output-is-an-untrusted-derivation.md) and
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
+> **Proposed**. Full model:
+> [`MODEL_TRUST_AND_AUTHORITY.md`](./MODEL_TRUST_AND_AUTHORITY.md) §2.

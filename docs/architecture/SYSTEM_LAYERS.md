@@ -131,9 +131,23 @@ future implementer knows exactly where enforcement is mandatory:
 3. Agent Runtime → Capability: tool call checked against token scope and risk class.
 4. Capability → Integration: credential request checked against token scope.
 5. Any layer → Knowledge & Data: read/write checked against token scope partition.
+6. **Any layer → Model Gateway → provider: every model call checked against token scope, the
+   classification of every item in the request, and the destination provider.** ¹
 
-A call that arrives at any of these five without a valid token is denied and recorded.
+A call that arrives at any of these without a valid token is denied and recorded.
 There is no "internal" call path that skips them.
+
+> ¹ ***PROPOSED — added by Section 05, not yet accepted*** *(2026-08-14; authority
+> [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), removed if
+> either is rejected).* **This list is where a future implementer learns enforcement is mandatory,
+> and model egress was not on it** — the one path on which NOVA's data leaves its trust boundary
+> to a third party. Like point 5 it is **per call**, not per request or session, because the
+> request content and the destination provider do not exist at plan time (`I-94`). Emergency stop
+> (`I-19`) and revocation (`I-74`) are defined as taking effect *at* enforcement points, so before
+> this they did not reach model egress. The Identity & Policy spine in §4 is consulted here
+> accordingly. Full model:
+> [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md).
 
 **Point 5 is evaluated per data access, not per request or session** *(clarified in Section 04,
 F-1)*. An execution issuing ten reads is authorized ten times; there is no once-per-request or

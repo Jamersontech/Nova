@@ -17,7 +17,7 @@ selection — the technology beneath each remains deferred below.
 
 | # | Was | Resolved by |
 | --- | --- | --- |
-| D-20 | Model gateway design and routing policy | [ADR 0007](./0007-model-gateway-provider-neutrality.md), [`MODEL_ARCHITECTURE.md`](../architecture/MODEL_ARCHITECTURE.md) |
+| D-20 | Model gateway design and routing policy | [ADR 0007](./0007-model-gateway-provider-neutrality.md), [`MODEL_ARCHITECTURE.md`](../architecture/MODEL_ARCHITECTURE.md). **Extended by Section 05** *(2026-08-14 — **PROPOSED**)*: routing **constraints** are now fixed — data policy filters the candidate set, fallback stays inside it, and profile/provider/model are never model-selected (`I-97`, `I-98`, [ADR 0024](./0024-model-gateway-is-an-enforcement-point.md)). Routing **thresholds** remain deferred |
 | D-21 | Permission model mechanics and enforcement points | [ADR 0003](./0003-context-token-and-brokered-credentials.md), [`PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) |
 | D-22 | Client-isolation enforcement mechanism | [ADR 0002](./0002-unified-scope-tree.md), [ADR 0003](./0003-context-token-and-brokered-credentials.md), [`SECURITY_BOUNDARIES.md`](../architecture/SECURITY_BOUNDARIES.md) |
 | D-23 | Context Lock design and disambiguation behaviour | [`CONTEXT_ARCHITECTURE.md`](../architecture/CONTEXT_ARCHITECTURE.md) — *implementation still deferred to 08/16* |
@@ -155,7 +155,9 @@ which is the single authoritative list** *(corrected 2026-08-13, N-5)*, of which
 | D-05 | Queue / job execution technology | 12 / 29 |
 | D-06 | Vector database and retrieval technology | 07 / 09 |
 | D-07 | Orchestration platform and execution model | 08 |
-| D-08 | AI providers and specific models | 05 |
+| D-08 | AI providers and specific models — **still deferred after Section 05.** Section 05 fixed the criteria a provider must satisfy (`PR-1`–`PR-9`, [`MODEL_GATEWAY_ARCHITECTURE.md`](../architecture/MODEL_GATEWAY_ARCHITECTURE.md) §8) and did **not** select one: the constraints that decide it are `Q-06` and `Q-03`, which are James's to answer. Same posture Section 04 took with `D-09`/`D-10` | 05 — *reopened when `Q-06` is answered* |
+| D-39 | **Provider data-handling verification.** `PR-2` (no training), `PR-3` (retention/logging) and `PR-5` (no cross-request context reuse) are provider **assurances NOVA cannot verify**. Whether attestation, contract, or self-hosting closes any of them is unresolved; until then `T-15`'s residual stands. *(Added by Section 05, 2026-08-14 — **PROPOSED**.)* | 37 / 38 |
+| D-40 | **Model cost and token ceiling values.** `I-105` fixes that ceilings exist, terminate rather than degrade, and fail closed above `PREPARE`. The numbers depend on lived usage and budget (`Q-06`). *(Added by Section 05, 2026-08-14 — **PROPOSED**.)* | 34 |
 | D-09 | Authentication provider and identity model *(model resolved in Section 04; provider still open)* | 04 |
 | D-10 | Secrets storage and credential vault technology *(requirements resolved in Section 04)* | 04 |
 | D-11 | Observability, logging, and audit stack | 27 / 28 |

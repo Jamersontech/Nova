@@ -28,8 +28,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 01 — Constitution & Project Foundation | **Complete** |
 | 02 — System Architecture & Master Blueprint | **Complete — architecture Accepted by James 2026-08-12** |
 | 03 — Data, Scope, Identity & Memory Architecture | **Complete — Accepted by James 2026-08-12 (as amended)** |
-| 04 — Security, Identity & Permissions | **PROPOSED, UNDER REVIEW** |
-| 05 — AI Architecture & Model Gateway | Next |
+| 04 — Security, Identity & Permissions | **Complete — ADRs `0016`–`0023` Accepted by James 2026-08-13** |
+| 05 — AI Architecture & Model Gateway | **PROPOSED, awaiting James's approval** |
 | 06 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
@@ -245,8 +245,40 @@ a compromised PDP alone no longer yields cross-client data. **The independence i
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
 
-## Section 05 — Not started
+## Section 05 — PROPOSED, awaiting James's approval
 
-**AI Architecture & Model Gateway.** Not started, and not begun pending Section 04's review. `D-08` (providers and models) is its to
-decide; [`architecture/MODEL_ARCHITECTURE.md`](./architecture/MODEL_ARCHITECTURE.md) fixes the
-gateway design it implements.
+**AI Architecture & Model Gateway.** Section 04 was accepted on 2026-08-13, and Section 05 was
+begun on 2026-08-14 at James's instruction.
+[`architecture/MODEL_ARCHITECTURE.md`](./architecture/MODEL_ARCHITECTURE.md) (Section 02, Active)
+fixes the gateway design Section 05 implements and is **extended, not replaced**.
+
+**Delivered — all Proposed:**
+[`architecture/MODEL_GATEWAY_ARCHITECTURE.md`](./architecture/MODEL_GATEWAY_ARCHITECTURE.md) (what
+may be sent, where, under whose authority) and
+[`architecture/MODEL_TRUST_AND_AUTHORITY.md`](./architecture/MODEL_TRUST_AND_AUTHORITY.md) (what
+model output may cause), with ADRs `0024`–`0028` and invariants `I-94`–`I-105`.
+
+**The four decisions:** model egress is the **sixth Policy Enforcement Point**
+([ADR 0024](./decisions/0024-model-gateway-is-an-enforcement-point.md)) — it was the only path on
+which NOVA's data leaves its trust boundary with no enforcement point named, so emergency stop and
+revocation did not reach it and failover had no data-policy constraint; **model output is an
+untrusted derivation and tool arguments are authorized, not merely validated**
+([ADR 0025](./decisions/0025-model-output-is-an-untrusted-derivation.md)) — argument *values* are
+fixed after the authorization that permits the action, and schema validity is a type check;
+**model verification is corroboration, never evidence**
+([ADR 0026](./decisions/0026-model-verification-is-corroboration.md)); and **provider credentials
+are control-plane credentials** ([ADR 0027](./decisions/0027-provider-credentials-are-control-plane-credentials.md)),
+which leaves `I-23` unamended rather than adding an exception to it.
+
+**Section 05 amends thirteen accepted documents**, all marked Proposed in place and all authorized
+through [ADR 0028](./decisions/0028-section-05-amendments-to-accepted-architecture.md). **No ADR is
+accepted**; if one is rejected, the amendments it required are removed and the accepted text
+restored verbatim. `I-01`–`I-93` are **unmodified**.
+
+**`D-08` is not resolved.** Section 05 fixed the criteria a provider must satisfy (`PR-1`–`PR-9`)
+and selected none — the constraints that decide it are `Q-06` and `Q-03`, James's to answer. This
+is the posture Section 04 took with `D-09` and `D-10`. `D-20` is partially resolved: routing
+**constraints** fixed, thresholds deferred. `D-39` and `D-40` are new.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
