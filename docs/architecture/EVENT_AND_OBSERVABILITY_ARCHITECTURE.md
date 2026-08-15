@@ -41,6 +41,22 @@ allow.
 Consumers must be idempotent; a workflow resumed twice by a duplicate event must not
 perform its step twice.
 
+**An integration-sourced event's `source` is an unauthenticated assertion.** ***PROPOSED — added by
+Section 11, not yet accepted*** *(2026-08-15; authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; removed
+and the accepted text restored verbatim if rejected).* The source list above includes
+**integrations**, and the consumer list includes **workflows waiting on a condition** — so an
+external party can place a signal NOVA is waiting on. **An external system never authenticates into
+NOVA** ([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §2, unchanged), so such an event
+carries no execution identity, no Context Token and no grant, and by `I-14` authorizes nothing. It
+may satisfy a wait condition; it may never widen what the waiting work may do, because resumption
+re-checks authorization rather than inheriting it
+([`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) §3). **Scope is unchanged and still
+binding** — §1's rule that every event belongs to exactly one scope applies to integration events
+exactly as to internal ones, so an inbound signal cannot introduce a cross-scope path. Full model:
+[`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.1; residual
+`T-38`.
+
 ## 3. Retention
 
 Events are retained by class: operational events for a working window, security and audit

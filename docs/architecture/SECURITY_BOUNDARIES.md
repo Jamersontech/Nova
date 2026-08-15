@@ -47,7 +47,7 @@ flowchart TB
 | **Agent** | Agent instances | Results returned via the runtime | Runtime mediation. No direct agent-to-agent channel |
 | **Tool** | Intent from operation | Structured calls with a valid token | Token covering scope; tool in the agent's closed list |
 | **Credential** | NOVA from external secrets | **Secrets never cross inward to agents** | Broker injects at the call boundary only |
-| **External service** | NOVA from the outside world | Scoped requests out; data in, marked untrusted | Credential scoped to that service in that scope |
+| **External service** ² | NOVA from the outside world | Scoped requests out; data in, marked untrusted — **including data NOVA did not ask for** | Credential scoped to that service in that scope. **Nothing inbound carries authorization** |
 | **Model provider** ¹ | NOVA from a model provider | Content from **one** scope out, redacted and classification-filtered; generated text in, **untrusted, never instruction** | **Per-call PDP decision at the Model Gateway** covering token, every item's classification, and the destination provider |
 
 > ¹ ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; this file is Active
@@ -59,6 +59,23 @@ flowchart TB
 > row here and no enforcement point in
 > [`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §2.
 >
+> ² ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
+> removed and the accepted row restored verbatim if rejected).* **The row as accepted is written
+> from the perspective of NOVA asking** — requests out, responses in. **A provider-initiated
+> signal is data in that nobody asked for**: a webhook, a callback, an asynchronous job
+> notification, or an integration-sourced event
+> ([`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §2). This
+> table claims to enumerate every boundary, and that direction was undistinguished — **the same
+> defect Section 05 found when model egress was absent, in the opposite direction.**
+>
+> **Nothing changes about what may cross; what is stated is that inbound carries no identity.** An
+> external system *"never authenticates into NOVA"*
+> ([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §2, unchanged), so such a signal has no
+> execution identity, no Context Token and no grant, and authorizes nothing (`I-14`). Transport
+> signature verification is an **integrity** control, never an authorization mechanism. Full model:
+> [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.1.
+
 > **One scope per request** (`I-95`): the model prompt is a join point of the same kind as a
 > storage channel, and cross-scope work reaching a model is N single-scope calls aggregated above
 > them, never one call holding both. **SECURITY-CRITICAL never crosses** and no grant, approval or

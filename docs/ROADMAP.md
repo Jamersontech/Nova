@@ -35,7 +35,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 08 — Reasoning, Planning & Orchestration | **PROPOSED, awaiting James's approval** |
 | 09 — Knowledge & Research System | **PROPOSED, awaiting James's approval** |
 | 10 — Tool & Capability Architecture | **PROPOSED, awaiting James's approval** |
-| 11 and beyond | Not started |
+| 11 — Integration Architecture | **PARTLY PROPOSED — `S11-D1` stopped for James's decision** |
+| 12 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -261,6 +262,52 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 11 — PARTLY PROPOSED; one decision stopped for James
+
+**Integration Architecture.** **The roadmap title is unchanged.** The brief framed this work as
+*"Binding-Dependent Tool Consequences / Tool Execution & Integration Behavior"*, which describes
+the work done inside the section; renaming a section is C3 and was not done.
+
+**No new architecture document and no new invariant.**
+`TOOL_AND_INTEGRATION_ARCHITECTURE.md` already owns integrations and providers, and
+`RELIABILITY_ARCHITECTURE.md` already owns outcomes and retries.
+
+**Delivered — all Proposed:** ADR `0037`, threat `T-38`. **`INVARIANTS.md` is untouched:**
+`I-01`–`I-113` are byte-identical to their accepted text.
+
+**Section 10 handed forward one hypothesis, and it survived attack — but it split into three.**
+Tracing plan → action → tool → binding → credential → provider → request → side effect →
+response → verification → audit produced three independent families, not one:
+
+**`S11-D2` — a provider's outcome is a claim, not a verified fact.** *"The tool was authorized"*
+and *"the provider did exactly what NOVA authorized"* are different propositions, and every
+downstream decision — resumption from *"the last verified step"*, compensation, what James is told
+completed — read a value the provider supplied, with nothing saying what it was worth. **Unknown is
+now a distinct outcome from failure**, because collapsing them is what produces duplicate side
+effects; and **idempotency is declared by NOVA but enforced by the provider**, so automatic retry
+requires the provider actually to deduplicate, not merely a tool that declares it does. Also
+recorded: a failure response does not mean nothing happened — a request may be **partially
+executed**.
+
+**`S11-D3` — provider-initiated inbound signals carry no authority.** *"Webhook"* and *"callback"*
+appeared **nowhere in the repository**, yet the path was already in the accepted architecture:
+`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` §2 names integrations as event **sources** and workflows
+waiting on a condition as **consumers**. So an external party could already place a signal NOVA
+waits on. The answer comes entirely from existing rules — an external system *"never authenticates
+into NOVA"*, so no identity, no token, no grant, and `I-14` denies by default. **This was the same
+completeness defect Section 05 found when model egress was missing from the boundary table, in the
+opposite direction.**
+
+**`S11-D1` — stopped for James.** The authorization envelope is expressed in **tool** terms while
+the consequence is produced by the **binding**: a tool is defined once at root, and integrations,
+credentials and providers are per scope. `I-109` explicitly does not bind provider, on the stated
+rationale that *"model/provider changes are already decided per call by `I-94`/`I-97`"* — **which
+is true for model calls and has no analogue for tools.** Closing it requires a new invariant and
+touches an accepted one, so it was not implemented.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 10 — PROPOSED, awaiting James's approval
 

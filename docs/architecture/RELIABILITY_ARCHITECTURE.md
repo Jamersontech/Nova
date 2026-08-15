@@ -39,6 +39,31 @@ retrying is correct for one, harmful for another, and useless for the rest.
 accommodated — an integration that "adapts" to unexpected data is corrupting data
 inward. And a non-idempotent tool must never be auto-retried.
 
+**A fourth outcome: unknown.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15;
+authority [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md),
+Proposed; removed and the accepted text restored verbatim if rejected).* **The table above
+classifies failures NOVA can see.** A timeout, a lost connection or a truncated response is not a
+failure — it is an **absent outcome**, and the side effect may or may not have occurred.
+
+| Signal | Classify as | Never as |
+| --- | --- | --- |
+| Typed provider failure | Failure | — |
+| Timeout · connection loss · truncated response | **Unknown** | Failure |
+| Provider success response | Success **claimed** | Success **verified** ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §3.1) |
+
+**Unknown is resolved by observation or it is escalated** — never by assumption in either
+direction. Where the effect is independently observable, read it back; where it is not, the step
+is recorded as unknown and surfaced to James under §5, because both wrong guesses are damaging: a
+false "failed" invites a duplicating retry, and a false "succeeded" leaves a real change
+unrecorded.
+
+**A failure response does not mean nothing happened.** A provider may **partially execute** a
+request before returning failure — some recipients sent, some records written. §3's partial
+completion is written at *workflow step* granularity and does not reach inside a single request, so
+a step recorded as failed can still have changed the world. Where a provider's failure semantics
+are not all-or-nothing, that is a property of the **integration**, it is stated in the integration's
+failure typing above, and a compensation cannot assume the step is a no-op.
+
 ---
 
 ## 3. Partial Completion
@@ -91,6 +116,19 @@ new plan (`I-112`) and returns through Permission Evaluation.
 - Bounded attempts with exponential backoff; never unbounded.
 - **Only idempotent operations retry automatically.** Idempotency is declared tool metadata
   ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2).
+- **Idempotency is declared by NOVA and enforced by the provider, and those are not the same
+  party.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+  [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
+  removed if rejected).* A tool may be correctly declared idempotent and still produce **two real
+  side effects** on retry, because the deduplication the declaration assumes is performed by the
+  external system. **The declaration is a claim about the tool; the guarantee belongs to the
+  binding** — which is Section 10's claims-not-facts problem in a second place, and the reason this
+  is stated rather than assumed. So: **automatic retry requires that the provider reached through
+  this integration actually enforces the deduplication**, by a request-scoped key it honours or by
+  semantics that are inherently repeatable. Where it does not, the operation is **not
+  auto-retryable whatever the tool declares**, and an unknown outcome escalates instead. A
+  deduplication key, where one exists, is **per logical operation** — reusing one across distinct
+  operations suppresses a real second action, and re-deriving one per attempt defeats the purpose.
 - Retries are recorded — a step that succeeded on attempt four is not the same as one that
   succeeded immediately, and the difference matters when diagnosing flakiness.
 - Repeated failure escalates rather than retrying indefinitely.

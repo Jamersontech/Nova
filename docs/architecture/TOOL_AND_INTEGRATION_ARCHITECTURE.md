@@ -188,6 +188,39 @@ it.
 **Both directions are schema-validated.** Unvalidated tool output is a common injection
 path into subsequent model calls.
 
+### 3.1 A provider's outcome is a claim, not a verified fact
+
+> ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
+> removed and the accepted text restored verbatim if rejected).* **"The tool was authorized" and
+> "the provider did exactly what NOVA authorized" are different propositions**, and only the first
+> is established inside NOVA. The sequence above ends at *"emit audit record"* — and what that
+> record says about the **side effect** comes from the provider.
+
+**Everything a provider says about its own side effect is `integration.supplied`** — a success
+response, a failure response, a partial response, an asynchronous job identifier, a receipt, or
+provider-generated metadata. It carries that provenance and its trust
+([`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §2), and **none of it may be recorded as
+`system.verified`**: that status requires an authoritative source checked by something other than
+the asserting party, which `I-110` already requires and a provider asserting its own success is not.
+
+**Three outcomes, kept apart.** Collapsing the third into the second is what produces duplicate
+side effects:
+
+| Outcome | What NOVA may conclude | What it may not |
+| --- | --- | --- |
+| **Success claimed** | The provider asserts the effect occurred, at that moment | That it occurred. A compensation planned against it may be compensating nothing |
+| **Failure claimed** | The provider asserts the effect did not occur | That nothing happened — a request may be **partially executed** before failing |
+| **Ambiguous** — timeout, lost connection, truncated response | **Nothing.** The outcome is unknown, and unknowable from NOVA's side | That it failed. "No response" is not "no side effect" |
+
+**Where the effect is independently observable, observe it.** A read-back — re-fetching the
+created resource, the message status, the transaction — turns a claim into an observation with its
+own provenance ([`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §2.1) and is required before
+an ambiguous outcome is resolved as success. **Where it is not observable, the outcome stays
+unknown and escalates** ([`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) §3).
+**No verifier is introduced**: NOVA either observes the effect through an ordinary authorized tool
+call or admits it does not know. A model may never supply the missing judgement (`I-102`).
+
 ---
 
 ## 4. Integrations
@@ -205,6 +238,46 @@ domains, analytics, automation platforms, GitHub, coding agents, and other APIs.
 - **All data returned is untrusted** ([`SECURITY_BOUNDARIES.md`](./SECURITY_BOUNDARIES.md) §3).
 - Contract changes are expected. An integration that silently changes shape must surface as
   a failure, not as corrupted data flowing inward.
+
+### 4.1 Provider-initiated inbound signals carry no authority
+
+> ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; same authority as §3.1).*
+> **The rules above are written about NOVA asking.** But
+> [`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §2
+> already names **integrations** as event *sources* — *"client replied, payment received,
+> deployment succeeded"* — and **workflows waiting on a condition** as consumers. **So an external
+> party can already place a signal that NOVA is waiting on**, and nothing said what it is worth.
+> Webhooks, callbacks and asynchronous job notifications are that path.
+
+**An external system never authenticates into NOVA**
+([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §2, unchanged). An inbound
+provider-initiated signal therefore arrives with **no execution identity, no Context Token, and no
+grant** — so by `I-14`'s default deny it authorizes nothing. It is untrusted inbound data
+([`SECURITY_BOUNDARIES.md`](./SECURITY_BOUNDARIES.md) §3): it may **inform**, and it may
+**surface**, and it **never authorizes an action**.
+
+Concretely:
+
+- **The `source` field is an unauthenticated assertion**, not an authenticated origin. An event
+  claiming to be from a payment provider is a claim that it is.
+- **Transport signature verification is an integrity control, not an authorization mechanism.** It
+  establishes that a message came from a provider; it does not establish that the assertion inside
+  it is true, and it never creates an execution identity. Conflating the two is how an inbound
+  signal becomes a confused deputy.
+- **A signal may satisfy a wait condition; it may never widen what the waiting work may do.**
+  Resumption re-checks the authorization rather than inheriting it
+  ([`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) §3), so a forged or duplicated
+  signal can cause a step to run *earlier or falsely* — a real risk, recorded as `T-38` — but
+  cannot cause it to run with more authority.
+- **An inbound signal never starts unauthorized work.** Work it triggers is authorized on its own
+  terms through the ordinary sequence; the signal is an input to it, never a substitute for it.
+
+**Asynchronous provider work is the same boundary seen from the other side.** A submitted job can
+outlive the execution that submitted it. `I-107` makes a *delegation* unable to outlive its
+delegator, but **a provider-side job is not a delegation and `I-107` does not reach it** — so this
+is the one place where work genuinely outlives its authorizer. NOVA cannot recall it. What NOVA
+controls is that its **result** re-enters through this section: as an untrusted claim, authorizing
+nothing. **Recorded as a residual, not solved.**
 
 ---
 

@@ -172,9 +172,22 @@ The rule connecting them:
 model.generated + system.unverified   → inference at best, never fact
 external.web    + system.unverified   → inference, low trust, never autonomous above PREPARE
 james.stated                          → fact about James's intent
-integration.supplied + fresh          → fact about the external system at that moment
+integration.supplied + fresh          → fact about the external system at that moment ⁵
 integration.supplied + stale          → assumption
 ```
+
+> ⁵ ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
+> removed and the accepted line restored verbatim if rejected).* **That line is written about a
+> *fetch* — NOVA read the external system and recorded what it saw.** A provider's statement about
+> **its own side effect** is a different kind of claim: NOVA did not observe the effect, it
+> received an assertion from the party that performed it. **A success response is not a fact about
+> the external system in the sense above; it is `integration.supplied` testimony about it**, and
+> `system.verified` is unavailable to it because `I-110` requires an authoritative source checked
+> by something other than the asserting party. A **read-back** — separately fetching the created
+> resource, the message status, the transaction — **is** a fetch and does produce the fact this
+> line describes, with its own source observation (§2.1). Full model:
+> [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §3.1.
 
 **Confidence is not provenance and not trust.** A model's certainty about its own output
 carries no evidential weight and may never promote an item's epistemic status.

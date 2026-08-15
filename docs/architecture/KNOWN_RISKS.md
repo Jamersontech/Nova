@@ -260,6 +260,22 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **Existing declarations written under the opt-in reading become incomplete** | Any tool defined before this rule is now unregistrable until reclassified. That is correct and is a real migration cost | 10 / 30 |
 | **Consequence is partly a property of the binding, not the definition** | One `send_email` reaches a different provider per scope (`TOOL_AND_INTEGRATION_ARCHITECTURE.md` §1), and provider behaviour is not in the tool definition. **Recorded, not resolved — this belongs to Section 11** | 11 |
 
+## 3.11 Risks Identified in Section 11 — execution, providers and integration behaviour
+
+> ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
+> removed if rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **`S11-D1` is open: authorization is expressed in tool terms, the consequence is produced by the binding** | A tool is defined once at root; integrations, credentials and providers are per scope. So the same authorized action with the same valid arguments can mean different things depending on provider, credential, tenant, endpoint or API version — and `I-109` explicitly does **not** bind provider, on a rationale (`I-94`/`I-97` decide per call) that is **true for model calls and has no analogue for tools**. **Held for James: it needs a new invariant and touches an accepted one.** The concrete chain, which every current and proposed enforcement point permits: injected text on a client site → research agent (`external.web`, quarantined) → model output carrying the taint (`I-99`) → plan carrying it to the boundary (`I-112`) → James approves, the source named as `I-40` requires → `I-100` checks `to` against the envelope and it passes → `body` is declared **expressive**, correctly for the tool as its author understood it (ADR 0036 forced the classification, and the classification is not wrong) → **the provider bound in this scope interprets `body` as a template**, expanding a merge tag into recipients outside the envelope. **Nothing lied and nothing was omitted; the declaration was about the tool and the consequence came from the binding** | 11 |
+| **A convincing provider lie is undetected** | Recording an outcome as a claim bounds what NOVA concludes; it does not make the claim true. Where a side effect is not independently observable there is nothing to check it against, and no verifier can be built that does not rest on a model's judgement (`I-102`, `I-110`) | 11 / 41 |
+| **Unknown outcomes are operationally expensive, and the cheap answer is the dangerous one** | An unresolvable ambiguous result escalates to James, and on a flaky integration that is frequent. The standing pressure is to treat ambiguity as failure and retry — precisely the duplicating path | 11 / 33 |
+| **Provider-side asynchronous work outlives its authorizer** | `I-107` bounds delegations; a provider job is not a delegation. A stop or revocation reaches NOVA's enforcement points, never the provider's queue. **NOVA cannot recall it** — what it controls is that the result re-enters as an untrusted claim | 11 / 21 |
+| **A forged or replayed inbound signal can still mistime an authorized step** | It cannot widen authority — no identity, no token, no grant, and resumption re-checks. But it can assert a condition a waiting workflow acts upon, so the bound is on authority rather than on timing or premise | 11 / 21 |
+| **Provider behaviour can change without any NOVA-visible change** | A contract *shape* change fails closed (`RELIABILITY_ARCHITECTURE.md` §2). A **behavioural** change at constant shape — a new default, a changed interpretation, a silent API version roll — changes the consequence while tool identity, schema and declaration all stay identical. Nothing detects it | 11 / 39 |
+| **Downstream subprocessors are not represented** | A provider may perform effects through parties NOVA has no model of. **Recorded, not resolved — this belongs to Section 37 (Privacy & Data Governance)** | 37 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture

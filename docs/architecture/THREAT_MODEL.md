@@ -496,6 +496,43 @@ everything consequence-determining to avoid thought, widening envelopes — the 
 ADR 0030 records for agent creation. **Consequence is partly a property of the binding**, not the
 definition, and that is deferred to Section 11.
 
+### T-38 Provider outcome and provider-initiated inbound abuse
+*Added 2026-08-15 — **PROPOSED**, Section 11. Authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md).*
+
+**Failure:** Two shapes at the same boundary. **Outcome** — NOVA's record of what happened comes
+from the party that performed it. A provider claiming success when nothing occurred leaves a
+compensation planned against a change that does not exist; a provider claiming failure after
+partially executing leaves a real change under a step recorded as failed; an ambiguous result
+collapsed into "failed" invites a retry that duplicates a real side effect, and a tool correctly
+declared idempotent still duplicates where the **provider** does not enforce the deduplication the
+declaration assumes. **Inbound** — an external party places a signal NOVA is waiting on. Webhooks,
+callbacks, asynchronous job notifications and integration-sourced events all arrive unrequested,
+and a forged or replayed one asserts a condition that a waiting workflow acts upon.
+
+**Defense:** A provider's statement about its own side effect is `integration.supplied` testimony,
+never `system.verified` — `I-110` already bars promotion by the asserting party, and `I-102` bars a
+model supplying the missing judgement. **Unknown is a distinct outcome from failure**, resolved by
+read-back where the effect is observable and escalated where it is not. **Automatic retry requires
+provider-enforced deduplication**, not merely a tool that declares idempotency. On the inbound side,
+an external system **never authenticates into NOVA** (`AUTHENTICATION_MODEL.md` §2), so the signal
+carries no execution identity, no Context Token and no grant, and authorizes nothing (`I-14`);
+event scope binding is unchanged, so no cross-scope path is introduced; and resumption **re-checks**
+authorization rather than inheriting it, so a forged signal cannot widen what the waiting work may
+do.
+
+**Residual:** **A convincing lie is not detected.** Recording an outcome as a claim bounds what
+NOVA concludes from it; it does not make the claim true, and where an effect is not independently
+observable there is nothing to check it against. **A forged or replayed inbound signal can still
+cause an authorized step to run earlier or on a false premise** — bounded in authority, not in
+timing. **Provider-side asynchronous work genuinely outlives its authorizer**: `I-107` bounds
+delegations, and a provider job is not a delegation, so NOVA cannot recall it — a stop or
+revocation reaches NOVA's enforcement points, never the provider's queue. **Unknown outcomes are
+operationally expensive**, and the standing pressure is to treat ambiguity as failure and retry,
+which is exactly the duplicating path. **`S11-D1` is not addressed by any of this**: the
+authorization is still expressed in tool terms while the consequence is produced by the binding, so
+`T-16`'s and `T-03`'s residuals are **unchanged**.
+
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a
 new TRUSTED-zone responsibility ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),
