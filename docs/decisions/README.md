@@ -516,6 +516,25 @@ excludes weaker-but-similar factors.
 All are **Proposed** under ADR 0040 and marked in place. **`INVARIANTS.md` is deliberately not
 amended** — `I-01`–`I-114` are byte-identical. **`D-14` remains deferred**; no speech, telephony or
 audio technology is selected.
+
+## Section 15 — Design tokens (ADR `0041`, **Accepted** 2026-08-15)
+
+**The first section to deliver running, rendered software rather than documentation.** Its single
+decision (`0041`) resolves **half** of `D-13`: design tokens are **CSS custom properties**
+generated from `tokens.json`, a substrate every candidate framework consumes unchanged. **The UI
+application framework remains deferred** — Web Components are used for the demonstration layer and
+are a browser standard, not a framework selection, so Sections 16–18 keep their choice.
+
+**No new invariant, no new architecture document, no new enforcement point.** `INVARIANTS.md` is
+untouched and `I-01`–`I-114` are byte-identical. The implementation lives in
+[`../../slice/ui/`](../../slice/ui/README.md) and is **slice-local**, like the rest of `slice/`.
+Nothing in it depends on Proposed ADRs `0038`–`0040`.
+
+**The component inventory is not settled by this.** Four primitives and six composites exist
+because the demonstration needed them; two were implementation necessities found while building
+rather than planned at the gate. **Section 16 may add, replace or reorganise all of them** — only
+the token layer is inherited.
+
 ---
 
 Decisions that were consciously postponed are tracked separately in

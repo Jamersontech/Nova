@@ -162,7 +162,7 @@ which is the single authoritative list** *(corrected 2026-08-13, N-5)*, of which
 | D-10 | Secrets storage and credential vault technology *(requirements resolved in Section 04)* | 04 |
 | D-11 | Observability, logging, and audit stack | 27 / 28 |
 | D-12 | Testing framework and AI evaluation tooling | 31 |
-| D-13 | UI framework and design-token implementation | 15 / 16 |
+| D-13 | UI framework and design-token implementation — **narrowed by Section 15, 2026-08-15.** The **design-token half is resolved**: tokens are CSS custom properties generated from `tokens.json` ([ADR 0041](./0041-design-tokens-are-css-custom-properties.md), **Proposed**), which every candidate framework consumes unchanged. The **UI framework half remains deferred** — Web Components are used for the Section 15 demonstration only and are a browser standard, not a framework selection; Sections 16–18 are unconstrained. Same posture Section 04 took with `D-09`/`D-10` and Section 05 with `D-08` | 15 / 16 — *framework half only* |
 | D-14 | Voice / speech technology | 14 |
 | D-15 | Backup and disaster-recovery mechanism | 36 |
 

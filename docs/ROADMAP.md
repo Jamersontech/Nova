@@ -39,7 +39,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 12 — Automation & Workflow Engine | **PROPOSED, awaiting James's approval** |
 | 13 — Communication System | **PROPOSED, awaiting James's approval** |
 | 14 — Voice & Conversational Interface | **PROPOSED, awaiting James's approval** |
-| 15 and beyond | Not started |
+| 15 — NOVA Design System | **Complete — ADR `0041` Accepted by James 2026-08-15** |
+| 16 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -273,6 +274,27 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 15 — **Complete: ADR `0041` Accepted by James 2026-08-15**
+
+**NOVA Design System.** **No new invariant, no new architecture document, no new enforcement
+point.** `INVARIANTS.md` is untouched; `I-01`–`I-114` are byte-identical.
+
+**Delivered — Accepted:** ADR `0041`, resolving the **design-token half of `D-13`** (tokens are CSS
+custom properties generated from `tokens.json`). **The UI framework half remains deferred** — Web
+Components are the demonstration mechanism, not a framework selection, and Sections 16–18 are
+unconstrained. **The six composites are not a component inventory**; two were implementation
+necessities found while building, and Section 16 may add, replace or reorganise all of them.
+
+**The first section to produce running software.** [`slice/ui/`](../slice/ui/README.md) holds the
+token source and generator, four primitives, six composites and a demonstration screen that renders
+in a real browser. 27 structural tests and 26 render checks pass, including a controlled token
+change that propagates through the component hierarchy while `demo/index.html` stays byte-identical.
+**It is slice-local and it is not Section 16** — no UX architecture, no screen designs, no
+responsive architecture, no command centre, and nothing wired to any action.
+
+**Not security-tested and not externally validated**, and deliberately not claimed as either: a
+colour ramp has no threat model, and a local server with a local browser is not an external system.
 
 ## Section 14 — PROPOSED, awaiting James's approval
 
