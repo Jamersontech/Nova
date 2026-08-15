@@ -54,7 +54,7 @@ re-checks authorization rather than inheriting it
 ([`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) §3). **Scope is unchanged and still
 binding** — §1's rule that every event belongs to exactly one scope applies to integration events
 exactly as to internal ones, so an inbound signal cannot introduce a cross-scope path. Full model:
-[`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.1; residual
+[`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.2; residual
 `T-38`.
 
 ## 3. Retention
@@ -123,7 +123,7 @@ references and identifiers — never content, never secrets.
 | **Credentials** | Requests, issuance, use, rotation, revocation — by **reference only** |
 | **Agent execution** | Instantiation, tokens held, tools called, escalations, outcome |
 | **Work Orders** | Issuance, limits, termination, results, approval |
-| **External transmission** | What left NOVA, to which service, under which scope |
+| **External transmission** | What left NOVA, to which service, under which scope, and **through which execution binding — tool identity and version, integration, credential binding — with the authorized envelope it was checked against** ⁴ |
 | **Model interactions** | Profile, provider, scope, cost, outcome — not prompt content by default |
 | **Administrative changes** | Policy, classification changes, scope creation, reclassification |
 | **Agent definition lifecycle** ² | Registration, change, activation, suspension, revocation, replacement — and every failure of these |
@@ -135,6 +135,17 @@ references and identifiers — never content, never secrets.
 > [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), all **Accepted** 2026-08-14).* **No new audit authority is created** — ADR 0023's
 > three cover every event here. Delegation appeared in `I-92`'s control-plane list but not in this
 > canonical category list, and agent-definition lifecycle appeared in neither.
+>
+> ⁴ ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
+> removed and the accepted row restored verbatim if rejected).* **No new audit authority and no new
+> category** — this is `W-1`, the execution's own authorization, in the executing scope's partition,
+> exactly as ADR 0023 already provides. *"To which service"* named the destination loosely while
+> **Model interactions** already recorded `provider`; the tool path recorded no equivalent, so
+> `I-114`'s binding check was **unreconstructable after the fact** — an auditor could not tell which
+> integration actually produced a side effect, which is precisely what a binding-substitution
+> attack would exploit. Recorded **by reference**, never secrets: a credential *binding* identifier
+> is not credential material (`I-48`, unchanged).
 >
 > ³ ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority
 > [ADR 0032](../decisions/0032-trust-promotion-authority.md) and

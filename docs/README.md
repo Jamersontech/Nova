@@ -83,8 +83,8 @@ The Section 10 model is **Proposed** — ADR `0036` awaits James's approval. **N
 new architecture document**: the decision defines what makes a tool declaration complete, inside
 [`architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2.1.
 
-The Section 11 model is **partly Proposed and partly held** — ADR `0037` awaits James's approval,
-and Section 11's third decision (`S11-D1`, binding-dependent consequence) is **stopped for James**
-because it requires a new invariant and touches the accepted `I-109`.
+The Section 11 model is **Proposed** — ADR `0037` awaits James's approval. `S11-D1`
+(binding-dependent consequence) was stopped for James and approved on 2026-08-15; its resolution is
+folded into ADR `0037`, adding `I-114` and amending `I-109` in place.
 
-Next: **Section 11 `S11-D1`, on James's decision.**
+Next: **Section 12 — Automation & Workflow Engine**.

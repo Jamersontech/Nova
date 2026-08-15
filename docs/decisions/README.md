@@ -319,7 +319,7 @@ changes no lifecycle stage.
 | [0034](./0034-the-plan-is-a-security-object.md) | **The plan is a security object** with declared schema, deterministic identity and immutability after authorization; authorization is an **envelope plus a per-action check**; re-planning creates a new plan | Proposed |
 | [0035](./0035-section-08-amendments-to-accepted-architecture.md) | Section 08 amendments — authorizes all seven, and records why `PLANNING_ARCHITECTURE.md` was **not** created | Proposed |
 | [0036](./0036-tool-declarations-are-claims-not-facts.md) | **Tool declarations are claims, not facts** — the classification must be **total** over the input schema, and an absent or unparseable claim is read as **consequence-determining**. No new invariant | Proposed |
-| [0037](./0037-provider-outcomes-and-provider-initiated-paths.md) | **Provider outcomes are claims, and provider-initiated paths carry no authority** — unknown is distinct from failure, retry needs **provider-enforced** deduplication, and an inbound webhook/callback/event has no identity. No new invariant | Proposed |
+| [0037](./0037-provider-outcomes-and-provider-initiated-paths.md) | **Provider outcomes are claims; provider-initiated paths carry no authority; and authorization binds the execution binding (`I-114`)** — unknown is distinct from failure, retry needs **provider-enforced** deduplication, an inbound webhook/callback/event has no identity, and a tool action is authorized against the integration/credential binding that produces the consequence, with `I-109` amended in place | Proposed |
 
 ### Amendment-authority audit — Section 08 edits to Active/Accepted documents
 
@@ -388,31 +388,38 @@ amended** — `I-01`–`I-113` are byte-identical to their accepted text.
 
 ---
 
-### Section 11 — Partly Proposed; one decision stopped for James
+### Section 11 — Proposed, awaiting James
 
-**One ADR, no new invariant, no new document.**
-[ADR 0037](./0037-provider-outcomes-and-provider-initiated-paths.md) resolves `S11-D2` and
-`S11-D3`. Both are answered by invariants that already exist — `I-39`, `I-102` and `I-110` for
-what a provider's outcome claim is worth; `AUTHENTICATION_MODEL.md` §2 and `I-14` for what an
+**One ADR, one new invariant (created on James's explicit 2026-08-15 approval), no new document.**
+[ADR 0037](./0037-provider-outcomes-and-provider-initiated-paths.md) resolves `S11-D1`–`S11-D3`.
+`S11-D2` and `S11-D3` are answered by invariants that already exist — `I-39`, `I-102` and `I-110`
+for what a provider's outcome claim is worth; `AUTHENTICATION_MODEL.md` §2 and `I-14` for what an
 inbound provider-initiated signal is worth — applied to paths those documents implied but never
-named.
+named. `S11-D1` required **`I-114`** and an in-place amendment to `I-109`.
 
 | Document | Section / status | What Section 11 changes |
 | --- | --- | --- |
-| [`../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §3.1, §4.1 | 02 · Active | Outcome claims and the three outcomes; provider-initiated inbound paths |
-| [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) §2, §4 | 02 · Active | **Unknown** as a distinct outcome; partial request execution; provider-enforced idempotency |
+| [`../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §3, §3.1, §4.1, §4.2 | 02 · Active | Resolve-then-decide invocation ordering; outcome claims and the three outcomes; integration identity and no-substitution; provider-initiated inbound paths |
+| [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) §2, §4 | 02 · Active | **Unknown** as a distinct outcome; partial request execution; provider-enforced idempotency; per-attempt binding re-check, envelope-bounded failover |
 | [`../architecture/PROVENANCE_AND_TRUST.md`](../architecture/PROVENANCE_AND_TRUST.md) §5 | 03 · Active | A side-effect claim is not the *"fact about the external system"* a fetch is |
-| [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §2 | 03 · Active | An integration-sourced event's `source` is an unauthenticated assertion |
-| [`../architecture/SECURITY_BOUNDARIES.md`](../architecture/SECURITY_BOUNDARIES.md) §2 | 02 · Active | The external-service row covers provider-**initiated** inbound, which carries no identity |
-| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-38`. **`T-03`'s and `T-16`'s residuals not reduced** |
-| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.11 | 03 · Active | Seven Section 11 residuals, including the held `S11-D1` |
+| [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §2, §5.1 | 03 · Active | An integration-sourced event's `source` is an unauthenticated assertion; External transmission records the execution binding |
+| [`../architecture/SECURITY_BOUNDARIES.md`](../architecture/SECURITY_BOUNDARIES.md) §2 | 02 · Active | The external-service row covers provider-**initiated** inbound; the Tool row gains the binding-envelope check |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-38`, `T-39`. **`T-03`'s and `T-16`'s residuals not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.11 | 03 · Active | Section 11 residuals — `S11-D1`'s substitution half closed, its semantic half bounded |
 
-All are **Proposed** under ADR 0037 and marked in place. **`INVARIANTS.md` is deliberately not
-amended.**
+All are **Proposed** under ADR 0037 and marked in place, along with the `S11-D1` additions:
+`AUTHORIZATION_MODEL.md` §2–3 (execution binding as an element, resolved before the decision),
+`SECRETS_ARCHITECTURE.md` §3 (broker step 2a), `INVARIANTS.md` (**`I-114`** new; **`I-109`**
+amended in place), and `THREAT_MODEL.md` `T-39`.
 
-**`S11-D1` is stopped, not deferred.** The authorization envelope is expressed in tool terms while
-the consequence is produced by the binding. Closing it requires a new invariant and touches the
-accepted `I-109`, so it awaits James's decision and **no ADR was minted for it**.
+**`S11-D1` was stopped for James and approved on 2026-08-15.** Its resolution is folded into
+ADR 0037 (its own § "S11-D1") rather than minted as ADR 0038 — same decision family, same
+amendment surface. It adds **`I-114`** (authorization binds the execution binding: resolve before
+deciding · envelope-then-check at the tool PEP and broker step 2a · consequence-bearing binding
+identity, C3 · no substitution, no provider equivalence, no model selection) and **amends `I-109`
+in place**, scoping its exclusion list: model calls keep the per-call `I-94`/`I-97` exclusion; a
+consequence-producing tool action binds the execution binding as a tenth property. Both are
+Proposed and revert verbatim if ADR 0037 is rejected.
 
 ---
 

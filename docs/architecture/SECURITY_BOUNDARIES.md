@@ -45,7 +45,7 @@ flowchart TB
 | **Project** | Projects within a client | Client-level context downward | Grant at client scope |
 | **Environment** | Staging from production, and both from other clients' | Project context downward | Grant at project scope; production carries a higher risk class |
 | **Agent** | Agent instances | Results returned via the runtime | Runtime mediation. No direct agent-to-agent channel |
-| **Tool** | Intent from operation | Structured calls with a valid token | Token covering scope; tool in the agent's closed list |
+| **Tool** | Intent from operation | Structured calls with a valid token | Token covering scope; tool in the agent's closed list; **the resolved execution binding within the authorized envelope** ³ |
 | **Credential** | NOVA from external secrets | **Secrets never cross inward to agents** | Broker injects at the call boundary only |
 | **External service** ² | NOVA from the outside world | Scoped requests out; data in, marked untrusted — **including data NOVA did not ask for** | Credential scoped to that service in that scope. **Nothing inbound carries authorization** |
 | **Model provider** ¹ | NOVA from a model provider | Content from **one** scope out, redacted and classification-filtered; generated text in, **untrusted, never instruction** | **Per-call PDP decision at the Model Gateway** covering token, every item's classification, and the destination provider |
@@ -74,7 +74,17 @@ flowchart TB
 > ([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §2, unchanged), so such a signal has no
 > execution identity, no Context Token and no grant, and authorizes nothing (`I-14`). Transport
 > signature verification is an **integrity** control, never an authorization mechanism. Full model:
-> [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.1.
+> [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.2.
+>
+> ³ ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; same authority as ²).*
+> **The Tool row named a scope check and a tool-list check, and neither sees the binding.** A tool
+> is defined once at root while its integration and credential are per scope, so a token covering
+> the scope and a tool on the agent's list are satisfied identically whichever integration the call
+> is actually resolved to. `I-114` adds the third column entry: the **resolved** execution binding
+> must fall within the envelope the authorization fixed, checked at the tool enforcement point and
+> again at the Credential Broker
+> ([`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) §3 step 2a). **No new boundary is
+> created** — this row's existing boundary gains the check that makes it mean what it says.
 
 > **One scope per request** (`I-95`): the model prompt is a join point of the same kind as a
 > storage channel, and cross-scope work reaching a model is N single-scope calls aggregated above

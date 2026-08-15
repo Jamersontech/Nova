@@ -32,7 +32,19 @@ purpose; dropping *"in this context"* produces the confused deputy.
 | **Denial** | An explicit refusal | The absence of a grant (that is *default deny*) |
 | **Approval** | A human authorization for one action, once | A standing state |
 | **Credential binding** | A resolvable reference to an external secret | The secret |
+| **Execution binding** ² | The concrete substrate a tool action will use: tool identity **and version**, integration, credential binding, resolved in one scope | The tool definition, which is scope-independent |
 | **Execution context** | The runtime envelope: identity, token, limits, trace | Ambient state |
+
+> ² ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
+> removed and the accepted table restored verbatim if rejected).* **`Action` above is *"the
+> operation, carrying a risk class"* and explicitly *"never a tool name"* — but the operation's
+> actual consequence is produced by the integration and credential bound in the current scope**
+> ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §1), which no
+> element named. The same tool, the same schema-valid and envelope-covered arguments, reaches a
+> different external system with different semantics depending on where it is bound. `I-114` makes
+> that substrate an element the decision sees; **no new permission model is introduced** — it is an
+> input to the sequence below, not a parallel one.
 
 **Grant vs denial matters:** an explicit denial **overrides any grant** and cannot be
 outvoted by a broader permission. Default deny handles absence; explicit denial handles
@@ -64,6 +76,24 @@ configured.
 
 **Every outcome is recorded** — allow, deny, and approval-required alike. Denials are the
 more interesting signal.
+
+**The execution binding is resolved before step 1, not after step 10.** ***PROPOSED — added by
+Section 11, not yet accepted*** *(2026-08-15; same authority as ² above).* **The ten steps are
+unchanged, unreordered, and none is added** — what changes is that for a consequence-producing tool
+action the **execution binding is resolved first and is an input** to steps 5 through 8, so the
+question at step 5 is *"a grant for this subject, action, resource type and scope — reached through
+this integration and credential binding"* rather than a binding-agnostic one.
+
+**The ordering matters and was wrong in the invocation sequence.**
+[`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §3 asks Policy
+*"may this token call this tool at this risk?"* and **then** resolves the credential — so the
+decision was made before the substrate producing the consequence existed. **Resolve, then decide**
+(`I-114`(a)). An unresolvable binding is a **denial**, never a default or a last-known binding.
+
+**The PDP is not made a routing engine.** It does not choose the binding — it receives the resolved
+one and decides. Selection remains where it already lives: the integration is bound at a scope node
+(§1 of that document), and the enforcement point checks what was selected against what was
+authorized (`I-114`(b)). This preserves `P-7` and `P-11` exactly as `I-113` does for composition.
 
 **Where `I-07`'s intersection is enforced.** ***Added by Section 06 — ACCEPTED by James 2026-08-14***
 *(2026-08-14; authority [ADR 0029](../decisions/0029-delegated-authority.md) and

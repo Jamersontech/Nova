@@ -253,6 +253,18 @@ metadata. Instances are ephemeral **by design** (`AGENT_ARCHITECTURE.md` §3) �
 would make every approval stale on principle. A model or provider change is separately governed
 per call by Section 05 (`I-94`, `I-97`), so it needs no second gate here.
 
+> ***AG-17/AG-18 AMENDED BY SECTION 11 — PROPOSED, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; the
+> accepted text above stands unmodified and this note is removed if it is rejected).* **`AG-18`'s
+> exclusion is scoped to model calls, where its rationale lives.** *"Separately governed per call
+> by `I-94`/`I-97`"* is true of a **model call** and of nothing else — a tool call has no per-call
+> provider decision, so for a **consequence-producing tool action** the exclusion was unsafe: the
+> approval **also binds the execution binding** — tool identity and version, integration,
+> credential binding — as a **tenth** property (`I-114`, `I-109` as amended). The nine properties
+> of `AG-17` are unchanged and unreordered; `AG-19`'s construction extends over the tenth
+> unchanged; `AG-20` applies to a binding mismatch exactly as to the other nine. **`AG-18` must
+> not be read as saying provider identity is irrelevant to tool authorization.**
+
 **`AG-19` — The binding reuses `I-93`, and introduces no cryptography.** Section 04 already
 requires a **deterministic identity derived from an operation and its trace id** for every
 mandatory audit record. The approval binding is the same construction over the nine properties

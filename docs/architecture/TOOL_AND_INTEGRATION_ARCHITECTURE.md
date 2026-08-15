@@ -181,6 +181,32 @@ sequenceDiagram
     C->>C: emit audit record
 ```
 
+**The sequence above resolves the binding after the policy check, and that ordering is
+corrected.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; removed
+and the accepted sequence restored verbatim if rejected).* Policy is asked *"may this token call
+this tool at this risk?"* — a question about the **tool** — and only afterwards does the capability
+layer resolve *"credential for this tool in this scope"*. **So the decision was taken before the
+substrate that produces the consequence existed.** One tool, many bindings (§1) is exactly what
+makes that unsafe: the same call reaches a different external system with different semantics
+depending on the scope it is bound in.
+
+```text
+C->>C: resolve execution binding for (tool, scope)     ← BEFORE the policy check
+        tool identity + version · integration · credential binding
+        unresolvable → DENY (never a default or last-known binding)
+C->>P: may this token call this tool, at this risk, THROUGH THIS BINDING?
+...
+C->>C: at call time, check the resolved binding against the authorized envelope
+        not covered → DENY + security event (not a retryable error)
+```
+
+**Resolve, then decide** (`I-114`(a)); the authorization fixes a **binding envelope** and the
+enforcement point checks the actual binding against it (`I-114`(b)) — the same
+envelope-then-check structure `I-100` uses for argument values and `I-113` for plans. **The ten-step
+sequence in [`AUTHORIZATION_MODEL.md`](./AUTHORIZATION_MODEL.md) §3 is unchanged**, and the PDP does
+not select the binding; it receives the resolved one.
+
 **The secret never travels back up.** It is injected at the integration boundary and
 discarded. The agent's context, the model's prompt, and the returned result never contain
 it.
@@ -239,7 +265,55 @@ domains, analytics, automation platforms, GitHub, coding agents, and other APIs.
 - Contract changes are expected. An integration that silently changes shape must surface as
   a failure, not as corrupted data flowing inward.
 
-### 4.1 Provider-initiated inbound signals carry no authority
+### 4.1 Integration identity is consequence-bearing, and there is no substitution
+
+> ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
+> removed and the accepted text restored verbatim if rejected).* **`I-114` binds authorization to
+> the integration, which is only meaningful if an integration's identity tracks what it does.** An
+> integration whose configuration can be repointed while keeping its identity would satisfy the
+> binding check and change the consequence — the invariant would be vacuous.
+
+**What changes the identity.** An integration is *"a configured connection to an external system"*
+(§1). Its identity changes when **what it reaches or how it interprets a request** changes:
+
+```text
+provider                the external system reached
+account / tenant        which side of that system, and whose
+endpoint                where requests are sent
+declared API version    which contract and which semantics
+```
+
+**Repointing any of these produces a different binding, not the same binding reconfigured.** So a
+change of this kind **invalidates prior authorizations that named the old binding**, exactly as a
+material change to a plan produces a new plan (`I-112`) rather than an amended one. Changing them
+is **C3** (§6) on the same ground that changing a tool's risk class or required rights is: it
+changes the safety envelope. Everything else about an integration — credentials rotating within the
+same binding, timeouts, retry tuning, connection pooling — is **not** consequence-bearing and does
+not change identity.
+
+**There is no provider equivalence, deliberately.** Two integrations reaching the same provider are
+**two bindings**. NOVA defines **no mechanism by which one may stand in for another**, and it does
+not attempt one now: an equivalence rule would have to assert that two external systems behave the
+same, which is the same unverifiable claim about behaviour that ADR 0036 declined to make about
+tools and ADR 0037 declined to make about outcomes.
+
+| Situation | Outcome |
+| --- | --- |
+| Failover, reroute, retry or resumption to a binding **inside** the authorized envelope | **Proceeds** — the envelope may name more than one binding |
+| ...to a binding **outside** it | **Denied**, recorded as a security event |
+| The only authorized binding is unavailable | **Fails closed** and escalates. Never substitutes |
+
+This is `I-97`'s rule for model providers — *"fallback, failover, reroute and retry select only
+within the permitted set"* — applied to tool bindings, and it is why no new mechanism is needed.
+
+**The binding is never selected by model output.** `I-98` already forbids a model selecting
+provider, model or capability profile at call time; `I-114` extends that to the execution binding.
+The binding is resolved from the scope and the authorized envelope, and **no model output requests,
+names, changes, or causes a reroute away from it** — including a tool result or an inbound signal
+claiming a provider has moved (§4.2 below, `T-38`).
+
+### 4.2 Provider-initiated inbound signals carry no authority
 
 > ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; same authority as §3.1).*
 > **The rules above are written about NOVA asking.** But

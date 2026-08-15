@@ -529,9 +529,57 @@ timing. **Provider-side asynchronous work genuinely outlives its authorizer**: `
 delegations, and a provider job is not a delegation, so NOVA cannot recall it — a stop or
 revocation reaches NOVA's enforcement points, never the provider's queue. **Unknown outcomes are
 operationally expensive**, and the standing pressure is to treat ambiguity as failure and retry,
-which is exactly the duplicating path. **`S11-D1` is not addressed by any of this**: the
-authorization is still expressed in tool terms while the consequence is produced by the binding, so
-`T-16`'s and `T-03`'s residuals are **unchanged**.
+which is exactly the duplicating path. **`S11-D1` is not addressed by this threat** — it is
+addressed by `T-39` and `I-114`; this threat governs what NOVA concludes *after* a call and what an
+inbound signal is worth, not which binding produced the consequence. `T-16`'s and `T-03`'s
+residuals are **unchanged**.
+
+### T-39 Binding substitution and binding-dependent consequence
+*Added 2026-08-15 — **PROPOSED**, Section 11. Authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md) `S11-D1`.*
+
+**Failure:** A tool is defined once at root; its **integration** and **credential binding** are per
+scope. So the authorization object was expressed in tool terms while the consequence was produced
+by the binding, and two attack shapes followed. **Substitution** — the action executes through a
+different integration, credential or provider than the one authorized: silently rerouted, failed
+over, retried elsewhere, resumed against a changed binding, or repointed after approval, with every
+existing check still satisfied because each asked only whether the binding was *acceptable*, never
+whether it was *the authorized one*. **Semantic divergence** — the authorized binding is used, and
+the provider behind it interprets an argument differently than the tool declaration assumes, so a
+correctly classified and correctly envelope-checked argument produces a consequence outside the
+authorization's assumptions. The concrete chain: injected content → quarantined research → tainted
+model output → tainted plan → approval naming the source → `I-100` passes → **the provider expands
+`body` as a template into recipients outside the envelope**.
+
+**Defense:** `I-114`. The **execution binding is resolved before the decision and is an input to
+it** — an unresolvable binding denies rather than falling back to a default or last-known binding.
+The authorization fixes a **binding envelope** and the enforcement point checks the **resolved**
+binding against it, reusing `I-100`'s and `I-113`'s envelope-then-check structure rather than adding
+a permission model. The check runs at **three points**: the tool enforcement point before
+execution, the **Credential Broker step 2a** before a secret is injected, and **again on every
+attempt** — retry, resumption and failover all re-resolve and re-check, which follows from
+re-injection already being per attempt. **Integration identity is consequence-bearing**: changing
+provider, account or tenant, endpoint or declared API version produces a **different binding**, C3,
+invalidating authorizations that named the old one. **There is no provider equivalence and no
+substitution** — failover selects only within the envelope (`I-97`'s rule applied to tool
+bindings), and an unavailable sole binding fails closed. **The binding is never selected by model
+output** (`I-98` extended), so neither model output nor a tool result nor an inbound signal can
+reroute it. `I-109` is amended so an approval binds the execution binding for tool actions while
+keeping the model-call exclusion the per-call `I-94`/`I-97` decision justifies. The binding is
+**recorded**, so substitution is reconstructable after the fact.
+
+**Residual:** **`I-114` controls NOVA's own choice of substrate, not the external system's
+behaviour.** A provider that changes what it does **behind a stable identity** — a new default, a
+changed interpretation, a silent version roll — changes the consequence while integration identity,
+tool identity, schema and declaration all stay the same, and **nothing detects it**; NOVA's control
+is that such a change is C3 *when NOVA makes it*, which does not bind the provider. **The semantic
+divergence half is therefore bounded rather than closed**: `I-114` guarantees the consequence is
+produced by the binding James authorized, not that James knew everything that binding would do —
+which is the `T-16` authorized-breadth residual, **unchanged and not reduced**, now attached to
+bindings as well as tools. **A side effect already submitted is not recalled** (`T-38`). **And
+declaration quality is load-bearing again**: an integration whose consequence-bearing fields are
+recorded inaccurately produces a binding check that passes on wrong information — ADR 0036's
+claims-not-facts limit, in a third place.
 
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a

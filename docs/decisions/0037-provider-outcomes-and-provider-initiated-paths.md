@@ -3,13 +3,15 @@
 **Status:** **Proposed**
 **Proposed:** 2026-08-15 — Section 11
 **Section:** 11
-**Resolves:** `S11-D2`, `S11-D3`
+**Resolves:** `S11-D2`, `S11-D3`, and — **approved by James 2026-08-15 for implementation, ADR
+still Proposed** — `S11-D1` (§ "S11-D1", below)
 
-> **This ADR deliberately does not resolve `S11-D1`** (binding-dependent consequence). That
-> decision requires a new invariant and implicates the accepted `I-109`, so it is held for James's
-> approval and is **not** implemented here. `S11-D2` and `S11-D3` are independent of it: neither
-> depends on how authorization is bound to a binding, and both are expressible through invariants
-> that already exist.
+> *(Superseded note, retained for the record: as first written this ADR deliberately did not
+> resolve `S11-D1`, which was stopped for James because it requires a new invariant and touches the
+> accepted `I-109`. **James approved that decision on 2026-08-15**, and its resolution is folded in
+> below rather than minted as ADR 0038 — it is the continuation of the same Section 11 decision
+> family this ADR opened, and it shares this ADR's amendment surface.)* `S11-D2` and `S11-D3` are
+> independent of it: neither depends on how authorization is bound to a binding.
 
 ## Decision
 
@@ -163,9 +165,88 @@ not make the claim true.
 - **`RELIABILITY_ARCHITECTURE.md` §4's retry rule is narrowed, not widened:** a declared-idempotent
   tool is auto-retryable only where the **provider** enforces the deduplication the declaration
   assumes. Where it does not, the tool is not auto-retryable, whatever it declares.
-- **`S11-D1` remains open and is the larger of the three.** Nothing here should be read as
-  addressing it: this ADR governs what NOVA concludes *after* a call and what an inbound signal is
-  worth. **It does not make the authorization aware of the binding that produces the consequence.**
+- **`S11-D1` is resolved in this ADR** (§ "S11-D1" above, added on James's 2026-08-15 approval):
+  `I-114` makes the authorization aware of the binding that produces the consequence, and `I-109`
+  is amended in place. `S11-D2` and `S11-D3` govern what NOVA concludes *after* a call and what an
+  inbound signal is worth; `S11-D1` governs which substrate the call uses. The three stand together
+  in this one ADR because they share one decision family and one amendment surface.
+
+## S11-D1 — Authorization is bound to the execution binding (`I-114`)
+
+*Added 2026-08-15 on James's approval. One new invariant, one amendment to an accepted invariant.*
+
+### The decision
+
+**A consequence-producing tool action is authorized against the binding that will produce the
+consequence, not against the tool alone.** The **execution binding** — tool identity **and
+version**, integration, credential binding, resolved in one scope — becomes an element of the
+authorization decision ([`AUTHORIZATION_MODEL.md`](../architecture/AUTHORIZATION_MODEL.md) §2), and
+`I-114` states four requirements:
+
+1. **Resolve before deciding.** The binding is resolved *before* the authorization decision and is
+   an input to it; an unresolvable binding **denies** — never a default or last-known binding.
+2. **Envelope, then check.** Authorization fixes a **binding envelope**; the enforcement point
+   checks the **resolved** binding against it at call time. Not covered → denied, recorded as a
+   **security event**, not a retryable error. This is `I-100`'s and `I-113`'s structure reused —
+   deliberately **not** a new permission model.
+3. **Binding identity is consequence-bearing.** Provider, account/tenant, endpoint or declared API
+   version changing produces a **different binding**, C3, invalidating authorizations that named
+   the old one — exactly as a material plan change produces a new plan (`I-112`). Credential
+   rotation *within* a binding is not a binding change.
+4. **No substitution, no provider equivalence, no model selection.** Failover, reroute, retry and
+   resumption select only within the envelope — `I-97`'s rule applied to tool bindings; an
+   unavailable sole binding **fails closed**. Two integrations reaching the same provider are two
+   bindings and neither stands in for the other: an equivalence rule would assert that two external
+   systems behave the same, the unverifiable behavioural claim ADR 0036 declined for tools and this
+   ADR declines for outcomes. The binding is **never selected by model output** (`I-98` extended).
+
+### The `I-109` amendment
+
+`I-109` excluded *model, provider, capability profile* from the approval binding, with the
+rationale *"model/provider changes are already decided per call by `I-94`/`I-97`"*. **That
+rationale is real and is preserved — but it is a fact about model calls only**, because for tool
+calls there is no per-call provider decision for it to lean on. The amendment **scopes the
+exclusion list** rather than deleting it: for a **model call**, model, provider and profile remain
+unbound, decided per call; for a **consequence-producing tool action**, the approval **also binds
+the execution binding** as a tenth property. The nine accepted properties are unchanged and
+unreordered, the ephemeral-instance exclusion is unchanged, `I-93`'s deterministic identity is
+still the construction, and the amendment is marked in place, reverting verbatim if this ADR is
+rejected.
+
+### Enforcement points, named
+
+| When | Where | Check |
+| --- | --- | --- |
+| Before the decision | Capability layer | Resolve the binding; unresolvable → deny (`I-114`(a)) |
+| At the decision | PDP steps 5–8 | Binding is an input; the envelope is fixed ([`AUTHORIZATION_MODEL.md`](../architecture/AUTHORIZATION_MODEL.md) §3) |
+| At execution | Tool enforcement point | Resolved binding ∈ envelope, or deny + security event (`I-114`(b)) |
+| Before injection | **Credential Broker step 2a** | Presented `binding id` ∈ authorized envelope ([`SECRETS_ARCHITECTURE.md`](../architecture/SECRETS_ARCHITECTURE.md) §3) |
+| Every retry / resume / failover | Both of the above, per attempt | Re-resolve and re-check; follows from re-injection being per attempt ([`RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) §4) |
+| After binding change | Approval binding | Different binding → `I-109` mismatch → approval does not apply |
+| After re-planning | Plan authorization | New plan → new authorization (`I-113`, unchanged), which fixes a fresh binding envelope |
+| After the fact | Audit | The binding used and the envelope checked are recorded, `W-1`, by reference ([`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1) |
+
+**The Credential Broker check closes the gap its own protocol exposed:** step 1 already receives a
+`binding id`, and every existing step asked whether that binding was *acceptable* — never whether
+it was *the one authorized*. Step 2a is one comparison, not a second permission model.
+
+### Rejected alternatives
+
+**Binding at plan time to a literal single binding id** — rejected: `MT-8` established that
+authorization is over an envelope, not a literal, and an envelope may legitimately name more than
+one binding. **Provider equivalence classes** — rejected as above; fail closed instead.
+**Verifying provider semantics against the declaration** — rejected on ADR 0036's ground: the only
+component that could judge is a model, barred by `I-101`/`I-102`/`I-110`. **A separate binding
+authorization service** — rejected: the PDP, broker and tool PEP already sit on the path; adding a
+fourth party adds surface, not assurance.
+
+### Honest limits
+
+`I-114` controls **NOVA's own choice of execution substrate**. It does not control the external
+system: a provider changing behaviour behind a stable identity is undetected (`T-39` residual), a
+submitted side effect is not recalled (`T-38`), and an integration whose consequence-bearing fields
+are recorded inaccurately passes the check on wrong information — the claims-not-facts limit, in a
+third place.
 
 ## The amendments
 
@@ -174,16 +255,16 @@ text restored verbatim.**
 
 | # | Document | Section / status | Change |
 | --- | --- | --- | --- |
-| 1 | `TOOL_AND_INTEGRATION_ARCHITECTURE.md` §3.1, §4.1 | 02 · Active | Outcome claims; provider-initiated inbound paths |
-| 2 | `RELIABILITY_ARCHITECTURE.md` §2, §3, §4 | 02 · Active | Ambiguous outcome as a distinct state; partial request execution; provider-enforced idempotency |
+| 1 | `TOOL_AND_INTEGRATION_ARCHITECTURE.md` §3, §3.1, §4.1, §4.2 | 02 · Active | Outcome claims; resolve-then-decide invocation ordering; integration identity and no-substitution; provider-initiated inbound paths |
+| 2 | `RELIABILITY_ARCHITECTURE.md` §2, §3, §4 | 02 · Active | Ambiguous outcome as a distinct state; partial request execution; provider-enforced idempotency; per-attempt binding re-check and envelope-bounded failover |
 | 3 | `PROVENANCE_AND_TRUST.md` §5 | 03 · Active | A side-effect claim is not the *"fact about the external system"* a fetch is |
-| 4 | `EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` §2 | 03 · Active | An integration-sourced event's `source` is an unauthenticated assertion |
-| 5 | `SECURITY_BOUNDARIES.md` §2 | 02 · Active | The external-service row covers provider-**initiated** inbound, which carries no identity |
-| 6 | `THREAT_MODEL.md` | 03 · Active | `T-38`. `T-03`'s and `T-16`'s residuals **not reduced** |
-| 7 | `KNOWN_RISKS.md` §3.11 | 03 · Active | Section 11 residuals, including the held `S11-D1` |
-
-**`INVARIANTS.md` is deliberately not amended.** No invariant is created, and `I-01`–`I-113` are
-byte-identical to their accepted text.
+| 4 | `EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` §2, §5.1 | 03 · Active | An integration-sourced event's `source` is an unauthenticated assertion; External transmission records the execution binding |
+| 5 | `SECURITY_BOUNDARIES.md` §2 | 02 · Active | The external-service row covers provider-**initiated** inbound; the Tool row gains the binding-envelope check |
+| 6 | `AUTHORIZATION_MODEL.md` §2, §3 | 03 · Active | **Execution binding** as an element; resolved before the decision, an input to steps 5–8; ten steps unchanged |
+| 7 | `SECRETS_ARCHITECTURE.md` §3 | 03 · Active | Broker **step 2a**: the presented binding must fall within the authorized envelope |
+| 8 | `INVARIANTS.md` | 03 · Active | **`I-114`** (new); **`I-109` amended in place** — exclusion list scoped between model calls and tool actions. `I-01`–`I-108`, `I-110`–`I-113` unmodified |
+| 9 | `THREAT_MODEL.md` | 03 · Active | `T-38`, `T-39`. `T-03`'s and `T-16`'s residuals **not reduced** |
+| 10 | `KNOWN_RISKS.md` §3.11 | 03 · Active | Section 11 residuals |
 
 ## What Would Change This
 

@@ -167,6 +167,17 @@ ephemeral *by design*, so binding to one would make every approval stale on prin
 reflexive re-approval [`KNOWN_RISKS.md`](./KNOWN_RISKS.md) records as a security failure. Model and
 provider are excluded because Section 05 already decides egress per call (`I-94`, `I-97`).
 
+> ***AMENDED BY SECTION 11 — PROPOSED, not yet accepted*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; the
+> accepted text above stands and this note is removed if it is rejected).* **The model/provider
+> exclusion is scoped to model calls, where its stated rationale lives** — a tool call has no
+> per-call provider decision for `I-94`/`I-97` to make. For a **consequence-producing tool
+> action**, the approval **also binds the execution binding** — tool identity and version,
+> integration, credential binding — as a **tenth** property (`I-114`, `I-109` as amended). The
+> nine properties are unchanged; the deterministic-identity construction below extends over the
+> tenth unchanged. **This paragraph must not be read as saying provider identity is irrelevant to
+> tool authorization.**
+
 **The binding reuses `I-93`'s deterministic-identity construction — no cryptography is invented.**
 If it differs at execution the approval does not apply, execution does not proceed under it, and
 fresh approval is required where the risk class requires approval at all. **The property:** an

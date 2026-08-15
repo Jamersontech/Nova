@@ -116,6 +116,23 @@ new plan (`I-112`) and returns through Permission Evaluation.
 - Bounded attempts with exponential backoff; never unbounded.
 - **Only idempotent operations retry automatically.** Idempotency is declared tool metadata
   ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2).
+- **Every attempt re-resolves the execution binding and re-checks it, and failover never leaves
+  the authorized envelope.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15;
+  authority [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md),
+  Proposed; removed if rejected).* A retry, a resumption after interruption, and a failover are all
+  points at which **NOVA chooses the substrate again** — and a second choice is not covered by the
+  first decision. So each one **re-resolves** the binding and **re-checks** it against the envelope
+  the authorization fixed (`I-114`(b)), at the tool enforcement point and again at the broker
+  ([`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) §3 step 2a) — which happens naturally
+  because re-injection is already per attempt (§4.2 of that document). **Failover selects only
+  within the envelope**, exactly as `I-97` constrains model-provider failover; a binding outside it
+  is **denied and recorded as a security event**, and where the only authorized binding is
+  unavailable the operation **fails closed and escalates rather than substituting** — there is no
+  provider equivalence
+  ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.1).
+  **Credential rotation within the same binding is not a binding change** and needs no
+  re-authorization; replacing the integration, provider, account, endpoint or declared API version
+  **is** a different binding and does.
 - **Idempotency is declared by NOVA and enforced by the provider, and those are not the same
   party.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
   [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;

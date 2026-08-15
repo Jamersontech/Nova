@@ -78,6 +78,29 @@ and nowhere else reachable by NOVA's own components.
 permit far more than the task needs; the binding narrows it, and the broker enforces the
 narrowing that the external system does not.
 
+**Step 2a — the binding presented must be the binding authorized.** ***PROPOSED — added by
+Section 11, not yet accepted*** *(2026-08-15; authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; removed
+and the accepted protocol restored verbatim if rejected).* **Step 1 already receives a `binding id`,
+and no step compared it against the authorization.** Every existing check asks whether the binding
+is *acceptable* — covered by the token's scope, active, permitting the operation — and none asks
+whether it is **the one the decision was made about**. A caller presenting a different but
+individually acceptable binding passed all four steps.
+
+```text
+2a. Broker checks: does this binding id fall within the binding envelope the
+    authorization for this action fixed (`I-114`(b))?              → deny closes
+    Not covered, or no authorized envelope resolvable               → DENY
+    Denial is a security event, not a retryable error
+```
+
+**This adds one comparison, not a second permission model.** The broker still decides nothing about
+rights; it refuses to inject a secret for a binding the authorization did not cover, which is the
+same shape as step 4 refusing an operation the binding does not permit. **Steps 1–7 are otherwise
+unchanged**, and because re-injection happens per attempt (§4.2), this check runs on **every**
+attempt — so a retry through a different binding is caught here as well as at the tool enforcement
+point.
+
 **The broker performs its own scope check (step 2) rather than trusting the caller.** This is
 also the second gate that a compromised PDP must defeat
 ([`ISOLATION_ENFORCEMENT.md`](./ISOLATION_ENFORCEMENT.md) §4) — though note the broker *asks*

@@ -35,7 +35,7 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 08 — Reasoning, Planning & Orchestration | **PROPOSED, awaiting James's approval** |
 | 09 — Knowledge & Research System | **PROPOSED, awaiting James's approval** |
 | 10 — Tool & Capability Architecture | **PROPOSED, awaiting James's approval** |
-| 11 — Integration Architecture | **PARTLY PROPOSED — `S11-D1` stopped for James's decision** |
+| 11 — Integration Architecture | **PROPOSED, awaiting James's approval — `S11-D1` approved for implementation 2026-08-15, folded into ADR `0037`** |
 | 12 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
@@ -263,18 +263,19 @@ a compromised PDP alone no longer yields cross-client data. **The independence i
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
 
-## Section 11 — PARTLY PROPOSED; one decision stopped for James
+## Section 11 — PROPOSED, awaiting James's approval
 
 **Integration Architecture.** **The roadmap title is unchanged.** The brief framed this work as
 *"Binding-Dependent Tool Consequences / Tool Execution & Integration Behavior"*, which describes
 the work done inside the section; renaming a section is C3 and was not done.
 
-**No new architecture document and no new invariant.**
-`TOOL_AND_INTEGRATION_ARCHITECTURE.md` already owns integrations and providers, and
+**No new architecture document; one new invariant (`I-114`), created on James's explicit
+approval.** `TOOL_AND_INTEGRATION_ARCHITECTURE.md` already owns integrations and providers, and
 `RELIABILITY_ARCHITECTURE.md` already owns outcomes and retries.
 
-**Delivered — all Proposed:** ADR `0037`, threat `T-38`. **`INVARIANTS.md` is untouched:**
-`I-01`–`I-113` are byte-identical to their accepted text.
+**Delivered — all Proposed:** ADR `0037` (carrying `S11-D1`–`S11-D3`), invariant `I-114`, the
+in-place `I-109` amendment, threats `T-38`–`T-39`. `I-01`–`I-108` and `I-110`–`I-113` are
+byte-identical to their accepted text.
 
 **Section 10 handed forward one hypothesis, and it survived attack — but it split into three.**
 Tracing plan → action → tool → binding → credential → provider → request → side effect →
@@ -299,12 +300,21 @@ into NOVA"*, so no identity, no token, no grant, and `I-14` denies by default. *
 completeness defect Section 05 found when model egress was missing from the boundary table, in the
 opposite direction.**
 
-**`S11-D1` — stopped for James.** The authorization envelope is expressed in **tool** terms while
-the consequence is produced by the **binding**: a tool is defined once at root, and integrations,
-credentials and providers are per scope. `I-109` explicitly does not bind provider, on the stated
-rationale that *"model/provider changes are already decided per call by `I-94`/`I-97`"* — **which
-is true for model calls and has no analogue for tools.** Closing it requires a new invariant and
-touches an accepted one, so it was not implemented.
+**`S11-D1` — stopped for James, approved 2026-08-15, then implemented.** The authorization
+envelope was expressed in **tool** terms while the consequence is produced by the **binding**: a
+tool is defined once at root, and integrations, credentials and providers are per scope. `I-109`
+excluded provider on a rationale — *"already decided per call by `I-94`/`I-97`"* — true for model
+calls, with no analogue for tools. On James's approval, **`I-114`** binds a consequence-producing
+tool action to its **execution binding** (tool identity and version · integration · credential
+binding): resolved **before** the decision and an input to it, checked as an **envelope** at the
+tool PEP and at the Credential Broker's new **step 2a**, re-resolved and re-checked on **every**
+retry, resumption and failover, with **no substitution and no provider equivalence** — an
+unavailable sole binding fails closed. Integration identity is **consequence-bearing**: repointing
+provider, account/tenant, endpoint or declared API version is a **different binding**, C3,
+invalidating authorizations that named the old one. **`I-109` is amended in place**, scoping its
+exclusion list: model calls keep the per-call exclusion; tool actions bind the execution binding as
+a **tenth** property. Threat `T-39` records what remains: `I-114` controls **NOVA's choice of
+substrate**, not provider behaviour behind a stable identity.
 
 **Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
 reordered.
