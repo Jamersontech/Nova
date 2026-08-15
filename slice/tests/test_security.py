@@ -609,10 +609,6 @@ class TestAudit(SliceTest):
         self.assertEqual(ctx.exception.invariant, "I-93")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 # ===========================================================================
 # S13-D1 — content classification gates external transmission (PDP step 7)
 # ===========================================================================
@@ -831,3 +827,12 @@ class Test18TrustVersusProvenance(SliceTest):
         # Summarisation is a derivation -- I-99 says taint survives it.
         summary = laundered.derive("agent.generated")
         self.assertTrue(summary.is_untrusted_derived())
+
+
+# This block must stay at the very END of the file. unittest.main() collects
+# only the TestCase classes defined above it and then exits, so any class
+# added below it is silently never run -- which is exactly what happened to
+# Test17ClassifiedEgress and Test18TrustVersusProvenance (14 tests) while the
+# block sat mid-file.
+if __name__ == "__main__":
+    unittest.main()
