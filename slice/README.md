@@ -6,15 +6,18 @@
 Run:
 
 ```
-python3 -m unittest slice.tests.test_security slice.tests.test_slice2 -v
+python3 -m unittest slice.tests.test_security slice.tests.test_slice2 slice.tests.test_slice3 -v
 ```
 
-**95 tests** (49 slice 1 + 46 slice 2), no dependencies, no network.
+**121 tests** (49 + 46 + 26), no dependencies, no network.
 
 **Slice 1** — one scope, one agent, one tool, one integration: plan, binding, PDP,
 Context Token, Credential Broker, Tool PEP, audit.
 **Slice 2** — two agents, delegation (`I-106`/`I-107`), and a model gateway
 (`I-94`–`I-98`).
+**Slice 3** — a three-level delegation tree with budgets (`I-105`, `I-108`,
+`AG-13`–`AG-15`). **NOVA's authorization budget, not provider billing** — a provider's
+account balance is an external system and is not observable here.
 
 ---
 
@@ -56,7 +59,7 @@ The distinction matters more than the test count.
 | **DOCUMENTED** | ✅ | Sections 01–14 |
 | **IMPLEMENTED** | ✅ | The path below exists as code with visible boundaries |
 | **EXECUTED** | ✅ | It runs; the control test performs a real end-to-end action |
-| **SECURITY-TESTED** | ⚠️ **Partially** | 95 adversarial tests pass. They cover the paths the slice implements — not the architecture |
+| **SECURITY-TESTED** | ⚠️ **Partially** | 121 adversarial tests pass. They cover the paths the slice implements — not the architecture |
 | **VALIDATED AGAINST A REAL EXTERNAL SYSTEM** | ❌ **No** | No network, no real provider, no real credential, **no real model** |
 
 **The model gateway is IMPLEMENTED and SECURITY-TESTED; no model provider is VALIDATED.**
@@ -66,8 +69,9 @@ provider's behaviour. No API key exists in this repository and none is required 
 suite.
 
 **This slice does not validate NOVA.** It validates that two narrow paths through the
-architecture are implementable, and it found **four** things on the way (`FINDINGS.md`) —
-one of which, **Finding 4, is an unresolved contradiction awaiting James's decision.**
+architecture are implementable, and it found **five** things on the way (`FINDINGS.md`).
+**Finding 4 is analytically resolved — `AG-8` is redundant — but the proposed `I-107`
+wording correction is NOT applied, because `I-107` is accepted and the change is James's.**
 
 ### Specifically NOT proven
 

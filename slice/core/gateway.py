@@ -29,8 +29,9 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from .audit import AuditWriter
+from .budget import BudgetLedger
 from .context_service import ContextService
-from .types import (Classification, ContextToken, Denied, Outcome, Taint, Trust)
+from .types import (Classification, ContextToken, Denied, Outcome, Risk, Taint, Trust)
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class ProviderBinding:
     endpoint: str
     api_version: str
     credential_ref: str          # control-plane credential (I-103), by reference
+    cost_per_unit: int = 1       # rate; None-equivalent absence is a denial
 
 
 @dataclass(frozen=True)
@@ -72,10 +74,12 @@ class ModelResponse:
 
 class ModelGateway:
     def __init__(self, pdp_available_check: Callable[[], bool],
-                 context: ContextService, audit: AuditWriter):
+                 context: ContextService, audit: AuditWriter,
+                 budget: Optional[BudgetLedger] = None):
         self._pdp_ok = pdp_available_check
         self._context = context
         self._audit = audit
+        self._budget = budget
         self._providers: dict[str, ProviderBinding] = {}
         self._transports: dict[str, Callable[[str, str], ModelResponse]] = {}
         self.emergency_stop = False       # I-19 / X-7
@@ -93,7 +97,9 @@ class ModelGateway:
              profile: CapabilityProfile, requested_provider: str,
              requested_model: str,
              sensitive_personal_approval: Optional[str] = None,
-             model_requested_provider: Optional[str] = None) -> ModelResponse:
+             model_requested_provider: Optional[str] = None,
+             declared_cost: Optional[int] = None,
+             risk: Risk = Risk.ANALYZE) -> ModelResponse:
         """`requested_provider` / `requested_model` come from the AGENT
         DEFINITION or the AUTHORIZED PLAN.
 
@@ -179,8 +185,21 @@ class ModelGateway:
                        "provider binding does not serve the requested model",
                        "I-97", security_event=True)
 
-        # ---- egress ------------------------------------------------------
+        # ---- I-105 / AG-13: cost is COMPUTED, never supplied ---------------
+        # `declared_cost` is accepted and DELIBERATELY IGNORED for charging.
+        # A caller -- or a model shaping the caller -- naming a cheap cost while
+        # issuing an expensive request must not be able to under-charge the
+        # budget. The same shape as I-101 (a model never supplies the risk
+        # class) and I-100 (authorize the envelope, check the ACTUAL value).
         prompt = "\n".join(i.content for i in items)
+        cost = self._compute_cost(token, binding, prompt)
+
+        if self._budget is not None:
+            # Charged BEFORE egress and PER ATTEMPT (I-104): a call that is
+            # about to be made is a call that is about to cost. AG-15:
+            # exhaustion terminates and escalates rather than degrading.
+            self._budget.charge(token.trace_id, cost, risk)
+
         transport = self._transports[requested_provider]
         try:
             response = transport(prompt, binding.credential_ref)
@@ -202,6 +221,20 @@ class ModelGateway:
                               f"provider={binding.provider} model={binding.model} "
                               f"profile={profile.name} outcome={response.outcome}")
         return response
+
+    def _compute_cost(self, token: ContextToken, binding: ProviderBinding,
+                      prompt: str) -> int:
+        """Derived from the ACTUAL request and the binding's rate.
+
+        I-52's pattern: if the rate cannot be established the call is DENIED.
+        An uncomputable cost must never become a free call."""
+        rate = getattr(binding, "cost_per_unit", None)
+        if rate is None:
+            self._deny(token, "gateway.cost",
+                       "cost rate could not be established for this binding",
+                       "I-105", security_event=True)
+        units = max(len(prompt), 1)
+        return units * rate
 
     def _response_taint(self, items: list[ModelRequestItem]) -> Taint:
         """I-99. Computed structurally from the request. A response CANNOT

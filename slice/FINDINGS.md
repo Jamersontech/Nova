@@ -299,3 +299,158 @@ No ADR was created and no invariant was touched.
 - **`I-95` provider-side session sharing.** *"No conversation, cache, or provider-side
   session is shared across scopes"* is unobservable against a fixture.
 - **Concurrency.** All tests are serial; `AG-10` fan-out and the budget race are untouched.
+
+---
+
+## Finding 4 — PHASE 1 ANALYSIS: is `AG-8` security-critical or redundant?
+
+**CONCLUSION: `AG-8` is REDUNDANT. `AG-7`, `AG-9` and `AG-11` already provide the property
+it claims, and provide it in three independent ways.**
+**No security gap. A documentation correction to `I-107` is proposed and NOT applied —
+`I-107` is accepted, so the wording change is James's.**
+
+Traced through the implementation (`slice/core/delegation.py`, `context_service.delegate`),
+not the prose. Every answer below was produced by running the cycle.
+
+| # | Question | Answer | Enforcement point |
+| --- | --- | --- | --- |
+| 1 | Can `A → B → A` **increase** authority? | **No.** Holding authority *constant* is denied at step 1 | `delegation.narrowing` (`AG-7`) |
+| 2 | Can it bypass the delegation **ceiling**? | **No.** Ceiling monotonically non-increasing across the whole chain | `delegation.ceiling` |
+| 3 | Can it create authority **not in the parent**? | **No.** A right dropped at depth 1 cannot be regained at depth 2 | `delegation.rights` / `delegation.scope` |
+| 4 | Can repeated delegation create **indefinite** authority? | **No.** Chain terminated at depth 3. **Two independent bounds**: the authority lattice is finite, and expiry strictly decreases every step | `delegation.narrowing` |
+| 5 | Can the loop **bypass another control**? | **No.** Cannot widen scope, cannot regain a dropped right | `delegation.scope`, `delegation.rights` |
+| 6 | Unbounded **resource** problem? | **No.** Bounded by (4), and separately by `AG-13`'s one-budget-per-delegation-tree — verified in the third slice | `AG-13` |
+| 7 | Does `AG-11` change the answer after revocation? | **It strengthens it.** When the ROOT execution ends, **every** node in the cycle fails closed — including the re-entered `A'` | `context.verify` (`AG-11`) |
+| 8 | Does `AG-9` change it when re-delegation is off? | **Decisively.** At the default `may_redelegate=False`, **the cycle cannot start at all** — refused at step 2 | `delegation.redelegate` (`AG-9`) |
+| 9 | Do `I-106`/`I-107` guarantee termination **without** `AG-8`? | **Yes**, by two independent mechanisms — finite lattice and strictly-decreasing expiry | `AG-7` |
+| 10 | Is `AG-8` security-critical? | **No. Redundant** — and, as written, incapable of firing | — |
+
+### The measured chain
+
+```
+depth 0  A   ceiling=EXECUTE   ttl=300.000s
+depth 1  B   ceiling=PREPARE   ttl=299.999s
+depth 2  A'  ceiling=ANALYZE   ttl=299.998s      <- the "cycle" AG-8 names
+depth 3  B'  ceiling=READ      ttl=299.996s
+         terminated: delegation.narrowing (I-107)
+
+authority never rises: True        expiry strictly decreases: True
+```
+
+**The cycle runs, and is harmless.** Each re-entry holds strictly *less* than the previous
+one. `A'` is not `A` in any authority sense — it is a strictly weaker descendant that
+happens to be the same agent.
+
+### Why `AG-8` cannot fire (restated from the second slice)
+
+`AG-6` defines `delegate` as **the receiving agent** and `ancestry` as **the chain of
+delegators**, where `delegator` is **the granting execution identity**. Comparing an agent
+against a set of execution identities can never match; and
+`AUTHENTICATION_MODEL.md` §5 makes execution identities *"ephemeral… never reused"*, so an
+identity-to-identity comparison could never fire either.
+
+### PROPOSED CORRECTION — NOT APPLIED
+
+**`I-107` is accepted. This is C3 and is James's decision.** The smallest correction:
+
+**Current `I-107` text:**
+> *"A delegation whose delegate already appears in its own **`ancestry`** is refused,
+> blocking `A → B → A` and every longer cycle."*
+
+**Proposed replacement:**
+> *"Cycles need no separate rule: strict narrowing already terminates them. `A → B → A`
+> is permitted and harmless, because each re-entry holds strictly less authority than the
+> previous one and expires strictly earlier; the chain therefore descends a finite lattice
+> and ends. `ancestry` is retained — it records the delegation chain for audit and is what
+> `AG-11` walks to fail a descendant closed when any ancestor ends."*
+
+**Corresponding `AGENT_GOVERNANCE.md` §3.2 change:** `AG-8` is withdrawn as a *rule* and
+its content folded into `AG-7`'s rationale. **`ancestry` stays in the `AG-6` record** — the
+implementation uses it for `AG-11`, so removing the field would break a working control.
+
+**Why withdrawal rather than repair (option (a)):** making `AG-8` compare agent-to-agent
+would *forbid* a legitimate pattern — the same agent legitimately re-entering a chain under
+strictly narrower authority — to prevent a cycle that `AG-7` already bounds. It would add a
+restriction whose only effect is to reject safe delegations.
+
+**Classification: CONTRADICTION (documentation), resolved analytically; no security gap;
+correction requires James's decision.**
+
+---
+---
+
+# Third Vertical Slice — delegation-tree budgets
+
+**121 tests total: 49 + 46 + 26. No regressions.**
+
+Exercises `I-105`, `I-108`, `AG-13`, `AG-14`, `AG-15` across `A → B → C`.
+
+**Scope of the claim:** this validates **NOVA's own authorization budget**. A provider's
+account balance is an external system and is **not observable here** — the architecture
+does not claim otherwise, and neither does this slice.
+
+---
+
+## Finding 5 — a subtree carve could be re-registered UPWARD
+
+**RESOLVED from an existing accepted invariant. Contained. No decision required.**
+
+**Enforcement point:** `BudgetLedger.register_child`, `I-108` / `AG-14`.
+
+**What happened.** `AG-14` says a carve is *"optional and narrowing"* — narrowing **relative
+to the parent**. My first implementation checked exactly that, and nothing else. So a child
+carved at 500 could be **re-registered at 9,000**, which passed because the parent's cap was
+10,000. The root ceiling was never touched, so `AG-13`'s *"cannot raise the root ceiling"*
+was not violated either.
+
+**Why it is a real gap.** Raising an existing carve from 500 to 9,000 is
+*"**receiving a fresh budget**"* — which `I-108` forbids in the same sentence as raising the
+root ceiling. The architecture already covers it; my implementation had simply checked one
+of the two clauses.
+
+**Resolved:** a carve, once set, may only **narrow**. Widening is refused under `I-108`.
+Narrowing an existing carve remains permitted, because that is what `AG-14` is.
+
+**No invariant was created and no wording changed** — `I-108` already said it.
+
+---
+
+## Slice-local limitation — SQLite thread affinity
+
+**Not an architecture finding.** `AG-10` and `AG-13` expect concurrent descendants, and the
+per-scope SQLite store was thread-affine, so the concurrency test could not run at all.
+Fixed with `check_same_thread=False` and a lock. **This is a property of the fixture, not of
+NOVA**; `D-02` and `D-33a` remain unselected and the architecture requires no particular
+store.
+
+---
+
+## What the third slice exercised
+
+| Rule | Status | Evidence |
+| --- | --- | --- |
+| `I-105` every execution carries a ceiling | **Exercised** | An unbudgeted execution **denies** rather than running unlimited; ceiling 0 is valid and denies everything |
+| `I-105` / `AG-15` exhaustion terminates and escalates | **Exercised** | Denial names *"terminate and escalate"*; **no code path degrades, truncates or downgrades** |
+| `I-108` / `AG-13` one budget per tree | **Exercised** | Root, child and grandchild spend all hit the same root; no API opens a second root |
+| `I-108` no minting / fresh budget | **Exercised** | Repeated delegation manufactures nothing (5 re-delegations share one 500); carve cannot be widened (Finding 5) |
+| `I-108` no independent pool | **Exercised** | When the **root** is exhausted a child's carve is worthless |
+| `AG-14` carve is narrowing and optional | **Exercised** | Carve > parent denied; `None` is valid and inherits the root ceiling |
+| `AG-14` siblings bounded collectively | **Exercised** | Two children carved 400 each under a 500 parent: the second is denied |
+| `AG-15` / `I-104` per-attempt accounting | **Exercised** | Retries charged individually; **an UNKNOWN outcome is charged, not free** |
+| Cost integrity | **Exercised** | Cost is **computed from the actual request**; `declared_cost` is accepted and ignored; a cheap declaration with an expensive request still denies |
+| Uncomputable cost | **Exercised** | Fails closed under `I-105`, never becomes free |
+| Revocation | **Exercised** | Prevents subsequent spend; mid-chain revocation enforced at the **next** enforcement point; completed spend is **not refunded** |
+| Concurrency | **Exercised, as specified** | Bounded overrun then hard stop — `AG-13` explicitly permits this and does **not** require a serialized counter |
+| Finding 2 resolution | **Still holds** | Across a three-level tree: `james.stated` LOW but not untrusted-derived; `external.web` is |
+
+## What remains unvalidated after three slices
+
+- **No real model provider has been called.** The gateway is IMPLEMENTED and
+  SECURITY-TESTED; **no provider is VALIDATED**.
+- **Provider billing.** Deliberately out of scope — an external system, not observable.
+- **`I-96` redaction confirmation.** Only the deny-on-unestablishable branch exists.
+- **Token-based cost.** Cost here is a length proxy; real token accounting is a provider
+  property.
+- **`I-03` `[PHYS]`.** Unchanged from slice 1 — per-scope files are not the production
+  mechanism.
+- **Long-running concurrency.** One four-thread test; no sustained load, no scheduler.

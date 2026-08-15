@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import threading
 from typing import Optional
 
 from .types import Denied
@@ -32,7 +33,11 @@ class ScopeStore:
         safe = scope_path.strip("/").replace("/", "__") or "root"
         os.makedirs(root, exist_ok=True)
         self._path = os.path.join(root, f"scope__{safe}.sqlite3")
-        self._conn = sqlite3.connect(self._path)
+        # check_same_thread=False + a lock: SLICE-LOCAL. The architecture
+        # expects concurrent descendants (AG-10, AG-13); SQLite thread
+        # affinity is a property of this fixture, not of NOVA.
+        self._lock = threading.Lock()
+        self._conn = sqlite3.connect(self._path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._init()
 
@@ -65,11 +70,12 @@ class ScopeStore:
             # I-03 / I-86: a write naming another scope is refused here, not
             # merely filtered. The store cannot reach another scope's file.
             raise Denied("store.put", f"{scope_path} outside {self.scope_path}", "I-03", True)
-        self._conn.execute(
-            "INSERT OR REPLACE INTO items (id, scope_path, body, taint) VALUES (?,?,?,?)",
-            (item_id, scope_path, body, taint_row),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO items (id, scope_path, body, taint) VALUES (?,?,?,?)",
+                (item_id, scope_path, body, taint_row),
+            )
+            self._conn.commit()
 
     def get_item(self, item_id: str) -> Optional[tuple[str, str, str]]:
         row = self._conn.execute(
@@ -84,13 +90,14 @@ class ScopeStore:
 
     def append_audit(self, ts: float, writer: str, category: str,
                      scope_path: str, trace_id: str, detail: str) -> int:
-        cur = self._conn.execute(
-            "INSERT INTO audit (ts, writer, category, scope_path, trace_id, detail)"
-            " VALUES (?,?,?,?,?,?)",
-            (ts, writer, category, scope_path, trace_id, detail),
-        )
-        self._conn.commit()
-        return int(cur.lastrowid or 0)
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO audit (ts, writer, category, scope_path, trace_id, detail)"
+                " VALUES (?,?,?,?,?,?)",
+                (ts, writer, category, scope_path, trace_id, detail),
+            )
+            self._conn.commit()
+            return int(cur.lastrowid or 0)
 
     def audit_records(self) -> list[tuple]:
         return self._conn.execute(
