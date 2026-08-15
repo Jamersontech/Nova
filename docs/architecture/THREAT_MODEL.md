@@ -466,6 +466,36 @@ what Section 08 adds is that the plan is now compared against its authorization 
 point, which bounds the reach rather than preventing the construction (`T-19`, `T-24` unchanged).
 `T-03`'s injection residual is **unchanged**: injection can still shape a plan within its envelope.
 
+### T-37 Under-declared tool
+*Added 2026-08-15 — **PROPOSED**, Section 10. Authority
+[ADR 0036](../decisions/0036-tool-declarations-are-claims-not-facts.md).*
+
+**Failure:** Every security-relevant property of a tool — `required rights`, `risk class`,
+`idempotency`, `consequence-determining args`, `cost profile` — is **declared by the tool**, and
+each is an input to authorization. A tool whose declaration understates what it does causes the
+system to act beyond what was authorized while every enforcement point passes. Two shapes.
+**Silent** — an argument the declaration simply does not mention, read as harmless, so `I-100`
+checks the wrong fields. **Wrong** — an argument declared expressive whose value the implementation
+or the provider actually treats as addressing, magnitude, or destination.
+
+**Defense:** The declaration is **total** — every schema argument must be classified, and an
+incomplete definition is not registered (`MT-6`, unchanged). The **default inverts**: an argument
+that is unclassified or unparseable is consequence-determining and is checked against the envelope
+(`I-100`). The same default governs the other claims — `risk class` denies rather than defaulting
+low (`I-101`), `idempotency` defaults to *not* idempotent, `required rights` cannot be empty by
+omission. This is `I-14`/`I-52`/`I-79`/`I-93`'s default-closed pattern applied to declarations.
+
+**Residual:** **The wrong declaration is not detected, and nothing in NOVA can detect it.**
+Validating a declaration against behaviour requires understanding what the tool does; the only
+components capable of that judgement are models, and `I-101`, `I-102` and `I-110` bar a model from
+establishing an authorization-relevant fact — a verifier would be exactly the trust dependency the
+architecture is organised to avoid. **`T-16`'s residual is unchanged and is not reduced**:
+over-declaration remains authorized breadth, a governance matter rather than a security hole.
+**Totality shifts cost onto tool authoring**, and the predictable failure is authors classifying
+everything consequence-determining to avoid thought, widening envelopes — the same pressure
+ADR 0030 records for agent creation. **Consequence is partly a property of the binding**, not the
+definition, and that is deferred to Section 11.
+
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a
 new TRUSTED-zone responsibility ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),

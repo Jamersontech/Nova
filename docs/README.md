@@ -79,4 +79,8 @@ The Section 08 model is **Proposed** — ADRs `0034`–`0035` await James's appr
 
 The Section 09 model is **Proposed** — its single decision (`S9-D1`, source identity) is folded into ADR `0033`.
 
-Next: **Section 10 — Tool & Capability Architecture**.
+The Section 10 model is **Proposed** — ADR `0036` awaits James's approval. **No new invariant and no
+new architecture document**: the decision defines what makes a tool declaration complete, inside
+[`architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2.1.
+
+Next: **Section 11 — Integration Architecture**.

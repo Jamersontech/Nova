@@ -34,7 +34,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 07 — Context & Memory Architecture | **PROPOSED, awaiting James's approval** |
 | 08 — Reasoning, Planning & Orchestration | **PROPOSED, awaiting James's approval** |
 | 09 — Knowledge & Research System | **PROPOSED, awaiting James's approval** |
-| 10 and beyond | Not started |
+| 10 — Tool & Capability Architecture | **PROPOSED, awaiting James's approval** |
+| 11 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -260,6 +261,53 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 10 — PROPOSED, awaiting James's approval
+
+**Tool & Capability Architecture.** **No new architecture document and no new invariant.**
+`TOOL_AND_INTEGRATION_ARCHITECTURE.md` already owns tools, integrations, credentials and tool
+governance, and the finding is a definition of a field that document already requires — the same
+shape as Section 09's, and the reason it lands in §2.1 rather than in a new file.
+
+**Delivered — all Proposed:** ADR `0036`, threat `T-37`. **`INVARIANTS.md` is untouched:**
+`I-01`–`I-113` are byte-identical to their accepted text.
+
+**The core finding.** **Every security-relevant property of a tool is declared by the tool, and
+every one of them is an input to authorization** — `required rights` feeds the PDP's grant lookup,
+`risk class` is the floor `I-101` raises from, `idempotency` decides whether the reliability layer
+may retry a side effect, `consequence-determining args` decides what `I-100` checks, `cost profile`
+feeds `I-105`. The only stated verification was procedural: *"a defect, caught in review and by
+permission tests"* — but permission tests can only exercise **declared** rights, and review is James
+reading a declaration rather than observing behaviour.
+
+**Over-declaration was already handled; under-declaration was not.** A tool declaring more than it
+needs is authorized breadth — James approved it, and `T-16` records it as unmitigable. A tool
+declaring *less* than it does makes the system act beyond what was authorized, and approval does not
+help because James approved a claim about the tool rather than the tool. **The silent case is the
+sharp one:** an argument the declaration simply does not mention was read as harmless, so `I-100`
+faithfully checked the wrong fields and every enforcement point passed.
+
+**The decision.** The declaration is **total** — every schema argument must be classified, and
+`MT-6` already refuses an incomplete definition — and the **default inverts** from expressive to
+consequence-determining. That is `I-14`/`I-52`/`I-79`/`I-93`'s default-closed pattern applied to
+declarations: **absence of information is not permission.**
+
+**The honest limit.** This closes the *silent* under-declaration and not the *wrong* one. Validating
+a declaration against behaviour requires semantic understanding of the tool; the only available
+source is a model, and `I-101`, `I-102` and `I-110` bar exactly that — building a verifier would
+introduce the trust dependency the architecture is organised to avoid. Recorded as `T-37`.
+
+**One earlier defect corrected.** `TOOL_AND_INTEGRATION_ARCHITECTURE.md` §2's Section 05 amendment
+note was headed *"ACCEPTED"* while still closing *"both Proposed… restored if they are rejected"* — a
+stale marking left by the Section 05 acceptance pass, corrected here because Section 10 amends that
+exact block. **No text changed meaning; only the status label.**
+
+**Deferred to Section 11.** Consequence is partly a property of the **binding**, not the definition:
+one `send_email` reaches a different provider per scope, and provider behaviour is not in the tool
+definition. Recorded, deliberately not decided.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 09 — PROPOSED, awaiting James's approval
 

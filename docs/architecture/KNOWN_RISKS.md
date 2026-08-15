@@ -247,6 +247,19 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **An aggregate of individually public sources can be sensitive** | `I-27` gives a derived item the **strictest source** classification; if every source is PUBLIC the conclusion is PUBLIC however sensitive it is. `I-57` covers only *cross-client* aggregates. **Recorded, not resolved — this belongs to Section 37 (Privacy & Data Governance)** and Section 09 deliberately does not decide it | 37 |
 | **Promoting a synthesis promotes every claim in it** | `I-110` operates on an *item*; ADR 0032's authority judgment is *per claim*. A synthesis stored as one item is promoted as one item, so a single unsupported claim inside it rides along at the elevated trust. The promotable unit is already defined repository-wide, so this is a residual rather than an open decision | 09 / 41 |
 
+## 3.10 Risks Identified in Section 10 — tools and capabilities
+
+> ***PROPOSED — added by Section 10, not yet accepted*** *(2026-08-15; authority
+> [ADR 0036](../decisions/0036-tool-declarations-are-claims-not-facts.md), Proposed; removed if
+> rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **A wrong declaration is undetectable** | Section 10 closes the *silent* under-declaration; it cannot close the *wrong* one. Validating a declaration against behaviour needs semantic understanding of the tool, the only available source is a model, and `I-101`/`I-102`/`I-110` bar exactly that. A tool declaring `body` expressive while its implementation parses `body` for recipients passes every enforcement point | 10 / 11 / 31 |
+| **Totality moves cost to tool authoring, and the cheap answer widens envelopes** | Every schema argument now needs a justified classification. The predictable response is classifying everything consequence-determining, which makes envelopes wide and pushes work toward approval — the same pressure ADR 0030 records for agent creation, and the same over-wide-envelope family ADRs 0025, 0029 and 0034 already record | 10 / 31 |
+| **Existing declarations written under the opt-in reading become incomplete** | Any tool defined before this rule is now unregistrable until reclassified. That is correct and is a real migration cost | 10 / 30 |
+| **Consequence is partly a property of the binding, not the definition** | One `send_email` reaches a different provider per scope (`TOOL_AND_INTEGRATION_ARCHITECTURE.md` §1), and provider behaviour is not in the tool definition. **Recorded, not resolved — this belongs to Section 11** | 11 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture

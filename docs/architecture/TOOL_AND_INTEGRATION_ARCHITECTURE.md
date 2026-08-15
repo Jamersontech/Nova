@@ -71,7 +71,7 @@ determining args     rather than how it is expressed
 >
 > Authority: [ADR 0025](../decisions/0025-model-output-is-an-untrusted-derivation.md) and
 > [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
-> **Proposed**; the field is removed and the accepted list restored if they are rejected.
+> **Accepted** 2026-08-14.
 
 **A tool declaring more rights than it uses is a defect**, caught in review and by
 permission tests. Over-broad tools are the quiet path to over-broad agents.
@@ -79,6 +79,78 @@ permission tests. Over-broad tools are the quiet path to over-broad agents.
 **Idempotency is mandatory metadata** because the reliability layer must know whether a
 retry is safe. A non-idempotent tool retried automatically is how one client receives four
 SMS campaigns.
+
+### 2.1 A declaration is a claim, not a verified fact
+
+> ***PROPOSED — added by Section 10, not yet accepted*** *(2026-08-15; authority
+> [ADR 0036](../decisions/0036-tool-declarations-are-claims-not-facts.md), Proposed; removed and the
+> accepted text restored verbatim if rejected).* **Every security-relevant field above is declared
+> by the tool, and every one of them is an input to authorization** — `required rights` feeds the
+> PDP's grant lookup, `risk class` is the floor `I-101` raises from, `idempotency` decides whether
+> the reliability layer may retry a side effect, `consequence-determining args` decides what `I-100`
+> checks, `cost profile` feeds `I-105`. **The only stated verification is procedural** — the
+> "defect, caught in review" line above, plus §6's C2/C3 gate. Review is James reading a
+> declaration; permission tests can only exercise **declared** rights.
+
+**Over-declaration and under-declaration are different failures.** A tool declaring *more* than it
+needs is **authorized breadth**: James approved it, and `T-16` records it as unmitigable.
+**Under-declaration is the opposite** — the tool does more than its declaration says, so the system
+acts beyond what was authorized, and James's approval does not help because he approved a claim
+about the tool rather than the tool.
+
+**The silent case is the one this closes.** `send_email(to, subject, body, attachments)` declares
+`to` and `attachments` consequence-determining and says nothing about `body`. Read as opt-in, `body`
+is unchecked — so if the implementation or the provider treats content in `body` as addressing, then
+`body` determines what the action affects, `I-100` faithfully checks the wrong fields, and **every
+enforcement point passes.** Nobody lied; the declaration was silent, and silence read as harmless.
+
+**Two rules, which together make `I-100` total rather than opt-in:**
+
+```text
+TOTALITY      The consequence-determining declaration must classify EVERY argument in the
+              tool's input schema as consequence-determining or expressive. An argument
+              the declaration does not mention makes the definition incomplete, and an
+              incomplete definition is not registered (`MT-6`, unchanged).
+
+DEFAULT       An argument that is present but unclassified, or whose classification cannot
+              be parsed, is CONSEQUENCE-DETERMINING and is checked against the envelope
+              (`I-100`). Expressive is the exception that must be declared.
+```
+
+**Totality reaches every leaf the schema exposes, not only top-level arguments.** A structured
+argument — `payload: { to, subject, body }` — classified as one unit hides its parts: declaring the
+object expressive would exempt `to` while satisfying a top-level reading. Either every leaf is
+classified, or the object is classified **consequence-determining as a whole** and checked as a
+whole. **A structured argument cannot be expressive by aggregation.**
+
+**A schema change re-opens the question.** Tools are versioned and a schema change is already a
+breaking change (§6). Under totality a newly added argument is unclassified, so the definition is
+incomplete and the new version is **not registered** until it is classified — the check cannot be
+skipped by growing the schema after approval.
+
+**The same default governs the other claims.** An absent or unparseable `risk class` denies rather
+than defaulting low — `I-101` already states this. An absent or unparseable `idempotency` claim
+means **not idempotent**, so the reliability layer does not auto-retry. An absent `required rights`
+declaration is not an empty requirement; the definition is incomplete.
+
+**This is the repository's default-closed pattern applied to declarations.** `I-14` makes absence of
+a grant a denial, `I-52` resolves unavailable classification to the strictest level, `I-79` makes a
+missing scope a denial, `I-93` fails an unwritable audit closed. **Absence of information is not
+permission** — and the tool declaration was the one place where absence read as *"not
+consequential"*.
+
+**No invariant is added.** `I-100` already requires the check and already refuses an undeclaring
+tool; this defines what makes the declaration complete, so `I-100` and `MT-6` remain the governing
+rules. Changing a classification stays **C3** (§6) — it changes the safety envelope.
+
+**What this does not do.** It does **not** verify a declaration against the tool's actual behaviour.
+That requires understanding what the tool does; the only components capable of that judgement are
+models, and `I-101`, `I-102` and `I-110` all bar a model from establishing an authorization-relevant
+fact. **A tool that declares `body` expressive while its implementation parses `body` for recipients
+is not detected** (`T-37`). **And consequence is partly a property of the *binding*, not only the
+definition** — the same `send_email` reaches different providers per scope (§1), and provider
+behaviour is not in the definition. **Recorded and deliberately not resolved: that belongs to
+Section 11.**
 
 ---
 

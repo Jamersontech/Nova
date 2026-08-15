@@ -318,6 +318,7 @@ changes no lifecycle stage.
 | --- | --- | --- |
 | [0034](./0034-the-plan-is-a-security-object.md) | **The plan is a security object** with declared schema, deterministic identity and immutability after authorization; authorization is an **envelope plus a per-action check**; re-planning creates a new plan | Proposed |
 | [0035](./0035-section-08-amendments-to-accepted-architecture.md) | Section 08 amendments — authorizes all seven, and records why `PLANNING_ARCHITECTURE.md` was **not** created | Proposed |
+| [0036](./0036-tool-declarations-are-claims-not-facts.md) | **Tool declarations are claims, not facts** — the classification must be **total** over the input schema, and an absent or unparseable claim is read as **consequence-determining**. No new invariant | Proposed |
 
 ### Amendment-authority audit — Section 08 edits to Active/Accepted documents
 
@@ -360,6 +361,29 @@ identifies one. **`I-110` remains the governing security invariant** and is now 
 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.9 | 03 · Active | Three Section 09 residuals, two of them recorded rather than resolved |
 
 Both amendments are **Proposed** under ADR 0033 and marked in place.
+
+---
+
+### Section 10 — Proposed, awaiting James
+
+**One ADR, no new invariant, no new document.**
+[ADR 0036](./0036-tool-declarations-are-claims-not-facts.md) establishes that a tool definition's
+security-relevant fields are **claims made by the tool, not verified facts about it**, and that an
+absent, incomplete or unparseable claim is read at its most consequential. `I-100` already requires
+consequence-determining arguments to be checked and already refuses to register a tool that does not
+declare them; `MT-6` already refuses an incomplete definition. **What was undefined is what makes a
+declaration complete**, so the material is a definition and belongs in the document that specifies
+the field — the same reasoning that put Section 09's source identity in `PROVENANCE_AND_TRUST.md`.
+**`I-100` and `MT-6` remain the governing rules.**
+
+| Document | Section / status | What Section 10 changes |
+| --- | --- | --- |
+| [`../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2.1 | 02 · Active | Declaration **totality** over the input schema; default inverted to **consequence-determining**; claims-not-facts rule. Also corrects a stale Section 05 status label in §2 |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-37` under-declared tool. **`T-16`'s residual is not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.10 | 03 · Active | Four Section 10 residuals, one of them deferred to Section 11 |
+
+All are **Proposed** under ADR 0036 and marked in place. **`INVARIANTS.md` is deliberately not
+amended** — `I-01`–`I-113` are byte-identical to their accepted text.
 
 ---
 
