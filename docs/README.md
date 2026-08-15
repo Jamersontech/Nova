@@ -95,4 +95,8 @@ The Section 13 model is **Proposed** — ADR `0039` awaits James's approval. **N
 its single decision (`S13-D1`, communication is classified egress) composes `I-99`, `I-27`,
 `DATA_CLASSIFICATION.md` §2 and PDP step 7 at the existing Tool call PEP.
 
-Next: **Section 14 — Voice & Conversational Interface**.
+The Section 14 model is **Proposed** — ADR `0040` awaits James's approval. **No new invariant**:
+its single decision (`S14-D1`, voice is an input surface not an authentication factor) reconciles
+`USER_INTERFACE_ARCHITECTURE.md` §6–§7 with `AUTHENTICATION_MODEL.md` §4 without overruling either.
+
+Next: **Section 15 — NOVA Design System**.

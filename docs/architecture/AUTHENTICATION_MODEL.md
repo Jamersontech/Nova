@@ -127,6 +127,32 @@ Session
 Voice sessions may not reach above `PREPARE` without step-up on another surface — voice
 identification alone is not an authentication factor for consequential work.
 
+> **This cap governs the session side, and voice biometrics are not adopted.** ***PROPOSED — added
+> by Section 14, not yet accepted*** *(2026-08-15; authority
+> [ADR 0040](../decisions/0040-voice-is-an-input-surface-not-an-authentication-factor.md),
+> Proposed; removed and the accepted text restored verbatim if rejected).* The rule above and
+> `USER_INTERFACE_ARCHITECTURE.md` §7's *"a surface may never vary in authority"* read as
+> contradicting. **Both are correct**: §7 governs the **action side** — what an action means and
+> requires is identical everywhere — and this rule governs the **session side**, what strength this
+> session supplies. Voice therefore **carries** an approval interaction and **cannot complete one**
+> above `PREPARE`; a spoken *"yes"* is expressed intent, and the approval is recorded only when a
+> sufficient-strength session exists (`A-3`). `I-09` and `I-109` are unchanged.
+>
+> **A voiceprint is not a factor, and that is a decision rather than an omission.** It would
+> establish an authorization-relevant fact — *"this speaker is James"* — by statistical inference
+> from a signal an adversary can **synthesise or replay**, against the identity that originates all
+> authority. `A-2` already excludes *"codes read aloud"* as a primary factor for exactly this
+> family of weakness, and a voiceprint is weaker still. **Four claims stay separate**, and voice
+> establishes only the third — as `integration.supplied` testimony from a speech provider, never as
+> fact (`I-39`, `I-110`):
+>
+> ```text
+> audio came from a device   → a claim about a channel, not about a person
+> this speaker is James      → NOT ESTABLISHABLE by voice; identity comes from A-1/A-2
+> James said these words     → provider testimony, untrusted
+> James authorized this      → I-09 + sufficient session strength + I-109's binding
+> ```
+
 ---
 
 ## 5. Agent and Execution Authentication

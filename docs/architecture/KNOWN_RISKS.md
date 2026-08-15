@@ -307,6 +307,22 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **Individually authorized messages aggregate into spam** | Rate is a PDP step-8 condition and standing approvals carry rate limits, so frequency is governable. **Nothing judges appropriateness.** A sequence of individually reasonable, individually authorized messages is still what a recipient experiences as spam, and no enforcement point evaluates the sequence as a whole | 13 / 26 |
 | **A message delivered cannot be recalled** | Communication egress is irreversible in a way model egress is not. `T-38` already establishes NOVA cannot recall a submitted side effect; for communication the recipient is a person, and stop, revocation and compensation all arrive too late by construction | 13 / 35 |
 
+## 3.14 Risks Identified in Section 14 — voice and the conversational interface
+
+> ***PROPOSED — added by Section 14, not yet accepted*** *(2026-08-15; authority
+> [ADR 0040](../decisions/0040-voice-is-an-input-surface-not-an-authentication-factor.md),
+> Proposed; removed if rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **A voice clone is undetectable, and bounded only by the ceiling** | Voice establishes no identity, so a cloned or replayed voice cannot approve or exceed `PREPARE`. It **can** drive every `READ`–`PREPARE` operation, make NOVA read aloud whatever those surface, and consume budget. **NOVA claims no ability to detect impersonation** — the cap bounds blast radius, nothing bounds attempts | 14 / 38 |
+| **The `PREPARE` cap is a permanent usability cost, and relaxing it is the failure** | Hands-free is exactly when another surface is least available — driving, cooking, walking. The pressure to allow spoken approval will be constant and will sound reasonable. It will also push toward batching approvals, which §2 already records as producing reflexive approval | 14 / 26 |
+| **Transcription errors are undetectable by NOVA** | A dropped negation, an altered amount or a mis-heard recipient produces a **well-formed** request. The only bound is that consequence-determining values are still envelope-checked (`I-100`), so a wrong recipient outside the envelope denies and one inside it proceeds. `T-39`'s semantic-divergence family through a different provider — **not reduced** | 14 / 38 |
+| **Caller ID is unauthenticated metadata** | It is a claim carried by an inbound signal, which carries no identity, token or grant (`S11-D3`). It may route; it may never identify. Nothing in NOVA validates it, and telephony providers do not guarantee it | 14 |
+| **A malicious speaker can halt work but cannot resume it** | Deliberate asymmetry: stop is reachable from every surface without navigation (`X-5`) because a stop that authenticates is not an emergency stop; lifting needs full-strength authentication (`X-6`). **The availability cost is accepted, not mitigated** | 14 |
+| **Audio, transcripts and voiceprints have no retention policy** | They are conversational and biometric data of the most sensitive kind. `I-27` gives derived transcripts the strictest classification of their sources and §2 governs their egress — but **how long raw audio is kept, whether a provider retains it beyond NOVA's control, and whether a voiceprint may be stored at all are undecided.** **Recorded, not resolved — this belongs to Section 37 (Privacy & Data Governance)** | 37 |
+| **Recording disclosure and consent are undecided** | Whether a party must be told a call is recorded or transcribed is a legal and policy question with jurisdictional answers, adjacent to the consent gap §3.13 already records. **Section 37's**, and Section 14 does not invent it | 37 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture

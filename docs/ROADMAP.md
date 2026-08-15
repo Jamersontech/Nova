@@ -38,7 +38,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 11 — Integration Architecture | **PROPOSED, awaiting James's approval — `S11-D1` approved for implementation 2026-08-15, folded into ADR `0037`** |
 | 12 — Automation & Workflow Engine | **PROPOSED, awaiting James's approval** |
 | 13 — Communication System | **PROPOSED, awaiting James's approval** |
-| 14 and beyond | Not started |
+| 14 — Voice & Conversational Interface | **PROPOSED, awaiting James's approval** |
+| 15 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -264,6 +265,58 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 14 — PROPOSED, awaiting James's approval
+
+**Voice & Conversational Interface.** **No new invariant, no new architecture document, no new
+enforcement point, no new authentication factor.**
+
+**Delivered — all Proposed:** ADR `0040`, threat `T-42`. **`INVARIANTS.md` is untouched:**
+`I-01`–`I-114` are byte-identical. **`D-14` (voice/speech technology) remains deferred** — no
+technology is selected.
+
+**The vocabulary census said greenfield; the fourteen `voice` hits said otherwise.** `audio`,
+`STT`, `TTS`, `transcript`, `microphone`, `speaker`, `telephony`, `phone`, `voicemail`,
+`utterance`, `barge-in`, `wake word`, `voiceprint`, `biometric` and `DTMF` each returned **zero
+occurrences** — but the existing `voice` references already decide the security question, and
+Section 14 is therefore far less greenfield than it looks.
+
+**The finding — `S14-D1`, a contradiction between two accepted documents.**
+`USER_INTERFACE_ARCHITECTURE.md` §7 says *"a surface may vary in depth; **it may never vary in
+authority**"* and requires voice to support *"confirmation of high-risk actions"*, and §6 makes
+approvals *"approvable… **from any surface**"*. `AUTHENTICATION_MODEL.md` §4 says *"**voice
+sessions may not reach above `PREPARE`** without step-up on another surface"*. **One document says
+a surface may never vary in authority; another says voice specifically does.** An engineer building
+the voice surface had to choose, and the readings produce materially different systems — under one,
+a spoken *"yes"* approves a `HIGH-IMPACT EXECUTE`.
+
+**The resolution: both are correct, and they govern different sides.** `USER_INTERFACE_ARCHITECTURE.md`
+governs the **action side** — what an action means, costs and requires is identical on every
+surface. `AUTHENTICATION_MODEL.md` governs the **session side** — what strength *this* session
+supplies. So *"from any surface"* is **reachability**, not completion: voice **carries** an approval
+interaction and cannot **complete** one above `PREPARE`; a spoken *"yes"* is expressed intent, and
+the approval is recorded only when a sufficient-strength session exists (`A-3`). *"Explicit
+confirmation of scope"* is **disambiguation**, not authorization. `I-09` and `I-109` are unchanged.
+
+**Voice biometrics are explicitly rejected, as a decision rather than an omission.** A voiceprint
+would infer an authorization-relevant fact — *"this speaker is James"* — from a signal an adversary
+can synthesise or replay, against the one identity that originates all authority. `A-2` already
+excludes *"codes read aloud"* for the same family of weakness; a voiceprint is weaker still.
+
+**Four claims voice blurs, and the architecture keeps apart:** *audio came from a device* (a claim
+about a channel) · *this speaker is James* (**not establishable by voice**) · *James said these
+words* (`integration.supplied` testimony from a speech provider) · *James authorized this* (`I-09`
++ session strength + `I-109`'s binding).
+
+**Everything else was already governed** and needed only stating with its enforcement point:
+spoken commands reach tools through the **Tool call PEP** (`I-100`, `MT-5`, ADR 0036); spoken
+output is **classified egress** at **PDP step 7** (Section 13); speech-to-text, text-to-speech and
+telephony are **three distinct `I-114` bindings** with no substitution; inbound calls and callbacks
+carry no authority (`S11-D3`); call outcomes are provider testimony (`S11-D2`); scheduled calls are
+automations — intent, not authority (Section 12); a conversation is not a context.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 13 — PROPOSED, awaiting James's approval
 

@@ -198,7 +198,68 @@ in [`KNOWN_RISKS.md`](./KNOWN_RISKS.md) §3.13, not mitigated.
 
 ---
 
-## 8. What This Document Does Not Change
+## 8. Voice Is Communication With Audio, and Nothing More
+
+> ***PROPOSED — added by Section 14, not yet accepted*** *(2026-08-15; authority
+> [ADR 0040](../decisions/0040-voice-is-an-input-surface-not-an-authentication-factor.md),
+> Proposed).* **Coupling stated:** this document is itself Proposed under ADR 0039, so if 0039 is
+> rejected this section goes with it. **ADR 0040's reconciliation does not depend on it** — that
+> lives in `USER_INTERFACE_ARCHITECTURE.md` §6–§7 and
+> [`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §4, both Active, and stands alone.
+
+**Voice adds no mechanism.** A spoken interaction decomposes into parts each of which is already
+governed, and the value of stating it is that **the medium hides every boundary** — input,
+identity, authority and approval all arrive as one undifferentiated sound.
+
+| Part | What it is | Governed by |
+| --- | --- | --- |
+| Microphone / call audio | Untrusted input | `SECURITY_BOUNDARIES.md` §3 |
+| Speech-to-text | An **integration**; its transcript is `integration.supplied` testimony | ADR 0037 `S11-D2`'s shape; `I-39`, `I-110` bar promotion |
+| The transcript's influence | May **inform**, never **escalate**; taint carried and persisted | `I-40`, `I-99`, `I-111` |
+| Interpretation of intent | A model call. Ability is not authorization | `I-20`, `I-102` |
+| A spoken command's arguments | Consequence-determining args vs envelope, leaves total | `I-100`, `MT-5`, ADR 0036 · **Tool call PEP** |
+| Text-to-speech | An **integration** with its own binding | `I-114` · Tool PEP + Broker step 2a |
+| Telephony | A separate integration with its own binding | `I-114` |
+| What is spoken outward | **Classified egress** — the payload's classification governs | §2 · **PDP step 7** |
+| Who is called | *Target*; list size is *Magnitude* | `I-100`, `MT-5` · Tool PEP |
+| Inbound call, callback, DTMF | No identity, no token, no grant | `S11-D3` · `I-14` |
+| "Call connected" / "failed" | Provider testimony; timeout is **unknown**, never failure | `S11-D2`, `RELIABILITY_ARCHITECTURE.md` §2 |
+| Scheduled or recurring calls | An automation is **intent, not authority** | `ORCHESTRATION_ARCHITECTURE.md` §5 |
+| Audio, transcripts, summaries | Strictest classification among sources | `I-27` |
+
+**Three provider bindings, not one.** A speech-to-text change alters **what NOVA believes**; a
+text-to-speech change alters **what a person hears**; a telephony change alters **who is reached**.
+They are distinct `I-114` bindings with distinct envelopes, and **none substitutes within
+another's** — no provider equivalence, and an unavailable sole binding fails closed (§3).
+
+**Spoken output is classified egress like any other message.** §2 applies unchanged: the audio
+NOVA speaks carries the strictest classification of everything composed into it (`I-27`, `I-99`),
+and `DATA_CLASSIFICATION.md` §2 governs whether that classification may leave — enforced at **PDP
+step 7**, at the Tool call PEP. **Speaking SENSITIVE-PERSONAL content aloud on a call is the same
+denial as mailing it**, and the fact that a human asked for it aloud does not change the
+classification.
+
+**A conversation is still not a context.** A voice session is a session; a session *"carries
+continuity, not authority"* (`AUTHENTICATION_MODEL.md` §4), and *"a conversation does not
+accumulate authority; each request resolves its own context"*
+([`CONTEXT_ARCHITECTURE.md`](./CONTEXT_ARCHITECTURE.md) §1). **A reconnected call, a resumed
+session, a second turn, and a later call all resolve context afresh** — *"you already approved
+this"* is a claim inside untrusted content, never a record of approval.
+
+**Stop is asymmetric, deliberately.** A spoken stop **takes effect** — `X-5` requires the
+emergency stop to be reachable from every surface without navigation, and stop is **restriction**,
+which the architecture does not gate the way it gates grant. **Lifting** is the opposite: `X-6`
+requires an explicit human act authenticated at **full strength**, which voice cannot supply. A
+malicious speaker can therefore halt work and **cannot resume it** — an availability cost accepted
+in exchange for a stop that always works.
+
+**What voice does not change:** it establishes no identity (ADR 0040), promotes no trust, creates
+no approval, and adds no enforcement point. Every gate a typed request passes, a spoken one passes
+identically.
+
+---
+
+## 9. What This Document Does Not Change
 
 `I-01`–`I-114` are unmodified. No new invariant, enforcement point, PEP, security object, audit
 category, authority or change class is created. The six PEPs remain six; the ten-step sequence

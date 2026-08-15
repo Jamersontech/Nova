@@ -678,6 +678,56 @@ at all**: the mechanism is expressible as envelope narrowing, the *policy* is Se
 until it exists there is nothing to check. `T-03`'s, `T-16`'s and `T-38`'s residuals are
 **unchanged**.
 
+### T-42 Voice as an authority channel
+*Added 2026-08-15 — **PROPOSED**, Section 14. Authority
+[ADR 0040](../decisions/0040-voice-is-an-input-surface-not-an-authentication-factor.md).*
+
+**Failure:** Voice is the one surface where **input, identity, authority and approval all arrive as
+the same undifferentiated signal** — a sound — so every boundary the architecture draws between
+them is invisible in the medium. Four attack shapes. **Impersonation** — a cloned or replayed
+voice, a spoofed caller ID, or simply someone else holding James's device, with the system treating
+*sounds like James* as *is James*. **Spoken approval** — *"yes"*, *"do it"*, *"go ahead"* taken as
+the authorization for a consequential action, or a confirmation captured for one action reused
+after the recipient, amount, tool, plan or binding changed. **Transcript** — a speech-to-text
+provider inserting, dropping or altering a word (a negation, a recipient, an amount) and the result
+treated as what was said; or crafted audio carrying injected instructions into the interpreting
+model. **Conversation** — a call, a reconnection, or a later turn treated as continuing authority,
+with *"you already approved this"* accepted from inside the conversation itself.
+
+**Defense:** **Voice carries intent; it never carries authentication or authority** (ADR 0040).
+Identity comes from `A-1`/`A-2`, never from the voice — **voice biometrics are explicitly not
+adopted**, because a voiceprint infers an authorization-relevant fact from a signal an adversary
+can synthesise or replay, and `A-2` already excludes weaker-but-similar factors. **Voice sessions
+cannot exceed `PREPARE` without `A-3` step-up on another surface** (`AUTHENTICATION_MODEL.md` §4),
+so a spoken *"yes"* is expressed intent and the approval is recorded only when a sufficient-strength
+session exists; `I-09` is unchanged. **`I-109` binds an approval to ten properties**, so a
+confirmation cannot survive a change of action, resource, scope, rights, risk class, tool set,
+argument envelope, ancestry, cost ceiling or execution binding. A **transcript is
+`integration.supplied` testimony** from a speech provider — untrusted, and barred from becoming
+fact by `I-39`/`I-110`; spoken content may **inform and never escalate** (`I-40`), carrying taint
+under `I-99`/`I-111`. **A conversation is not a context** — *"never a conversation"*
+(`AUTHORIZATION_MODEL.md` §2), *"a conversation does not accumulate authority"*
+(`CONTEXT_ARCHITECTURE.md` §1) — so each turn, reconnection and later call resolves afresh. Spoken
+commands reach tools only through the **Tool call PEP** (`I-100`, `MT-5`, ADR 0036 leaf totality);
+spoken output is **classified egress** at **PDP step 7** (`S13-D1`); speech-to-text, text-to-speech
+and telephony are **three distinct `I-114` bindings** with no substitution between them. **Stop is
+deliberately asymmetric**: a spoken stop takes effect (`X-5`, restriction is not gated like grant)
+and **lifting requires full-strength authentication** (`X-6`), which voice cannot supply.
+
+**Residual:** **A convincing voice clone still drives everything below the ceiling.** It can run
+any `READ`–`PREPARE` operation, cause NOVA to read aloud whatever those surface, and consume
+budget. The cap bounds the blast radius; **nothing detects the impersonation**, and NOVA claims no
+ability to. **Caller ID is unauthenticated metadata** and is never identity. **Transcription errors
+are undetectable by NOVA** — a dropped negation or an altered recipient produces a well-formed
+request, and the only bound is that consequence-determining values are still envelope-checked, so a
+mis-transcribed recipient outside the envelope denies while one inside it proceeds; this is `T-39`'s
+semantic-divergence family reached through a different provider, **not reduced**. **The
+`PREPARE` cap is a permanent usability cost** and the pressure to relax it will be constant and
+reasonable-sounding; relaxing it is the failure. **A malicious speaker can halt work** — accepted,
+since a stop that authenticates is not an emergency stop, and lifting is protected. **Audio,
+transcripts and voiceprints are biometric and conversational data whose retention policy does not
+exist** — Section 37's. `T-03`'s, `T-20`'s and `T-39`'s residuals are **unchanged**.
+
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a
 new TRUSTED-zone responsibility ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),

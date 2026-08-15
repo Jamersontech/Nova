@@ -322,6 +322,7 @@ changes no lifecycle stage.
 | [0037](./0037-provider-outcomes-and-provider-initiated-paths.md) | **Provider outcomes are claims; provider-initiated paths carry no authority; and authorization binds the execution binding (`I-114`)** — unknown is distinct from failure, retry needs **provider-enforced** deduplication, an inbound webhook/callback/event has no identity, and a tool action is authorized against the integration/credential binding that produces the consequence, with `I-109` amended in place | Proposed |
 | [0038](./0038-automations-are-intent-not-authority.md) | **Automations are intent, not authority** — a stored definition plus its trigger carries no authorization; every firing is authorized freshly at fire time through the unmodified pipeline. No new invariant: a derivation from `I-10`, `I-14`, `I-17`, `I-112`, `I-113`, `S11-D3`, `V-2` | Proposed |
 | [0039](./0039-communication-is-classified-egress.md) | **Communication is classified egress** — the classification of the content leaving governs the send, enforced at PDP step 7 via the existing Tool call PEP. No new invariant, PEP or object; consent/opt-out deferred to Section 37 | Proposed |
+| [0040](./0040-voice-is-an-input-surface-not-an-authentication-factor.md) | **Voice is an input surface, not an authentication factor** — resolves the `USER_INTERFACE_ARCHITECTURE.md` §6–§7 / `AUTHENTICATION_MODEL.md` §4 contradiction by separating the action side from the session side; voice biometrics explicitly not adopted. No new invariant | Proposed |
 
 ### Amendment-authority audit — Section 08 edits to Active/Accepted documents
 
@@ -483,6 +484,38 @@ amended** — `I-01`–`I-114` are byte-identical.
 **Consent and opt-out are deferred to Section 37 with the reason stated.** The mechanism is not
 missing — a suppression set narrows the recipient envelope `MT-8` already fixes. The policy is, and
 consent is a property of a person while the authorization model is scope-shaped throughout.
+
+---
+
+### Section 14 — Proposed, awaiting James
+
+**One ADR, no new invariant, no new document, no new enforcement point, no new authentication
+factor.** [ADR 0040](./0040-voice-is-an-input-surface-not-an-authentication-factor.md) resolves
+`S14-D1`, the only Section 14 decision — **a genuine contradiction between two accepted
+documents**, not a gap.
+
+`USER_INTERFACE_ARCHITECTURE.md` §7 says *"a surface may vary in depth; it may never vary in
+authority"* and §6 makes approvals *"approvable… from any surface"*; `AUTHENTICATION_MODEL.md` §4
+says voice *"may not reach above `PREPARE` without step-up on another surface"*. **Both are
+correct and govern different sides** — the action side (what an action means and requires,
+identical everywhere) and the session side (what strength this session supplies). Voice therefore
+**carries** an approval interaction and cannot **complete** one above `PREPARE`.
+
+**Voice biometrics are explicitly rejected**, recorded as a decision: a voiceprint infers an
+authorization-relevant fact from a signal an adversary can synthesise or replay, and `A-2` already
+excludes weaker-but-similar factors.
+
+| Document | Section / status | What Section 14 changes |
+| --- | --- | --- |
+| [`../architecture/USER_INTERFACE_ARCHITECTURE.md`](../architecture/USER_INTERFACE_ARCHITECTURE.md) §6, §7 | 02 · Active | Approval reachability vs. authentication strength; confirmation-of-scope is disambiguation |
+| [`../architecture/AUTHENTICATION_MODEL.md`](../architecture/AUTHENTICATION_MODEL.md) §4 | 04 · Active | The voice cap governs the session side; voice biometrics not adopted |
+| [`../architecture/COMMUNICATION_ARCHITECTURE.md`](../architecture/COMMUNICATION_ARCHITECTURE.md) §8 | 13 · **Proposed** | The voice pipeline trust chain — **couples to ADR 0039** |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-42`. **`T-03`'s, `T-20`'s and `T-39`'s residuals not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.14 | 03 · Active | Seven Section 14 residuals, two deferred to Section 37 |
+
+All are **Proposed** under ADR 0040 and marked in place. **`INVARIANTS.md` is deliberately not
+amended** — `I-01`–`I-114` are byte-identical. **`D-14` remains deferred**; no speech, telephony or
+audio technology is selected.
 ---
 
 Decisions that were consciously postponed are tracked separately in
