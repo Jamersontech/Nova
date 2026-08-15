@@ -454,3 +454,44 @@ store.
 - **`I-03` `[PHYS]`.** Unchanged from slice 1 — per-scope files are not the production
   mechanism.
 - **Long-running concurrency.** One four-thread test; no sustained load, no scheduler.
+
+---
+
+## Finding 4 — RESOLVED AND APPLIED, 2026-08-15
+
+**James approved withdrawing `AG-8` as redundant (C3). Documentation-only correction; no
+invariant created, no ADR created, no security behaviour changed.**
+
+This is an **accuracy correction, not a newly discovered vulnerability.** The property
+`AG-8` claimed was already provided — four independent ways, each measured:
+
+| Mechanism | What it provides |
+| --- | --- |
+| `AG-7` | Strict narrowing terminates the cycle: `EXECUTE → PREPARE → ANALYZE → READ → refused` |
+| `AG-9` | At the default `may_redelegate=false`, the cycle **cannot begin** |
+| `AG-11` | When any ancestor ends, every descendant fails closed |
+| `AG-13` | The whole tree draws on one budget |
+
+**A same-agent re-entry under strictly narrower authority is not an escalation and remains
+permitted.**
+
+### Applied
+
+| Document | Change |
+| --- | --- |
+| `INVARIANTS.md` `I-107` | *"acyclic"* removed from the summary (cycles are now permitted); the cycle clause replaced with the withdrawal and its reasoning |
+| `AGENT_GOVERNANCE.md` §3.2 | `AG-8` withdrawn with rationale; heading *"The four rules"* → *"The rules"* |
+| `SCOPE_AND_IDENTITY_MODEL.md` §5 | Numbered rule 2 replaced with the withdrawal |
+| `ORCHESTRATION_ARCHITECTURE.md` §5 | *"acyclic"* removed — current normative text |
+| `ROADMAP.md` Section 06 | **Annotated, not rewritten** — it is the record of what Section 06 delivered, and repo precedent (Section 04) is to annotate a superseded record rather than edit it |
+
+**`ancestry` is retained everywhere.** `AG-11` walks it, and `I-111` persists it.
+
+**`ADR 0029` is deliberately untouched.** It is **Accepted** and is the historical record of
+the decision as made on 2026-08-14. Rewriting an accepted ADR would falsify that record; the
+correction is carried by the documents the ADR governs.
+
+**Unchanged:** `AG-7`, `AG-9`, `AG-10`, `AG-11`, `AG-13`, `AG-14`, `AG-15`, and every
+invariant other than `I-107`'s cycle clause. `I-01`–`I-114` remain contiguous and unique.
+
+**Classification: CONTRADICTION (documentation) — RESOLVED.**

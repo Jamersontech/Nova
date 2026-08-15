@@ -115,7 +115,7 @@ Delegation
 └── purpose
 ```
 
-### 3.2 The four rules
+### 3.2 The rules
 
 **`AG-7` — Strict narrowing.** Every delegation is **strictly** narrower than its delegator in at
 least one authority dimension — scope, rights, tools, or risk ceiling — **and** its expiry is
@@ -125,9 +125,23 @@ strictly earlier. A delegation identical in every dimension is refused at issuan
 authority lattice, whose height is finite, and each step shortens the lifetime. An arbitrary
 "depth 3" would be a number nobody could justify; strict narrowing terminates for a stated reason.
 
-**`AG-8` — No ancestry cycles.** A delegation is refused if the delegate already appears in its
-own `ancestry`. This blocks `A → B → A` and every longer cycle, and is why the record carries
-`ancestry`.
+**`AG-8` — WITHDRAWN as redundant.** *(Corrected 2026-08-15 on James's decision (C3). An
+accuracy correction, not a newly discovered vulnerability. Evidence:
+[`slice/FINDINGS.md`](../../slice/FINDINGS.md) Finding 4.)*
+
+**As written it could never fire**: it compared the **delegate** — *an agent* — against
+`ancestry`, *a chain of execution identities* (`AG-6`), and execution identities are ephemeral
+and never reused (`AUTHENTICATION_MODEL.md` §5), so neither reading of the comparison can match.
+
+**And it was not needed.** `AG-7` already terminates cycles: every step is strictly narrower in
+at least one authority dimension and expires strictly earlier, so `A → B → A` descends a finite
+lattice and ends — measured as `EXECUTE → PREPARE → ANALYZE → READ → refused`, with authority
+never rising. `AG-9` stops the cycle beginning at all under the default `may_redelegate=false`;
+`AG-11` fails every descendant closed when an ancestor ends; `AG-13` bounds the whole tree to one
+budget. **A same-agent re-entry under strictly narrower authority is not an escalation and remains
+permitted.**
+
+**`ancestry` is retained in `AG-6`** — it records the chain for audit and is what `AG-11` walks.
 
 **`AG-9` — Re-delegation is explicit.** A delegate may re-delegate only where `may_redelegate` is
 true. **Default false**, so a capability an agent may *use* is not thereby one it may *pass on*.

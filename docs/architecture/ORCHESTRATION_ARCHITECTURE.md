@@ -340,7 +340,7 @@ spanning firings is save-time authorization rebuilt under another name.
 
 **Composition is bounded as it already is.** An automation that invokes another manufactures no
 authority: the second is delegation if it runs as a child (`I-106`, `I-107` — strictly narrowing,
-acyclic, expiring earlier, never outliving its delegator) or an independent firing authorized on
+expiring earlier, never outliving its delegator) or an independent firing authorized on
 its own terms. **Neither path can be wider than its initiator**, and delegation ancestry persists
 under `I-111`.
 

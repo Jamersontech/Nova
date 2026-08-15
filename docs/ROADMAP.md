@@ -641,7 +641,10 @@ ADRs `0029`–`0031`, invariants `I-106`–`I-109`, threats `T-33`–`T-34`.
 issuance is verified by the Context service, the sole issuer — **the runtime requests narrowing and
 never mints** (`I-106`), which is where `I-07`'s intersection stops being asserted. Delegation is
 **strictly narrowing, acyclic, and explicitly re-delegable** with `may_redelegate` defaulting to
-false (`I-107`) — no numeric depth or fan-out limits, because strict narrowing bounds depth
+false (`I-107`) — *the "acyclic" half (`AG-8`) was **withdrawn as redundant on 2026-08-15**
+after the third vertical slice showed strict narrowing already terminates cycles; this
+paragraph is the Section 06 record as written and is otherwise left unedited
+([`slice/FINDINGS.md`](../slice/FINDINGS.md) Finding 4)* — no numeric depth or fan-out limits, because strict narrowing bounds depth
 structurally. The **cost ceiling belongs to the root execution and is shared by the whole
 delegation tree** (`I-108`), closing a capacity-minting gap **Section 05 introduced**. Agent
 lifecycle operations are classified under the **existing** C1/C2/C3 model — no new class. An

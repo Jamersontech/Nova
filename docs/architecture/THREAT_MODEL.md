@@ -378,7 +378,7 @@ mass fan-out, or a grandchild obtaining a fresh cost budget — exhausting resou
 authority through descendants until the composition exceeds what any single participant held.
 
 **Defense:** Every delegation is **strictly narrowing** in at least one dimension with strictly
-earlier expiry, so depth terminates on a finite authority lattice; **ancestry cycles are refused**;
+earlier expiry, so depth terminates on a finite authority lattice; **cycles need no separate rule** — they descend the same finite lattice, so each re-entry holds strictly less authority *(corrected 2026-08-15; `AG-8` withdrawn as redundant, `slice/FINDINGS.md` Finding 4)*;
 **re-delegation is explicit and defaults to false**; and **the entire tree shares the root
 execution's single budget** (`I-107`, `I-108`). All four are checked at issuance by the Context
 service (`I-106`), which is the only component that can issue a token at all.

@@ -166,7 +166,11 @@ Re-delegation is allowed only where the original delegation permits it, and narr
 > 1. **Strict narrowing.** Strictly narrower in at least one of scope, rights, tools, or risk
 >    ceiling, **and** strictly earlier expiry. **This is what bounds depth** — each step descends a
 >    finite authority lattice — which is why no numeric depth limit exists.
-> 2. **No ancestry cycles.** Refused if the delegate already appears in its own `ancestry`.
+> 2. **Cycles need no separate rule** — *withdrawn 2026-08-15 on James's decision (C3); an
+>    accuracy correction, not a newly discovered vulnerability. `AGENT_GOVERNANCE.md` §3.2,
+>    [`slice/FINDINGS.md`](../../slice/FINDINGS.md) Finding 4.* Rule 1 already terminates
+>    them: `A → B → A` descends the same finite lattice, so each re-entry holds strictly
+>    less authority. **`ancestry` is retained** for audit and for `AG-11`.
 > 3. **Explicit re-delegation**, per the field above.
 > 4. **No fan-out count limit.** Parallel children are bounded by the shared root-execution budget
 >    (`I-108`), which already governs the resource fan-out consumes.
