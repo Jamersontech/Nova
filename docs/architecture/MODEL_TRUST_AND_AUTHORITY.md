@@ -127,10 +127,9 @@ argument:
 | The value is **not** covered | **Deny.** This is a boundary violation, recorded as a security event (`SECURITY_BOUNDARIES.md` §6), not a retryable error |
 | The value is covered but **derived from untrusted content** | **`PREPARE` ceiling.** It may not execute above `PREPARE` without approval naming the external source (`I-40`, `I-58`) |
 
-> **What "untrusted content" means in row three.** ***PROPOSED — added by Section 08, not yet
-> accepted*** *(2026-08-15; authority
-> [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), Proposed;
-> removed if rejected.)* It is a **provenance class** — `external.web`, `client.supplied` or
+> **What "untrusted content" means in row three.** ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md),
+> **Accepted** 2026-08-15.)* It is a **provenance class** — `external.web`, `client.supplied` or
 > `integration.supplied` present in the value's provenance union — **not a trust level**.
 > `I-100`'s parenthetical citation of `I-99` points at the mechanism that *carries* the union,
 > not at its trust arithmetic. **Every plan is `model.generated` at Low trust** (the Planner is

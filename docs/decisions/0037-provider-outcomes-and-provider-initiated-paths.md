@@ -1,7 +1,8 @@
 # 0037 — Provider Outcomes Are Claims, and Provider-Initiated Paths Carry No Authority
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-15
 **Proposed:** 2026-08-15 — Section 11
+**Accepted:** 2026-08-15 — by James, at the ADR Decision Gate, on implementation evidence from the three vertical slices
 **Section:** 11
 **Resolves:** `S11-D2`, `S11-D3`, and — **approved by James 2026-08-15 for implementation, ADR
 still Proposed** — `S11-D1` (§ "S11-D1", below)
@@ -250,8 +251,7 @@ third place.
 
 ## The amendments
 
-**All are Proposed and marked in place. If this ADR is rejected, each is removed and the accepted
-text restored verbatim.**
+**All were accepted by James on 2026-08-15 together with this ADR**, at the ADR Decision Gate.
 
 | # | Document | Section / status | Change |
 | --- | --- | --- | --- |

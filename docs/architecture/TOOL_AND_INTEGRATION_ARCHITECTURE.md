@@ -82,9 +82,8 @@ SMS campaigns.
 
 ### 2.1 A declaration is a claim, not a verified fact
 
-> ***PROPOSED — added by Section 10, not yet accepted*** *(2026-08-15; authority
-> [ADR 0036](../decisions/0036-tool-declarations-are-claims-not-facts.md), Proposed; removed and the
-> accepted text restored verbatim if rejected).* **Every security-relevant field above is declared
+> ***Added by Section 10 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0036](../decisions/0036-tool-declarations-are-claims-not-facts.md), **Accepted** 2026-08-15).* **Every security-relevant field above is declared
 > by the tool, and every one of them is an input to authorization** — `required rights` feeds the
 > PDP's grant lookup, `risk class` is the floor `I-101` raises from, `idempotency` decides whether
 > the reliability layer may retry a side effect, `consequence-determining args` decides what `I-100`
@@ -182,9 +181,8 @@ sequenceDiagram
 ```
 
 **The sequence above resolves the binding after the policy check, and that ordering is
-corrected.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; removed
-and the accepted sequence restored verbatim if rejected).* Policy is asked *"may this token call
+corrected.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* Policy is asked *"may this token call
 this tool at this risk?"* — a question about the **tool** — and only afterwards does the capability
 layer resolve *"credential for this tool in this scope"*. **So the decision was taken before the
 substrate that produces the consequence existed.** One tool, many bindings (§1) is exactly what
@@ -233,9 +231,8 @@ path into subsequent model calls.
 
 ### 3.1 A provider's outcome is a claim, not a verified fact
 
-> ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
-> removed and the accepted text restored verbatim if rejected).* **"The tool was authorized" and
+> ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **"The tool was authorized" and
 > "the provider did exactly what NOVA authorized" are different propositions**, and only the first
 > is established inside NOVA. The sequence above ends at *"emit audit record"* — and what that
 > record says about the **side effect** comes from the provider.
@@ -284,9 +281,8 @@ domains, analytics, automation platforms, GitHub, coding agents, and other APIs.
 
 ### 4.1 Integration identity is consequence-bearing, and there is no substitution
 
-> ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
-> removed and the accepted text restored verbatim if rejected).* **`I-114` binds authorization to
+> ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **`I-114` binds authorization to
 > the integration, which is only meaningful if an integration's identity tracks what it does.** An
 > integration whose configuration can be repointed while keeping its identity would satisfy the
 > binding check and change the consequence — the invariant would be vacuous.
@@ -332,7 +328,7 @@ claiming a provider has moved (§4.2 below, `T-38`).
 
 ### 4.2 Provider-initiated inbound signals carry no authority
 
-> ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; same authority as §3.1).*
+> ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; same authority as §3.1).*
 > **The rules above are written about NOVA asking.** But
 > [`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §2
 > already names **integrations** as event *sources* — *"client replied, payment received,

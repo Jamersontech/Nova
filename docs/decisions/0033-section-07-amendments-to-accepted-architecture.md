@@ -1,7 +1,8 @@
 # 0033 — Section 07 Amendments to Accepted Architecture
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-15
 **Proposed:** 2026-08-14 — Section 07
+**Accepted:** 2026-08-15 — by James, at the ADR Decision Gate, on implementation evidence from the three vertical slices
 **Section:** 07
 **Purpose:** Implement `S7-D2`–`S7-D5` and authorize every Section 07 amendment to an
 Active/Accepted document, in one record, enumerated individually. **Extended by Section 09** to
@@ -114,22 +115,21 @@ but surfaced often.
 
 ## The amendments
 
-**Every amendment listed here is Proposed and is marked in place. If this ADR is rejected, every
-one of them is removed and the accepted text is restored verbatim.**
+**Every amendment listed here was accepted by James on 2026-08-15 together with this ADR**, at the
+ADR Decision Gate, on implementation evidence from the three vertical slices.
 
 ### 1. `MEMORY_MODEL.md` (Section 03 · Active) — §4, §4.1, §4.3
 
 **Amended:** `model.generated` added to §4.1's quarantine set; a new §4.3 states the trust-promotion
 operation (ADR 0032); §4's retrieval rules gain union-taint restoration, delegation ancestry, and
 revoked-authority labelling. **Why required:** ADR 0032 and `S7-D2`–`S7-D5`.
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 2. `PROVENANCE_AND_TRUST.md` (Section 03 · Active) — §2, §3
 
 **Amended:** §3's *"trust… may change"* gains its authority (ADR 0032); §2's provenance content
 gains delegation ancestry and the persistence requirement. **Why required:** §3 as accepted names a
-mutable axis with no owner — the critical finding. **Amendment status:** **Proposed**, marked in
-place.
+mutable axis with no owner — the critical finding. **Amendment status:** **Accepted** 2026-08-15.
 
 ### 2a. `PROVENANCE_AND_TRUST.md` §2.1 and `MEMORY_MODEL.md` §4.1 — **source observation identity** *(Section 09)*
 
@@ -166,40 +166,38 @@ fail closed: it has no observation to re-fetch.
 **No algorithm is selected.** "Cryptographic digest" is a property; the mechanism defers with the
 platform substrate (`D-02`, `D-06`).
 
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 3. `MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md` (Section 02 · Active) — §5, §7
 
 **Amended:** hygiene gains the promotion rule; retrieval discipline gains taint restoration.
 **Why required:** §7 is the canonical retrieval list a model-call assembler works from; leaving it
 silent on taint would let an implementer satisfy §7 while dropping what `I-100` needs.
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 4. `IDENTITY_AND_AUTHORITY.md` (Section 02 · Active) — §5
 
 **Amended:** a trust-promotion row. **Why required:** ADR 0032 makes it C3; §5 is where specific
-authorities live. **No new change class.** **Amendment status:** **Proposed**, marked in place.
+authorities live. **No new change class.** **Amendment status:** **Accepted** 2026-08-15.
 
 ### 5. `EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` (Section 03 · Active) — §5.1
 
 **Amended:** the Memory category gains trust promotion and promotion refusal. **Why required:**
 §5.1 is the canonical auditable list. **No new audit authority** — ADR 0023's three cover it.
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 6. `INVARIANTS.md` (Section 03 · Active)
 
-**Amended:** `I-110`–`I-111` added. **`I-01`–`I-109` unmodified.** **Amendment status:**
-**Proposed**, marked in place.
+**Amended:** `I-110`–`I-111` added. **`I-01`–`I-109` unmodified.** **Amendment status:** **Accepted** 2026-08-15.
 
 ### 7. `THREAT_MODEL.md` (Section 03 · Active)
 
 **Amended:** `T-35` (trust-promotion abuse) added; `T-10`'s residual is **not reduced**.
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 8. `KNOWN_RISKS.md` (Section 03 · Active) — §3.7
 
-**Amended:** Section 07's residual risks recorded. **Amendment status:** **Proposed**, marked in
-place.
+**Amended:** Section 07's residual risks recorded. **Amendment status:** **Accepted** 2026-08-15.
 
 ## Consequences
 

@@ -5,6 +5,14 @@
 **Section:** 13
 **Resolves:** `S13-D1` (the only Section 13 decision)
 
+> **Held Proposed at the 2026-08-15 ADR Decision Gate — not doubted.** ADRs `0032`–`0037`
+> were accepted there on implementation evidence from the three vertical slices. This one
+> was **not**, for one reason only: **it has no implementation evidence yet.** Its section
+> produced documentation, and no code exercises it. **No contradiction, ambiguity or defect
+> was found in it** — the review found none, and the repository agrees with it throughout.
+> It stays Proposed because accepting it would rest on review alone, which is precisely what
+> the vertical-slice programme exists to avoid.
+
 ## Decision
 
 **An outbound communication is a classified egress event, and the classification that governs it is

@@ -156,10 +156,9 @@ costs one question.
 | **Instantiating an agent execution** ¹ | **not governance** | Execution, bounded at token issuance (`I-106`) |
 | **Raising an item's trust** ² | **C3** | Never automatic, never by an agent, never model-mediated. `system.verified` requires an authoritative non-model source. Governed exactly as *downward reclassification* is (`I-30`) — see below |
 
-> ² ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority
+> ² ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
 > [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
-> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both Proposed;
-> removed if either is rejected).* **No new change class is created.** `I-39` gates fact status on
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* **No new change class is created.** `I-39` gates fact status on
 > *provenance **and** trust*. Provenance is immutable (`I-38`), classification-lowering is owned
 > (`I-30`), approval and grants are James's — **trust was the one axis in that gate with no
 > authority attached**, so an unowned promotion could convert contained untrusted content into

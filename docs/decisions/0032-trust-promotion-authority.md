@@ -1,7 +1,8 @@
 # 0032 — Trust Promotion Authority
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-15
 **Proposed:** 2026-08-14 — Section 07
+**Accepted:** 2026-08-15 — by James, at the ADR Decision Gate, on implementation evidence from the three vertical slices
 **Section:** 07
 **Resolves:** `S7-D1`
 

@@ -66,11 +66,9 @@ Two properties of this order matter:
 - **Verification is a distinct stage.** "The tool returned 200" is not verification.
   Verification checks the declared success criteria — and may send the plan back.
 
-**A returned plan re-enters the pipeline at Planning, not at Execution.** ***PROPOSED — added by
-Section 08, not yet accepted*** *(2026-08-14; authority
+**A returned plan re-enters the pipeline at Planning, not at Execution.** ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
 [ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
-[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).* Re-planning produces a **new plan** with a new identity, which
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* Re-planning produces a **new plan** with a new identity, which
 passes through Permission Evaluation and Approval again (§2.1, §2.2, `I-113`). **A re-planned plan
 never inherits the prior plan's authorization because the objective is unchanged.**
 
@@ -78,7 +76,7 @@ never inherits the prior plan's authorization because the objective is unchanged
 
 ## 2.1 The Plan Is a Security Object
 
-***PROPOSED — added by Section 08, not yet accepted*** *(2026-08-14; same authority as above).*
+***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; same authority as above).*
 
 **The gap this closes.** §1 previously enumerated a plan as *"steps, dependencies, required
 rights"* — three words in a table cell, and the only description of it in the repository. Every
@@ -130,7 +128,7 @@ becomes authoritative only when authorized — never before, and never by assert
 
 ## 2.2 Envelope Authorization and Per-Action Checking
 
-***PROPOSED — added by Section 08, not yet accepted*** *(2026-08-14; same authority as above).*
+***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; same authority as above).*
 
 **Four accepted documents described plan authorization at three different granularities:** §2 above
 (*"the full plan is authorized as a unit"*), `AUTHORIZATION_MODEL.md` §1 and §3 (*"this **specific
@@ -227,8 +225,7 @@ token spanning both — it holds two, used separately.
 **Partial completion is a first-class outcome**, not an error state to be hidden. Handling
 is defined in [`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md).
 
-**Resumption re-checks the authorization binding.** ***PROPOSED — added by Section 08, not yet
-accepted*** *(2026-08-14; same authority as §2.1).* A workflow that resumes from its last verified
+**Resumption re-checks the authorization binding.** ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; same authority as §2.1).* A workflow that resumes from its last verified
 step re-checks `I-109`'s binding against **current** state before the next step, and **fails closed**
 if it no longer matches (`I-113`). This is the case §3 of
 [`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) describes as normal: a plan's first

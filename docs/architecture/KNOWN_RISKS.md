@@ -207,9 +207,9 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 
 ## 3.7 Risks Identified in Section 07 — context and memory
 
-> ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority ADRs
+> ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority ADRs
 > [0032](../decisions/0032-trust-promotion-authority.md)–[0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md),
-> removed if they are rejected).*
+> both **Accepted** 2026-08-15).*
 
 | Risk | Detail | Owner |
 | --- | --- | --- |
@@ -222,9 +222,9 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 
 ## 3.8 Risks Identified in Section 08 — planning and orchestration
 
-> ***PROPOSED — added by Section 08, not yet accepted*** *(2026-08-14; authority ADRs
+> ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority ADRs
 > [0034](../decisions/0034-the-plan-is-a-security-object.md)–[0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md),
-> removed if they are rejected).*
+> both **Accepted** 2026-08-15).*
 
 | Risk | Detail | Owner |
 | --- | --- | --- |
@@ -237,9 +237,8 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 
 ## 3.9 Risks Identified in Section 09 — knowledge and research
 
-> ***PROPOSED — added by Section 09, not yet accepted*** *(2026-08-14; authority
-> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, Proposed;
-> removed if rejected).*
+> ***Added by Section 09 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, **Accepted** 2026-08-15).*
 
 | Risk | Detail | Owner |
 | --- | --- | --- |
@@ -249,9 +248,8 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 
 ## 3.10 Risks Identified in Section 10 — tools and capabilities
 
-> ***PROPOSED — added by Section 10, not yet accepted*** *(2026-08-15; authority
-> [ADR 0036](../decisions/0036-tool-declarations-are-claims-not-facts.md), Proposed; removed if
-> rejected).*
+> ***Added by Section 10 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0036](../decisions/0036-tool-declarations-are-claims-not-facts.md), **Accepted** 2026-08-15).*
 
 | Risk | Detail | Owner |
 | --- | --- | --- |
@@ -262,9 +260,8 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 
 ## 3.11 Risks Identified in Section 11 — execution, providers and integration behaviour
 
-> ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
-> removed if rejected).*
+> ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).*
 
 | Risk | Detail | Owner |
 | --- | --- | --- |

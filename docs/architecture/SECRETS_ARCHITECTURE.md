@@ -78,10 +78,8 @@ and nowhere else reachable by NOVA's own components.
 permit far more than the task needs; the binding narrows it, and the broker enforces the
 narrowing that the external system does not.
 
-**Step 2a — the binding presented must be the binding authorized.** ***PROPOSED — added by
-Section 11, not yet accepted*** *(2026-08-15; authority
-[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; removed
-and the accepted protocol restored verbatim if rejected).* **Step 1 already receives a `binding id`,
+**Step 2a — the binding presented must be the binding authorized.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **Step 1 already receives a `binding id`,
 and no step compared it against the authorization.** Every existing check asks whether the binding
 is *acceptable* — covered by the token's scope, active, permitting the operation — and none asks
 whether it is **the one the decision was made about**. A caller presenting a different but

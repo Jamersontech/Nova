@@ -25,9 +25,9 @@ still an assumption. Collapsing these loses exactly the distinctions that matter
 
 ### 1.1 "Untrusted content" names a provenance class, not a trust level
 
-> ***PROPOSED — added by Section 08, not yet accepted*** *(2026-08-15; authority
-> [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), Proposed;
-> removed and the accepted text restored verbatim if rejected.* **Found by implementation**,
+> ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md),
+> **Accepted** 2026-08-15.* **Found by implementation**,
 > not by review — see [`slice/FINDINGS.md`](../../slice/FINDINGS.md) finding 2.)
 >
 > **`I-40`, `I-100` and `MT-7` all gate on *"derived from untrusted content"*, and the axes
@@ -103,9 +103,8 @@ delegate, its **delegation ancestry**. ³
 
 ### 2.1 Source identity is the identity of an observation
 
-> ⁴ ***PROPOSED — added by Section 09, not yet accepted*** *(2026-08-14; authority
-> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, Proposed;
-> removed if rejected).* **`I-110` requires a source used for trust promotion to be "identifiable"
+> ⁴ ***Added by Section 09 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, **Accepted** 2026-08-15).* **`I-110` requires a source used for trust promotion to be "identifiable"
 > and its verification "reproducible", and the line above has required "source identity" since
 > Section 03 — but nothing defined what identifies a source.** `I-110` was therefore not
 > implementable: an engineer had to choose an identity scheme, and the available schemes have
@@ -169,10 +168,10 @@ Trust is a property of the **source**, evaluated at use time, and may change wit
 rewriting history. ² A previously reliable integration that starts returning malformed data
 loses trust; everything it supplied keeps its provenance and is re-weighted.
 
-> ² **AMENDED BY SECTION 07 — PROPOSED, not yet accepted.** *(2026-08-14; authority
+> ² **AMENDED BY SECTION 07 — ACCEPTED by James 2026-08-15** *(2026-08-14; authority
 > [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
-> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both Proposed;
-> the accepted text is restored verbatim if either is rejected.)*
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both
+> **Accepted** 2026-08-15.)*
 >
 > **"May change" named a mutable axis with no owner, and it was the one axis in `I-39`'s gate that
 > had none.** Provenance is immutable (`I-38`), classification-lowering is owned (`I-30`), approval
@@ -229,9 +228,8 @@ integration.supplied + fresh          → fact about the external system at that
 integration.supplied + stale          → assumption
 ```
 
-> ⁵ ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
-> removed and the accepted line restored verbatim if rejected).* **That line is written about a
+> ⁵ ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **That line is written about a
 > *fetch* — NOVA read the external system and recorded what it saw.** A provider's statement about
 > **its own side effect** is a different kind of claim: NOVA did not observe the effect, it
 > received an assertion from the party that performed it. **A success response is not a fact about
@@ -245,7 +243,7 @@ integration.supplied + stale          → assumption
 **Confidence is not provenance and not trust.** A model's certainty about its own output
 carries no evidential weight and may never promote an item's epistemic status.
 
-> ³ **AMENDED BY SECTION 07 — PROPOSED, not yet accepted.** *(2026-08-14; same authority as ².)*
+> ³ **AMENDED BY SECTION 07 — ACCEPTED by James 2026-08-15** *(2026-08-14; same authority as ².)*
 > Two additions to what provenance carries, both required for rules elsewhere to be enforceable:
 >
 > **Delegation ancestry.** Memory written by a delegated child is **scope-owned** and survives the

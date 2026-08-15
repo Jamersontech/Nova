@@ -121,10 +121,9 @@ Memory that is never curated becomes both a liability and a source of stale asse
   Constitution §13 requires it.
 - **Review.** Memory is inspectable by James in plain language. Memory James cannot see is
   memory he cannot correct.
-- **Trust promotion.** ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14;
+- **Trust promotion.** ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14;
   authority [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
-  [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both Proposed;
-  removed if either is rejected).* Raising an item's trust is an **explicitly authorized, recorded,
+  [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* Raising an item's trust is an **explicitly authorized, recorded,
   C3 operation** — never automatic, never by an agent, never model-mediated (`I-110`,
   [`MEMORY_MODEL.md`](./MEMORY_MODEL.md) §4.3). Curation is how durable knowledge is *created*
   (§6); promotion is how an already-stored item's trust is *raised*, and it fails closed.
@@ -155,9 +154,9 @@ When assembling context for a model call, the retrieval path must:
 4. never silently merge kinds into undifferentiated "context",
 5. record what was retrieved, so that a later audit can reconstruct what NOVA believed,
 6. **restore the union provenance, lowest trust, delegation ancestry, and revoked-authority state
-   carried by each item** ***(PROPOSED — Section 07, not yet accepted; authority
-   [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), removed if
-   rejected)***.
+   carried by each item** ***(Added by Section 07 — ACCEPTED by James 2026-08-15; authority
+   [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), **Accepted**
+   2026-08-15)***.
 
 Point 5 is what makes the observability requirement "what did NOVA believe at the time?"
 answerable ([`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md)).

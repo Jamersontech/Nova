@@ -1,7 +1,8 @@
 # 0035 — Section 08 Amendments to Accepted Architecture
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-15
 **Proposed:** 2026-08-14 — Section 08
+**Accepted:** 2026-08-15 — by James, at the ADR Decision Gate, on implementation evidence from the three vertical slices
 **Section:** 08
 **Purpose:** Authorize every Section 08 amendment to an Active/Accepted document, in one record,
 enumerated individually.
@@ -13,8 +14,8 @@ requires them but does not individually authorize them, and both
 [ADR 0008](./0008-architectural-governance-model.md) and
 [`INVARIANTS.md`](../architecture/INVARIANTS.md) require an ADR for a C3 change.
 
-**Every amendment listed here is Proposed and is marked in place. If this ADR is rejected, every
-one of them is removed and the accepted text is restored verbatim.**
+**Every amendment listed here was accepted by James on 2026-08-15 together with this ADR**, at the
+ADR Decision Gate, on implementation evidence from the three vertical slices.
 
 ## No new architecture document
 
@@ -42,7 +43,7 @@ identity, immutability and lifecycle; a new **§2.2** defines envelope authoriza
 checking and composition; §2's pipeline gains the re-authorization loop; §4's workflow rules gain
 resumption re-checking. **Why required:** ADR 0034's entire decision. `:31`'s *"A plan: steps,
 dependencies, required rights"* was the only enumeration in the repository.
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 2. `PERMISSION_ARCHITECTURE.md` (Section 02 · Active) — §5
 
@@ -51,7 +52,7 @@ dependencies, required rights"* was the only enumeration in the repository.
 `EXECUTION_ARCHITECTURE.md:180`'s *"James approves the plan"* described different objects with no
 statement of how they relate. **The one-action rule is preserved unchanged**; what is added is that a
 plan approval is an envelope and never becomes blanket authorization.
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 3. `AUTHORIZATION_MODEL.md` (Section 03 · Active) — §3
 
@@ -59,7 +60,7 @@ plan approval is an envelope and never becomes blanket authorization.
 separate envelope decision, and that neither substitutes for the other. **Why required:** a reader
 reconciling *"the full plan is authorized as a unit"* with ten singular steps finds nothing here.
 **The ten steps are unchanged and the PDP is not made a composition engine.**
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 4. `RELIABILITY_ARCHITECTURE.md` (Section 02 · Active) — §3, §4
 
@@ -67,22 +68,21 @@ reconciling *"the full plan is authorized as a unit"* with ten singular steps fi
 **Why required:** §3's *"Resumption restarts from the last verified step"* was silent on whether the
 approval still held after earlier steps changed the world, and plan-level idempotency was undefined
 while `I-104` defined it for model calls and tool metadata defined it for tools.
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 5. `INVARIANTS.md` (Section 03 · Active)
 
 **Amended:** `I-112`–`I-113` added under a Section 08 heading. **`I-01`–`I-111` unmodified.**
-**Amendment status:** **Proposed**, marked in place.
+**Amendment status:** **Accepted** 2026-08-15.
 
 ### 6. `THREAT_MODEL.md` (Section 03 · Active)
 
 **Amended:** `T-36` (plan-boundary abuse) added. `T-03`'s and `T-19`'s residuals are **not
-reduced**. **Amendment status:** **Proposed**, marked in place.
+reduced**. **Amendment status:** **Accepted** 2026-08-15.
 
 ### 7. `KNOWN_RISKS.md` (Section 03 · Active) — §3.8
 
-**Amended:** Section 08's residual risks recorded. **Amendment status:** **Proposed**, marked in
-place.
+**Amended:** Section 08's residual risks recorded. **Amendment status:** **Accepted** 2026-08-15.
 
 ## Tradeoffs
 
@@ -120,7 +120,7 @@ this defines a term they already use, exactly as Section 09 defined *source iden
 envelope, classification egress, scope containment, binding envelope, approval and risk ceilings
 are each evaluated independently and unchanged. Provenance cannot be shed — immutable (`I-38`),
 unioned at every hop (`I-99`), surviving persistence (`I-111`) — so this is not a laundering path.
-**Amendment status:** **Proposed**, marked in place. Evidence:
+**Amendment status:** **Accepted** 2026-08-15. Evidence:
 [`slice/FINDINGS.md`](../../slice/FINDINGS.md) finding 2, with ten tests proving both sides.
 
 **Recorded, not acted on:** `I-109` says its bound properties are checked *"against current

@@ -59,9 +59,8 @@ flowchart TB
 > row here and no enforcement point in
 > [`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §2.
 >
-> ² ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
-> removed and the accepted row restored verbatim if rejected).* **The row as accepted is written
+> ² ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **The row as accepted is written
 > from the perspective of NOVA asking** — requests out, responses in. **A provider-initiated
 > signal is data in that nobody asked for**: a webhook, a callback, an asynchronous job
 > notification, or an integration-sourced event
@@ -76,7 +75,7 @@ flowchart TB
 > signature verification is an **integrity** control, never an authorization mechanism. Full model:
 > [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.2.
 >
-> ³ ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; same authority as ²).*
+> ³ ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; same authority as ²).*
 > **The Tool row named a scope check and a tool-list check, and neither sees the binding.** A tool
 > is defined once at root while its integration and credential are per scope, so a token covering
 > the scope and a tool on the agent's list are satisfied identically whichever integration the call

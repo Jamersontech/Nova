@@ -1,7 +1,8 @@
 # 0036 — Tool Declarations Are Claims, Not Facts
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-15
 **Proposed:** 2026-08-14 — Section 10
+**Accepted:** 2026-08-15 — by James, at the ADR Decision Gate, on implementation evidence from the three vertical slices
 **Section:** 10
 **Resolves:** `S10-D1`
 
@@ -161,8 +162,7 @@ entirely open** — a tool that mis-classifies deliberately or by error is undet
 
 ## The amendments
 
-**All are Proposed and marked in place. If this ADR is rejected, each is removed and the accepted
-text restored verbatim.**
+**All were accepted by James on 2026-08-15 together with this ADR**, at the ADR Decision Gate.
 
 | # | Document | Section / status | Change |
 | --- | --- | --- | --- |

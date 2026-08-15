@@ -35,9 +35,8 @@ purpose; dropping *"in this context"* produces the confused deputy.
 | **Execution binding** ² | The concrete substrate a tool action will use: tool identity **and version**, integration, credential binding, resolved in one scope | The tool definition, which is scope-independent |
 | **Execution context** | The runtime envelope: identity, token, limits, trace | Ambient state |
 
-> ² ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
-> removed and the accepted table restored verbatim if rejected).* **`Action` above is *"the
+> ² ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **`Action` above is *"the
 > operation, carrying a risk class"* and explicitly *"never a tool name"* — but the operation's
 > actual consequence is produced by the integration and credential bound in the current scope**
 > ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §1), which no
@@ -77,8 +76,7 @@ configured.
 **Every outcome is recorded** — allow, deny, and approval-required alike. Denials are the
 more interesting signal.
 
-**The execution binding is resolved before step 1, not after step 10.** ***PROPOSED — added by
-Section 11, not yet accepted*** *(2026-08-15; same authority as ² above).* **The ten steps are
+**The execution binding is resolved before step 1, not after step 10.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; same authority as ² above).* **The ten steps are
 unchanged, unreordered, and none is added** — what changes is that for a consequence-producing tool
 action the **execution binding is resolved first and is an input** to steps 5 through 8, so the
 question at step 5 is *"a grant for this subject, action, resource type and scope — reached through
@@ -112,11 +110,9 @@ agent-definition intersection engine:** that would put a registry read on the ho
 together — after issuance the token is already integrity-bound and every enforcement point is
 obliged to honour it.
 
-**What this sequence evaluates, and what it does not.** ***PROPOSED — added by Section 08, not yet
-accepted*** *(2026-08-14; authority
+**What this sequence evaluates, and what it does not.** ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
 [ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
-[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).* **The ten steps above are unchanged.** They evaluate **one action
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* **The ten steps above are unchanged.** They evaluate **one action
 against one resource**, exactly as §1 and §2 state.
 
 [`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) §2 also says *"the full plan is

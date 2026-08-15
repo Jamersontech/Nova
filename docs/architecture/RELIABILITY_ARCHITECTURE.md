@@ -39,9 +39,8 @@ retrying is correct for one, harmful for another, and useless for the rest.
 accommodated — an integration that "adapts" to unexpected data is corrupting data
 inward. And a non-idempotent tool must never be auto-retried.
 
-**A fourth outcome: unknown.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15;
-authority [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md),
-Proposed; removed and the accepted text restored verbatim if rejected).* **The table above
+**A fourth outcome: unknown.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15;
+authority [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **The table above
 classifies failures NOVA can see.** A timeout, a lost connection or a truncated response is not a
 failure — it is an **absent outcome**, and the side effect may or may not have occurred.
 
@@ -90,11 +89,10 @@ silently duplicated.
 can cause more damage than the failure — deleting a provisioned environment a client is
 already using, for instance. NOVA pauses and asks unless a compensation is declared safe.
 
-**Resumption re-checks authorization; it does not inherit it.** ***PROPOSED — added by Section 08,
-not yet accepted*** *(2026-08-14; authority
+**Resumption re-checks authorization; it does not inherit it.** ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
 [ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
-[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).* Point 5 above says resumption restarts from the last verified step.
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both
+**Accepted** 2026-08-15).* Point 5 above says resumption restarts from the last verified step.
 **It was silent on whether the authorization still holds** — and this section's own premise is that
 earlier steps did real work, which means the world the later steps were authorized against has
 changed. A transfer that succeeded changes the balance the next step was authorized against.
@@ -117,9 +115,8 @@ new plan (`I-112`) and returns through Permission Evaluation.
 - **Only idempotent operations retry automatically.** Idempotency is declared tool metadata
   ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2).
 - **Every attempt re-resolves the execution binding and re-checks it, and failover never leaves
-  the authorized envelope.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15;
-  authority [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md),
-  Proposed; removed if rejected).* A retry, a resumption after interruption, and a failover are all
+  the authorized envelope.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15;
+  authority [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* A retry, a resumption after interruption, and a failover are all
   points at which **NOVA chooses the substrate again** — and a second choice is not covered by the
   first decision. So each one **re-resolves** the binding and **re-checks** it against the envelope
   the authorization fixed (`I-114`(b)), at the tool enforcement point and again at the broker
@@ -134,9 +131,8 @@ new plan (`I-112`) and returns through Permission Evaluation.
   re-authorization; replacing the integration, provider, account, endpoint or declared API version
   **is** a different binding and does.
 - **Idempotency is declared by NOVA and enforced by the provider, and those are not the same
-  party.** ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-  [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
-  removed if rejected).* A tool may be correctly declared idempotent and still produce **two real
+  party.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+  [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* A tool may be correctly declared idempotent and still produce **two real
   side effects** on retry, because the deduplication the declaration assumes is performed by the
   external system. **The declaration is a claim about the tool; the guarantee belongs to the
   binding** — which is Section 10's claims-not-facts problem in a second place, and the reason this
@@ -151,10 +147,10 @@ new plan (`I-112`) and returns through Permission Evaluation.
 - Repeated failure escalates rather than retrying indefinitely.
 - Circuit breaking: an integration failing consistently is marked unhealthy and dependent
   work pauses rather than hammering it.
-- **Plans retry under their own rule.** *(Added 2026-08-14 — **PROPOSED**, Section 08; authority
-  [ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
-  [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), removed if either
-  is rejected.)* Idempotency was declared for **tools** (metadata) and defined for **model calls**
+- **Plans retry under their own rule.** *(Added 2026-08-14 — Section 08, **Accepted** by James
+  2026-08-15; authority [ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+  [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both
+  **Accepted** 2026-08-15.)* Idempotency was declared for **tools** (metadata) and defined for **model calls**
   (`I-104`); **plan-level idempotency was undefined.** A plan is immutable once authorized
   (`I-112`), so **a plan is never "retried" in a form different from the one authorized**: either
   the same authorized plan resumes — with its binding re-checked per §3 — or a **new plan** is

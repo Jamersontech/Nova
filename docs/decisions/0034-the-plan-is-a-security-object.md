@@ -1,7 +1,8 @@
 # 0034 — The Plan Is a Security Object, Authorized as an Envelope and Checked Per Action
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-15
 **Proposed:** 2026-08-14 — Section 08
+**Accepted:** 2026-08-15 — by James, at the ADR Decision Gate, on implementation evidence from the three vertical slices
 **Section:** 08
 **Resolves:** `S8-D1`, `S8-D2`, `S8-D3`
 

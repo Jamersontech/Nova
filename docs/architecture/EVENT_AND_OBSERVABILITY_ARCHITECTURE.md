@@ -41,10 +41,8 @@ allow.
 Consumers must be idempotent; a workflow resumed twice by a duplicate event must not
 perform its step twice.
 
-**An integration-sourced event's `source` is an unauthenticated assertion.** ***PROPOSED — added by
-Section 11, not yet accepted*** *(2026-08-15; authority
-[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; removed
-and the accepted text restored verbatim if rejected).* The source list above includes
+**An integration-sourced event's `source` is an unauthenticated assertion.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* The source list above includes
 **integrations**, and the consumer list includes **workflows waiting on a condition** — so an
 external party can place a signal NOVA is waiting on. **An external system never authenticates into
 NOVA** ([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §2, unchanged), so such an event
@@ -150,9 +148,8 @@ references and identifiers — never content, never secrets.
 > §5.1): it is what makes *"which stored intent produced this request?"* answerable after the
 > definition has since been edited.
 >
-> ⁴ ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
-> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;
-> removed and the accepted row restored verbatim if rejected).* **No new audit authority and no new
+> ⁴ ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **No new audit authority and no new
 > category** — this is `W-1`, the execution's own authorization, in the executing scope's partition,
 > exactly as ADR 0023 already provides. *"To which service"* named the destination loosely while
 > **Model interactions** already recorded `provider`; the tool path recorded no equivalent, so
@@ -161,10 +158,9 @@ references and identifiers — never content, never secrets.
 > attack would exploit. Recorded **by reference**, never secrets: a credential *binding* identifier
 > is not credential material (`I-48`, unchanged).
 >
-> ³ ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority
+> ³ ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
 > [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
-> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both Proposed;
-> removed if either is rejected).* **No new audit authority is created** — a trust promotion
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* **No new audit authority is created** — a trust promotion
 > concerns a client scope, so the decision is **`W-2`** and the resulting write **`W-1`**, in that
 > scope's partition, exactly as ADR 0023 already provides. **Refusals are recorded too**: a denied
 > promotion is the more interesting signal, and `I-110` fails closed, so refusal is the expected

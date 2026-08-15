@@ -167,9 +167,8 @@ ephemeral *by design*, so binding to one would make every approval stale on prin
 reflexive re-approval [`KNOWN_RISKS.md`](./KNOWN_RISKS.md) records as a security failure. Model and
 provider are excluded because Section 05 already decides egress per call (`I-94`, `I-97`).
 
-> ***AMENDED BY SECTION 11 — PROPOSED, not yet accepted*** *(2026-08-15; authority
-> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed; the
-> accepted text above stands and this note is removed if it is rejected).* **The model/provider
+> ***AMENDED BY SECTION 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **The model/provider
 > exclusion is scoped to model calls, where its stated rationale lives** — a tool call has no
 > per-call provider decision for `I-94`/`I-97` to make. For a **consequence-producing tool
 > action**, the approval **also binds the execution binding** — tool identity and version,
@@ -184,11 +183,9 @@ fresh approval is required where the risk class requires approval at all. **The 
 approved action cannot silently become a materially different action because the agent executing it
 changed.
 
-**An envelope approval is not an action approval.** ***PROPOSED — added by Section 08, not yet
-accepted*** *(2026-08-14; authority
+**An envelope approval is not an action approval.** ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
 [ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
-[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).* `EXECUTION_ARCHITECTURE.md` §2.1 says *"James approves the plan"*
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* `EXECUTION_ARCHITECTURE.md` §2.1 says *"James approves the plan"*
 while the rule above says an approval authorizes **one action** — two different objects, with no
 statement of how they relate.
 

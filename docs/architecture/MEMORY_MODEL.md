@@ -82,10 +82,8 @@ Every retrieval:
 **Retrieval is an authorization event, not a lookup.** Treating it otherwise is precisely
 how memory becomes the hidden channel this model exists to prevent.
 
-**Three further requirements on every retrieval.** ***PROPOSED — added by Section 07, not yet
-accepted*** *(2026-08-14; authority
-[ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), Proposed; removed
-if rejected).*
+**Three further requirements on every retrieval.** ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+[ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), **Accepted** 2026-08-15).*
 
 6. **The union provenance and lowest trust are restored, not just a single provenance value**
    (`I-111`). Rule 2 above labels items with *"provenance, trust, epistemic status, and age"* —
@@ -126,9 +124,8 @@ supports it), leaves it quarantined, or marks it disputed. **Revalidation never 
 provenance is immutable (`I-38`), and a false claim that was believed is itself a fact worth
 retaining. ²
 
-> ² ***PROPOSED — added by Section 09, not yet accepted*** *(2026-08-14; authority
-> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, Proposed;
-> removed if rejected).* **"Re-fetched" is now a comparison, not just a retrieval.** Provenance
+> ² ***Added by Section 09 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, **Accepted** 2026-08-15).* **"Re-fetched" is now a comparison, not just a retrieval.** Provenance
 > records a **source observation** — identifier, content digest, `retrieved_at`
 > ([`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §2.1) — so revalidation re-fetches the
 > identifier and compares digests:
@@ -152,9 +149,8 @@ signal to lower that source's trust.
 it. A patient attacker supplying consistently plausible content that nothing contradicts is
 not detected by this mechanism (`T-10`).
 
-> ¹ ***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority
-> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), Proposed;
-> removed if rejected).* **`model.generated` was absent from this set.** `I-99` covered it
+> ¹ ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), **Accepted** 2026-08-15).* **`model.generated` was absent from this set.** `I-99` covered it
 > partially — model output inherits its inputs' provenance, so output derived from web or client
 > content was already quarantined — but output derived from **purely internal** inputs was Low-trust
 > and **unquarantined**: silently mergeable into general context and eligible for derivation into
@@ -205,10 +201,9 @@ Section 07's.
 
 ## 4.3 Trust Promotion
 
-***PROPOSED — added by Section 07, not yet accepted*** *(2026-08-14; authority
+***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
 [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
-[ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both Proposed;
-removed if either is rejected).*
+[ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).*
 
 §4.1 says revalidation *"either **promotes** it… leaves it quarantined, or marks it disputed."*
 **Promotion had no owner.** `I-39` gates fact status on *provenance **and** trust*; provenance is
