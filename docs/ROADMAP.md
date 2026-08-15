@@ -46,6 +46,14 @@ records the roadmap's existing numeric order and carries no C3 ordering decision
 ordering remains James's alone** — no agent may reorder, skip, merge, or begin a section on its
 own reading of dependencies ([ADR 0008](./decisions/0008-architectural-governance-model.md)).
 
+> **Validation-first implementation, authorized 2026-08-15 (C3, James).** A vertical slice
+> exists at [`slice/`](../slice/README.md), built **before Section 29**, to test whether the
+> architecture executes. **This is not Section 29 and does not begin it.** No section is
+> added, removed, renumbered, reordered or marked complete; `D-01`, `D-02`, `D-10` and
+> `D-33a` remain deferred and the slice's technology is slice-local. A future agent finding
+> code before Section 29 should read [`slice/FINDINGS.md`](../slice/FINDINGS.md) — the slice
+> exists to validate the architecture, never to redefine it.
+
 **No sections have been added, removed, renumbered, or redefined.** All 46 domains stand as
 established in Section 01. Section 03's delivered scope was broader than its roadmap title
 ("Data Architecture & Information Model") — it also covered scope, identity, and memory at

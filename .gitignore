@@ -32,3 +32,7 @@ Thumbs.db
 *.log
 tmp/
 .cache/
+
+# Vertical slice (Python)
+__pycache__/
+*.pyc
