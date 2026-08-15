@@ -70,6 +70,7 @@ class ModelResponse:
     text: str
     taint: Taint
     outcome: str = "success_claimed"      # success_claimed | unknown | failure_claimed
+    detail: str = ""                      # provider CLAIM, by reference; never content
 
 
 class ModelGateway:
