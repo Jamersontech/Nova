@@ -265,6 +265,23 @@ third place.
 | 8 | `INVARIANTS.md` | 03 · Active | **`I-114`** (new); **`I-109` amended in place** — exclusion list scoped between model calls and tool actions. `I-01`–`I-108`, `I-110`–`I-113` unmodified |
 | 9 | `THREAT_MODEL.md` | 03 · Active | `T-38`, `T-39`. `T-03`'s and `T-16`'s residuals **not reduced** |
 | 10 | `KNOWN_RISKS.md` §3.11 | 03 · Active | Section 11 residuals |
+| 11 | `PERMISSION_ARCHITECTURE.md` §5 | 02 · Active | The model/provider exclusion is scoped to model calls; a consequence-producing tool action also binds the execution binding as a **tenth** property. The nine are unchanged; the deterministic-identity construction extends over the tenth |
+| 12 | `AGENT_GOVERNANCE.md` §6 | 06 · Active | `AG-18`'s exclusion scoped to model calls, on the same ground. `AG-17`'s nine properties unchanged and unreordered; `AG-19`'s construction extends over the tenth unchanged; `AG-20` applies to a binding mismatch exactly as to the other nine |
+
+**Rows 11 and 12 were added on 2026-08-15, after acceptance, as a recording correction.** Both
+amendments were written when Section 11 was drafted, both cite this ADR as their authority, and
+both are the [`I-109` amendment](#the-i-109-amendment) above applied to the two documents that
+restate `I-109`'s binding list in prose — `PERMISSION_ARCHITECTURE.md` §5 is where the nine
+properties and the exclusion list are stated for the permission model, and `AGENT_GOVERNANCE.md` §6
+is where Section 06 restates the same binding as `AG-17`–`AG-20`. **They were omitted from the list
+above when it was written**, which [ADR 0035](./0035-section-08-amendments-to-accepted-architecture.md)
+addresses directly: *"Discovering an amendment not listed here — fixed by adding the row before
+acceptance, not by leaving it unrecorded."* The rows are added rather than the amendments withdrawn
+because **neither adds anything to what row 8 already accepted**: no new invariant, no new `AG`
+rule, no change to the nine properties, no change to `INVARIANTS.md` beyond `I-109`'s in-place
+amendment, and no new enforcement point. The wording of both amendments is preserved verbatim as
+written. Recorded here rather than silently, so the enumeration defect is visible in the history
+rather than repaired out of it.
 
 ## What Would Change This
 
