@@ -320,6 +320,7 @@ changes no lifecycle stage.
 | [0035](./0035-section-08-amendments-to-accepted-architecture.md) | Section 08 amendments — authorizes all seven, and records why `PLANNING_ARCHITECTURE.md` was **not** created | Proposed |
 | [0036](./0036-tool-declarations-are-claims-not-facts.md) | **Tool declarations are claims, not facts** — the classification must be **total** over the input schema, and an absent or unparseable claim is read as **consequence-determining**. No new invariant | Proposed |
 | [0037](./0037-provider-outcomes-and-provider-initiated-paths.md) | **Provider outcomes are claims; provider-initiated paths carry no authority; and authorization binds the execution binding (`I-114`)** — unknown is distinct from failure, retry needs **provider-enforced** deduplication, an inbound webhook/callback/event has no identity, and a tool action is authorized against the integration/credential binding that produces the consequence, with `I-109` amended in place | Proposed |
+| [0038](./0038-automations-are-intent-not-authority.md) | **Automations are intent, not authority** — a stored definition plus its trigger carries no authorization; every firing is authorized freshly at fire time through the unmodified pipeline. No new invariant: a derivation from `I-10`, `I-14`, `I-17`, `I-112`, `I-113`, `S11-D3`, `V-2` | Proposed |
 
 ### Amendment-authority audit — Section 08 edits to Active/Accepted documents
 
@@ -421,6 +422,35 @@ in place**, scoping its exclusion list: model calls keep the per-call `I-94`/`I-
 consequence-producing tool action binds the execution binding as a tenth property. Both are
 Proposed and revert verbatim if ADR 0037 is rejected.
 
+
+---
+
+### Section 12 — Proposed, awaiting James
+
+**One ADR, no new invariant, no new document, no new security object.**
+[ADR 0038](./0038-automations-are-intent-not-authority.md) resolves `S12-D1`, the only Section 12
+decision — and it is a **derivation**, not new policy. Section 12 found **no missing mechanism**:
+the workflow engine, durable step state, pause/resume/cancel, partial completion, retry
+discipline, resumption re-checking and stop semantics all already existed. What was missing was a
+**definition** of what a stored workflow plus a trigger carries across time, where the industry
+default — authorize at save time, let the scheduler run it — is the largest available loophole
+around Sections 01–11.
+
+**An automation is intent, not authority.** Every firing is authorized freshly at fire time through
+the unmodified pipeline; nothing carries authorization forward. The unattended actor is the **NOVA
+system identity** (`IDENTITY_AND_AUTHORITY.md` §2, already defined for scheduled work); unattended
+work above the autonomous ceiling requires a **standing approval**, already recorded as a bounded
+revocable grant.
+
+| Document | Section / status | What Section 12 changes |
+| --- | --- | --- |
+| [`../architecture/ORCHESTRATION_ARCHITECTURE.md`](../architecture/ORCHESTRATION_ARCHITECTURE.md) §5 | 02 · Active | New section: the automation model — intent-not-authority, per-firing authorization, actor identity, trigger status, non-collapsed failure states |
+| [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1 | 03 · Active | Automation-lifecycle audit row: trigger, definition version, plan identity, outcome |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-40`. **`T-16`'s and `T-36`'s residuals not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.12 | 03 · Active | Six Section 12 residuals, one deferred to Sections 29/33 |
+
+All are **Proposed** under ADR 0038 and marked in place. **`INVARIANTS.md` is deliberately not
+amended** — `I-01`–`I-114` are byte-identical to their current text.
 ---
 
 Decisions that were consciously postponed are tracked separately in

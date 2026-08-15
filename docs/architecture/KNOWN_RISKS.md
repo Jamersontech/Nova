@@ -277,6 +277,21 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **Provider behaviour can change without any NOVA-visible change** | A contract *shape* change fails closed (`RELIABILITY_ARCHITECTURE.md` §2). A **behavioural** change at constant shape — a new default, a changed interpretation, a silent API version roll — changes the consequence while tool identity, schema, declaration **and binding identity** all stay identical. `I-114`(c) makes consequence-bearing reconfiguration a different binding **when NOVA makes the change**; nothing binds the provider's side, and nothing detects it (`T-39` residual) | 11 / 39 |
 | **Downstream subprocessors are not represented** | A provider may perform effects through parties NOVA has no model of. **Recorded, not resolved — this belongs to Section 37 (Privacy & Data Governance)** | 37 |
 
+## 3.12 Risks Identified in Section 12 — automation and the workflow engine
+
+> ***PROPOSED — added by Section 12, not yet accepted*** *(2026-08-15; authority
+> [ADR 0038](../decisions/0038-automations-are-intent-not-authority.md), Proposed; removed if
+> rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **Per-firing authorization is expensive, and the cheap answer rebuilds the loophole** | Every firing runs Interpretation through Permission Evaluation. On a high-frequency schedule that multiplies PDP load, and the standing pressure is to cache allows across firings — which is save-time authorization under another name. `I-17` bounds caching to one context's lifetime; the prohibition is worth what its implementation is worth | 12 / 33 |
+| **A standing approval is authorized breadth** | A definition mutated so its new behaviour still fits an existing standing approval's scope, risk ceiling and rate bounds runs without re-approval. James approved those bounds — `T-16`'s family, **not reduced**. The control is the quality of the bounds, and nothing measures that | 12 / 26 |
+| **Approval-gated automations drive approval fatigue** | A recurring workflow above the autonomous ceiling pauses at Approval **every firing**, by design. §2's register already records reflexive approval as a security failure, and automation is the most reliable way to generate it. The mitigation is a properly bounded standing approval, never a wider ceiling | 26 / 12 |
+| **Trigger-driven mistiming is bounded in authority, not in timing** | A forged, replayed or duplicated trigger cannot widen what a firing may do — no identity, no token, no grant. It can still cause authorized work to run at a moment of an attacker's choosing, or twice. `T-38`'s residual, now reachable through schedules and internal events as well as provider callbacks | 12 / 38 |
+| **Concurrency between firings is bounded by scope and authorization, not by resource** | Two firings touching the same resource are each authorized independently and each isolated by scope, so neither gains authority from the other. **Nothing serialises them.** Lost updates and interleaving are correctness problems the architecture does not address — **recorded, not resolved; this belongs to Sections 29 and 33** | 29 / 33 |
+| **An automation is only as safe as the capability that creates it** | Creating an automation is configuration; what bounds it is that automation-creation must be a tool on an agent's closed list, granted C3. **A permissive grant of that capability is the sharp edge** — not because the definition carries authority, but because it lets an agent schedule requests indefinitely within its own ceiling | 12 / 06 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture

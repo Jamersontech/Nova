@@ -128,6 +128,7 @@ references and identifiers — never content, never secrets.
 | **Administrative changes** | Policy, classification changes, scope creation, reclassification |
 | **Agent definition lifecycle** ² | Registration, change, activation, suspension, revocation, replacement — and every failure of these |
 | **Delegation** ² | Delegation issued, refused, expired; re-delegation refused; token-issuance refusal (`I-106`); budget-exhaustion denial |
+| **Automation lifecycle** ⁵ | Definition created, changed, enabled, suspended, deleted — by whom; and per firing: the **trigger** that fired it, the **definition version** that produced the request, the resulting **plan identity**, the authorization outcome, and the terminal state |
 
 > ² ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
 > [ADR 0029](../decisions/0029-delegated-authority.md),
@@ -135,6 +136,19 @@ references and identifiers — never content, never secrets.
 > [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), all **Accepted** 2026-08-14).* **No new audit authority is created** — ADR 0023's
 > three cover every event here. Delegation appeared in `I-92`'s control-plane list but not in this
 > canonical category list, and agent-definition lifecycle appeared in neither.
+>
+> ⁵ ***PROPOSED — added by Section 12, not yet accepted*** *(2026-08-15; authority
+> [ADR 0038](../decisions/0038-automations-are-intent-not-authority.md), Proposed; removed and the
+> accepted list restored verbatim if rejected).* **No new audit authority and no new record type.**
+> A firing is an ordinary execution, so its authorization decision is `W-2` and its execution
+> record `W-1`, in the firing's scope partition, exactly as ADR 0023 provides; definition lifecycle
+> concerns no client scope and is `W-3` control-plane, the same treatment agent-definition
+> lifecycle already receives. **What this row adds is the join**: without the trigger, the
+> definition version and the plan identity recorded together, §4's question *"why did it happen?"*
+> is unanswerable for unattended work — an auditor sees a plan with no visible cause. **The
+> definition version matters even though a definition carries no authority** (`ORCHESTRATION_ARCHITECTURE.md`
+> §5.1): it is what makes *"which stored intent produced this request?"* answerable after the
+> definition has since been edited.
 >
 > ⁴ ***PROPOSED — added by Section 11, not yet accepted*** *(2026-08-15; authority
 > [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), Proposed;

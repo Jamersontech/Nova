@@ -36,7 +36,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 09 — Knowledge & Research System | **PROPOSED, awaiting James's approval** |
 | 10 — Tool & Capability Architecture | **PROPOSED, awaiting James's approval** |
 | 11 — Integration Architecture | **PROPOSED, awaiting James's approval — `S11-D1` approved for implementation 2026-08-15, folded into ADR `0037`** |
-| 12 and beyond | Not started |
+| 12 — Automation & Workflow Engine | **PROPOSED, awaiting James's approval** |
+| 13 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -262,6 +263,54 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 12 — PROPOSED, awaiting James's approval
+
+**Automation & Workflow Engine.** **No new architecture document and no new invariant.** The
+workflow engine already lives in `ORCHESTRATION_ARCHITECTURE.md` §4, and the automation model
+belongs beside it as §5.
+
+**Delivered — all Proposed:** ADR `0038`, threat `T-40`. **`INVARIANTS.md` is untouched:**
+`I-01`–`I-114` are byte-identical to their current text.
+
+**The baseline was denser than the section title suggests.** Durable resumable workflows,
+step-level state, pause/resume/cancel, partial completion as a first-class outcome, retry
+discipline, per-step narrowed tokens, resumption re-checking `I-109` against current state,
+per-attempt binding re-checks (`I-114`), `V-2` revocation and `X-1`/`X-3`/`X-7` stop semantics all
+already existed. **Section 12 found no missing mechanism.**
+
+**What was missing was a definition.** The word *"workflow"* was defined and *"a routine is a
+recurring Workflow"* appeared once — but **nothing said what a stored definition plus a trigger
+carries across time.** The industry default answer is that the definition is authorized when
+saved and the scheduler runs it thereafter, and that reading is **the single largest available
+loophole around Sections 01–11**: it turns every control into a one-time check.
+
+**The decision — `S12-D1`, and it is a derivation rather than new policy.** An automation is
+**intent, not authority**. Every firing is authorized freshly at fire time through the unmodified
+§2 pipeline; nothing carries authorization forward — not the definition, not the trigger, not the
+schedule, not a previous firing, not a previous approval. Every clause is forced by an existing
+rule: `I-14` (a definition is not a grant), `I-113` (same objective never inherits), `I-112`
+(fresh plan identity), `PERMISSION_ARCHITECTURE.md` §5 (an approval is never a precedent), `I-17`
+(no caching beyond one context lifetime), `S11-D3` (a signal carries no identity), `V-2`/`X-1`.
+
+**Three questions the brief raised that the repository had already answered.** *Who acts when
+James is absent?* — the **NOVA system identity**, defined in `IDENTITY_AND_AUTHORITY.md` §2 for
+*"scheduled and autonomous work"*, ceiling = James's delegation minus anything needing human
+approval. *How does unattended work exceed the autonomous ceiling?* — a **standing approval**,
+already *"recorded as grants"*, bounded by scope, risk ceiling, expiry and rate limit, revocable;
+`IRREVERSIBLE` never. *What is re-checked on resume?* — `I-109` against current state, fail closed.
+**None of these needed inventing; they needed connecting.**
+
+**The definition is deliberately not made a security object.** Agent and tool definitions, plans
+and bindings are, because each **fixes authority**. An automation definition fixes none — the
+authority a firing exercises lives in James's grants, standing approvals, agent definitions, tool
+declarations and bindings, each already governed. Governing the definition would add a second,
+redundant control surface and imply it carries something worth governing. What bounds automation
+creation is the **closed capability surface**: an agent can create one only if that capability is
+on its tool list, granted C3.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 11 — PROPOSED, awaiting James's approval
 

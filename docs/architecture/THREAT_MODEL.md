@@ -581,6 +581,54 @@ declaration quality is load-bearing again**: an integration whose consequence-be
 recorded inaccurately produces a binding check that passes on wrong information — ADR 0036's
 claims-not-facts limit, in a third place.
 
+### T-40 Automation as a standing-authority loophole
+*Added 2026-08-15 — **PROPOSED**, Section 12. Authority
+[ADR 0038](../decisions/0038-automations-are-intent-not-authority.md).*
+
+**Failure:** An automation executes over time without James present, and the natural implementation
+— authorize the definition when it is saved, let the scheduler run it thereafter — converts every
+control in Sections 01–11 into a one-time check. The attack shapes that follow: a **trigger**
+treated as an authorization source, so a webhook, replayed event or crafted schedule entry causes
+work; **definition mutation** after approval, so blessed intent becomes different intent;
+**inheritance**, where each firing rides the previous firing's allow and *"the objective is
+unchanged"* becomes standing authority; **stale continuation**, where a firing proceeds under
+grants, delegations, approvals, tool versions or bindings that have since changed or been revoked;
+**cross-firing caching** of allow decisions; **composition**, where one automation invokes another
+to obtain authority neither was granted; and **taint laundering**, where untrusted trigger content
+passes through the automation engine and emerges as ordinary workflow state.
+
+**Defense:** An automation is **intent, not authority**
+(`ORCHESTRATION_ARCHITECTURE.md` §5). **Every firing is authorized freshly at fire time through
+the unmodified §2 pipeline** — fresh plan with fresh identity (`I-112`), Permission Evaluation
+before any execution, per-action authorization (`I-113`), resolved binding within the envelope
+(`I-114`). **A definition confers nothing** (`I-14` — absence of a grant is a denial; only James
+creates grants, `I-10`), so mutation grants nothing and needs no re-approval. **A trigger is an
+event, not an identity** — external signals carry no identity, token or grant (`S11-D3`), and a
+NOVA-produced schedule event is not an exception: it selects a moment only. **The unattended actor
+is the NOVA system identity**, ceiling = James's delegation minus anything requiring human
+approval; unattended work above the autonomous ceiling requires a **standing approval** recorded as
+a bounded, revocable grant, and `IRREVERSIBLE` is never autonomous. **No firing inherits from
+another** (`I-113`; an approval is never a precedent), and **cross-firing decision caching is
+prohibited** — `I-17` permits caching only within one context's lifetime, invalidated by
+revocation. **Revocation and stop reach unattended work** through the enforcement points it still
+passes (`V-2`, `X-1`, `X-3`, `X-7`). **Composition manufactures nothing**: an invoked automation is
+either a strictly-narrowing delegation (`I-106`, `I-107`) or an independently authorized firing.
+**Taint survives the engine** (`I-99`, `I-111`) and untrusted trigger content may inform but never
+escalate (`I-40`).
+
+**Residual:** **A standing approval is authorized breadth.** A definition mutated so its new
+behaviour still fits an existing standing approval's scope, risk ceiling and rate bounds executes
+under it without re-approval — James approved those bounds, and this is `T-16`'s family, **not
+reduced**. **Per-firing authorization is expensive**, and the standing pressure on a high-frequency
+schedule is to cache allows across firings — architecturally prohibited, and the prohibition is
+worth only as much as its implementation. **Approval-gated automations wake James repeatedly**,
+which is approval fatigue — `KNOWN_RISKS.md` already records that as a security failure, and the
+mitigation is a properly bounded standing approval rather than a wider ceiling. **Trigger-driven
+mistiming is unchanged from `T-38`**: a forged or replayed signal cannot widen authority but can
+still cause authorized work to run at a moment of an attacker's choosing. **And `T-36`'s residual
+is unchanged** — an over-wide plan envelope authorized correctly is still an over-wide envelope,
+whether a human or a schedule caused the plan.
+
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a
 new TRUSTED-zone responsibility ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),

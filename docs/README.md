@@ -87,4 +87,8 @@ The Section 11 model is **Proposed** — ADR `0037` awaits James's approval. `S1
 (binding-dependent consequence) was stopped for James and approved on 2026-08-15; its resolution is
 folded into ADR `0037`, adding `I-114` and amending `I-109` in place.
 
-Next: **Section 12 — Automation & Workflow Engine**.
+The Section 12 model is **Proposed** — ADR `0038` awaits James's approval. **No new invariant**:
+its single decision (`S12-D1`, automations are intent not authority) is a derivation from
+`I-10`, `I-14`, `I-17`, `I-40`, `I-98`–`I-114`, `V-2` and `X-1`–`X-7`.
+
+Next: **Section 13 — Communication System**.

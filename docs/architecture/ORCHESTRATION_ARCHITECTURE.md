@@ -235,3 +235,129 @@ if it no longer matches (`I-113`). This is the case §3 of
 action changes the world, and the authorization for its second action was evaluated against the
 world before that change. **Resumption is not a continuation of the old authorization; it is a fresh
 check of whether the old authorization still holds.**
+
+---
+
+## 5. Automations — Intent, Not Authority
+
+> ***PROPOSED — added by Section 12, not yet accepted*** *(2026-08-15; authority
+> [ADR 0038](../decisions/0038-automations-are-intent-not-authority.md), Proposed; removed and the
+> accepted text restored verbatim if rejected).* §4 defines what a workflow **is** and what the
+> engine must **do**. It did not say what a **stored** workflow plus a **trigger** carries across
+> time — and the industry default answer is that the definition is authorized once, at save time,
+> and the scheduler runs it thereafter. **That reading is the single largest available loophole
+> around Sections 01–11**, and it is excluded by rules that already exist. This section performs
+> the composition so it cannot be re-derived wrongly.
+
+**An automation is a stored workflow definition plus the trigger or schedule that fires it.**
+
+> **An automation is intent. It is never authority.**
+> **Every firing is authorized freshly, at fire time, through the unmodified §2 pipeline.**
+
+**Nothing carries authorization forward** — not the definition, not the trigger, not the schedule,
+not a previous firing, not a previous approval.
+
+### 5.1 What each part is
+
+| Part | Is | Is never |
+| --- | --- | --- |
+| **Definition** | A stored statement of *what to ask for*, and under what conditions | A grant, a plan, a standing approval, or a security object that fixes authority |
+| **Trigger / schedule** | An **event** — data (§2 of [`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md)). It says **when** | An identity, an authorization source, or a reason to skip a step |
+| **Firing** | One ordinary trip through the §2 pipeline | A resumption of the last firing |
+| **Run** | A workflow instance with durable step state (§4) | A thing that outlives its authorization |
+
+**The definition is deliberately not a security object.** Agent definitions, tool definitions,
+plans and execution bindings are, because each **fixes authority**: an agent definition sets
+Permissions, Allowed Context and Allowed Tools, which is why registering one is C2 and setting its
+authority C3. **An automation definition fixes none.** The authority a firing exercises lives
+entirely in James's grants (`I-10`), standing approvals, agent definitions, tool declarations and
+bindings — each already governed. So creating or editing an automation is **configuration**, and
+what bounds it is the closed capability surface: an agent can create one only if that capability is
+on its closed tool list, and granting that is C3 (`IDENTITY_AND_AUTHORITY.md` §5). **A mutated
+definition needs no re-approval because it authorizes nothing** — its next firing is authorized on
+its own terms, and denies if the grants no longer support it (`I-14`).
+
+**A schedule event carries no more authority than an external one.** ADR 0037 (`S11-D3`) settled
+that a provider-initiated signal has no identity, token or grant. **A NOVA-produced schedule event
+is not an exception:** it is produced inside NOVA, so it is not *untrusted* in the `external.web`
+sense, but "NOVA emitted it" is **not** "NOVA's authority attends it". It selects a moment; the
+pipeline decides everything else. **Trigger content never sets scope, risk class, tool set, or
+argument values** beyond what the firing's own authorization independently permits — untrusted
+trigger content may **inform** the resulting plan and may never **escalate** it (`I-40`), carrying
+its taint under `I-99` and persisting under `I-111`.
+
+### 5.2 Who acts when James is not present
+
+**The actor is the NOVA system identity** — already defined for exactly this
+([`IDENTITY_AND_AUTHORITY.md`](./IDENTITY_AND_AUTHORITY.md) §2: *"the platform acting on James's
+behalf for scheduled and autonomous work"*), deliberately distinct from James so the audit trail
+never confuses *"NOVA did this automatically"* with *"James asked for this"*. **Its ceiling is
+whatever James has delegated, minus anything requiring explicit human approval.**
+
+**"James created the automation, therefore the firing is James" is false**, and is the reading this
+section exists to exclude. James's authorship is recorded provenance; it is not the actor, and it
+is not a grant.
+
+**So an automation runs unattended only up to the autonomous ceiling.** Within an authorized
+context that is `READ`–`PREPARE` (`PERMISSION_ARCHITECTURE.md` §4–5). Beyond it, unattended
+execution requires a **standing approval** — which exists, is *"recorded as grants"*, and is
+bounded by scope, risk ceiling, expiry and rate limit, and revocable. **`IRREVERSIBLE` is never
+autonomous**, standing approval or not. Anything above the ceiling without a covering standing
+approval **pauses at Approval** (§4's indefinite pause) rather than proceeding.
+
+**No automation can satisfy its own approval requirement.** `I-09` is explicit — *"no system,
+agent, or automation may record an approval"* — and break-glass is human-only (`B-2`,
+[`SECURITY_OPERATIONS.md`](./SECURITY_OPERATIONS.md) §3). The approval boundary therefore cannot be
+routed around by having one automation approve another's work: escalation is upward to James only
+(§3), never sideways to something that manufactures consent.
+
+### 5.3 What is re-checked, and when
+
+Everything below is an existing rule; none is new here.
+
+```text
+At each firing        fresh plan, fresh identity          I-112
+                      Permission Evaluation               §2 pipeline ordering
+                      grants / delegation / expiry        I-14, I-107
+                      risk class from the action          I-101
+                      approval if required                I-109 binds the plan's properties
+Within a run          per-action authorization            I-113
+                      resolved binding ∈ envelope         I-114
+On resume             I-109 binding re-checked vs current state, fail closed
+On retry / failover   binding re-resolved and re-checked per attempt   I-114(b)
+Continuously          revocation at next enforcement point             V-2
+                      emergency stop at enforcement points             X-1, X-3, X-7
+```
+
+**A firing never inherits from the previous firing**, and *"the objective is unchanged"* is never a
+reason to inherit — `I-113` forbids exactly that for re-planning, and a recurring automation is the
+same argument spread over time. **An approval is never a precedent** (`PERMISSION_ARCHITECTURE.md`
+§5), so approving Tuesday's firing does not approve Wednesday's.
+
+**Caching allows across firings is prohibited.** `I-17` permits read-decision caching within one
+context's lifetime, invalidated by revocation or emergency stop — **and nothing wider.** A cache
+spanning firings is save-time authorization rebuilt under another name.
+
+**Composition is bounded as it already is.** An automation that invokes another manufactures no
+authority: the second is delegation if it runs as a child (`I-106`, `I-107` — strictly narrowing,
+acyclic, expiring earlier, never outliving its delegator) or an independent firing authorized on
+its own terms. **Neither path can be wider than its initiator**, and delegation ancestry persists
+under `I-111`.
+
+### 5.4 Failure states are not collapsed
+
+A run reports which of these it is in, because they demand different responses and *"failed"*
+hides the difference:
+
+```text
+succeeded · partially completed · unknown (RELIABILITY §2 — never "failed")
+failed · denied · revoked · expired · awaiting approval · escalated
+paused · cancelled · stopped · unavailable
+```
+
+**`unknown` is never resolved by assumption** and never auto-retried into a duplicate side effect
+([`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) §2, §4). **`denied`, `revoked` and
+`expired` are terminal for that firing** — they are not transient conditions to retry around; the
+next firing re-asks, and if the answer is still no it denies again. A run **paused** awaiting
+approval holds no authorization while it waits: it is re-authorized when it proceeds, not when it
+paused.
