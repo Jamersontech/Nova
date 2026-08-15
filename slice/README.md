@@ -6,10 +6,15 @@
 Run:
 
 ```
-python3 -m unittest slice.tests.test_security -v
+python3 -m unittest slice.tests.test_security slice.tests.test_slice2 -v
 ```
 
-39 tests, no dependencies, no network.
+**95 tests** (49 slice 1 + 46 slice 2), no dependencies, no network.
+
+**Slice 1** — one scope, one agent, one tool, one integration: plan, binding, PDP,
+Context Token, Credential Broker, Tool PEP, audit.
+**Slice 2** — two agents, delegation (`I-106`/`I-107`), and a model gateway
+(`I-94`–`I-98`).
 
 ---
 
@@ -51,12 +56,18 @@ The distinction matters more than the test count.
 | **DOCUMENTED** | ✅ | Sections 01–14 |
 | **IMPLEMENTED** | ✅ | The path below exists as code with visible boundaries |
 | **EXECUTED** | ✅ | It runs; the control test performs a real end-to-end action |
-| **SECURITY-TESTED** | ⚠️ **Partially** | 39 adversarial tests pass. They cover the paths the slice implements — not the architecture |
-| **PROVEN AGAINST A REAL EXTERNAL SYSTEM** | ❌ **No** | No network, no real provider, no real credential, no real model |
+| **SECURITY-TESTED** | ⚠️ **Partially** | 95 adversarial tests pass. They cover the paths the slice implements — not the architecture |
+| **VALIDATED AGAINST A REAL EXTERNAL SYSTEM** | ❌ **No** | No network, no real provider, no real credential, **no real model** |
 
-**This slice does not validate NOVA.** It validates that a narrow path through the
-architecture is implementable, and it found two things wrong on the way
-(`FINDINGS.md`).
+**The model gateway is IMPLEMENTED and SECURITY-TESTED; no model provider is VALIDATED.**
+Those are different claims. `slice/models/local_provider.py` is a deterministic fixture at
+the egress boundary: it proves the gateway's enforcement path, and proves nothing about any
+provider's behaviour. No API key exists in this repository and none is required to run the
+suite.
+
+**This slice does not validate NOVA.** It validates that two narrow paths through the
+architecture are implementable, and it found **four** things on the way (`FINDINGS.md`) —
+one of which, **Finding 4, is an unresolved contradiction awaiting James's decision.**
 
 ### Specifically NOT proven
 
@@ -92,6 +103,16 @@ caller identity
  -> LocalEcho            deterministic; success / failure / unknown / partial
  -> Outcome              taint unioned (I-99, I-27), persisted and restored (I-111)
  -> AuditWriter          W-1 / W-2; fail-closed (I-93)
+```
+
+Slice 2 adds:
+
+```
+ -> ContextService.delegate   AG-6 record; AG-7 strict narrowing; AG-9 explicit
+                              re-delegation; AG-11 child never outlives delegator
+ -> ModelGateway              I-98 first (model never routes), then stop/PDP/token,
+                              I-95 one scope, I-96 classification, I-97 permitted set,
+                              then egress; response taint computed from the REQUEST
 ```
 
 ## Deliberate absences

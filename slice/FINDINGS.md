@@ -166,3 +166,136 @@ Not a defect: those two cannot drift, because they only exist inside the authori
 record. But the phrasing implies ten independently observable properties, and an engineer
 will look for a way to recompute all ten and not find one. The slice checks the eight that
 can change and treats the other two as immutable parts of the record.
+
+---
+---
+
+# Second Vertical Slice — two agents, delegation, model gateway
+
+**95 tests total: 49 first-slice (no regressions) + 46 second-slice.**
+
+Two new findings. **Finding 3 was resolved from existing precedent. Finding 4 is a
+contradiction between two accepted documents and requires James's decision — nothing was
+invented to work around it.**
+
+---
+
+## Finding 3 — an empty Allowed Tools list was refused as "incomplete"
+
+**RESOLVED from existing precedent. Contained. No decision required.**
+
+**Enforcement point:** `AgentRegistry.register`, `AGENT_ARCHITECTURE.md` §2.
+
+Agent B is defined with `allowed_tools = {}` — a **closed list containing nothing**, meaning
+*"this agent may call no tools."* The registry refused to register it, because a
+completeness check cannot distinguish **absent** from **present-and-empty**.
+
+**Why it matters:** the refusal made **the safest possible agent unrepresentable.** An
+agent that may call no tools is the maximally-restrictive configuration, and NOVA could
+not express it.
+
+**Resolved on existing precedent, not invention.** ADR 0036 already draws exactly this
+distinction for tool declarations — absence is incomplete and refused; an explicit
+declaration is complete however restrictive — and `I-14` already makes an empty grant set
+the *denial* state rather than an error. Applied here: an **absent** Allowed Tools or
+Permissions field is incomplete and refused; a **present-and-empty** one is complete and
+grants nothing. Every other field still treats empty as incomplete.
+
+**Direction of failure is safe:** an empty closed list can only deny.
+
+---
+
+## Finding 4 — `AG-8` cannot fire as written
+
+**CONTRADICTION between two accepted documents. REQUIRES JAMES'S DECISION.**
+**Nothing was invented. The rule is implemented exactly as written and shown not to fire.**
+
+**Enforcement point:** `delegation.check_within_parent`, `AGENT_GOVERNANCE.md` §3.2, `I-107`.
+
+### The contradiction
+
+`AG-8` — *"A delegation is refused if the **delegate** already appears in its own
+`ancestry`. **This blocks `A → B → A`** and every longer cycle."*
+
+`AG-6` — the record it tests:
+
+```text
+delegator   the granting EXECUTION IDENTITY
+delegate    the receiving AGENT
+ancestry    the chain of DELEGATORS above it      -> execution identities
+```
+
+**`delegate` is an agent. `ancestry` is a set of execution identities. The comparison is
+between two different types and can never match.**
+
+And it cannot be repaired by comparing identities instead: `AUTHENTICATION_MODEL.md` §5
+makes execution identities **ephemeral, "created per execution, never reused"** — so an
+identity can never recur in its own ancestry either. **`AG-8` is vacuous under both
+readings**, while its stated purpose — *"blocks `A → B → A`"* — plainly names **agents**.
+
+`I-107` carries the identical wording, so the invariant inherits the defect.
+
+### Demonstrated, not asserted
+
+`test_AG8_as_written_cannot_fire__FINDING_4` builds `A → B → coordinator`, confirms the
+agent name is absent from an ancestry of trace ids, and shows the delegation **succeeds**.
+
+### Why this is CONTAINED rather than an escalation path
+
+**`AG-7` still bounds the chain.** Every step must be *strictly* narrower in at least one
+authority dimension and expire strictly earlier, on a finite lattice. So a cycle **cannot
+regain authority** — an agent reappearing in its own chain holds strictly less than it did.
+`test_AG7_still_bounds_the_chain_AG8_was_meant_to_block` proves the identical-authority
+re-entry is refused by `AG-7`.
+
+**So the security consequence is bounded**: `AG-8` does not add the protection it claims,
+and `AG-7` already provides termination. What is lost is *agent-level cycle exclusion*,
+which may or may not be wanted on its own merits.
+
+### The decision James must make
+
+**Is `AG-8` meant to exclude an agent from its own delegation chain, or is `AG-7`'s
+narrowing sufficient?**
+
+- **(a) `ancestry` carries agent identity as well as execution identity**, and `AG-8`
+  compares agent to agent. Makes `AG-8` do what it says. Costs: a legitimate re-entry
+  under strictly narrower authority becomes impossible.
+- **(b) `AG-8` is redundant and should be withdrawn**, with `AG-7` stated as the sole
+  bound. Fewer moving parts; the docs stop claiming a protection that does not exist.
+- **(c) Something else.**
+
+**This changes `I-107`, an accepted invariant, either way — so it is not the slice's call.**
+No ADR was created and no invariant was touched.
+
+---
+
+## What the second slice actually exercised
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| `I-106` sole issuance, refusal is total | **Exercised** | Runtime cannot mint; forged token fails `I-87` |
+| `I-107` / `AG-7` strict narrowing | **Exercised** | Broader rights, ceiling, tools, expiry and identical-delegation all denied |
+| `AG-9` re-delegation default false | **Exercised** | Denied by default; permitted when explicit; narrows again |
+| `AG-8` cycles | **FINDING 4** | Cannot fire as written |
+| `AG-11` child never outlives delegator | **Exercised** | Fails closed at the *next* enforcement point; prior call not undone |
+| `I-94` gateway is a PEP | **Exercised** | Stop, PDP-unavailable and revocation all deny at the gateway |
+| `I-95` one scope per request | **Exercised** | Two client scopes denied; PUBLIC/INTERNAL correctly *not* a second scope |
+| `I-96` classification gates egress | **Exercised** | SECURITY-CRITICAL never; SENSITIVE-PERSONAL only on per-call approval; unestablishable denies |
+| `I-97` constrained routing | **Exercised** | Unauthorized provider and model denied *before* egress; empty permitted set fails closed |
+| `I-98` model never selects routing | **Exercised** | Model-named provider denied before any other step; provider named in response text has no effect |
+| `I-99` response is a derivation | **Exercised** | Response taint computed structurally from the request |
+| `I-102` / `I-110` model establishes nothing | **Exercised** | Fabricated provenance, `system_verified` and approval claims all inert |
+| **Finding 2 resolution holds through a real model call** | **Exercised** | `james.stated + model.generated` is LOW trust and NOT untrusted-derived; `external.web` is |
+| `I-103` provider credential | **Exercised** | Reference only, reaches the boundary, never returned or in prompts |
+| `I-104` retry separately authorized | **Exercised** | Retry after UNKNOWN re-verifies and denies on revocation |
+| Unknown model outcome | **Exercised** | Timeout is UNKNOWN, never failure |
+
+## What remains untested
+
+- **Any real provider.** The gateway is validated; **no external model API was called.**
+- **`I-96` redaction.** *"Redaction cannot be confirmed applied"* has no implementation
+  here; only the deny-on-unestablishable branch is exercised.
+- **`I-105`/`I-108` budget across a delegation tree.** Not modelled.
+- **`I-95` provider-side session sharing.** *"No conversation, cache, or provider-side
+  session is shared across scopes"* is unobservable against a fixture.
+- **Concurrency.** All tests are serial; `AG-10` fan-out and the budget race are untouched.
