@@ -95,7 +95,7 @@ class ToolPEP:
             if plan.taint.is_untrusted_derived():
                 ceiling_applies = True
 
-        if ceiling_applies and tool.risk_class > Risk.PREPARE and authorization.approval_id is None:
+        if ceiling_applies and tool.risk_class > Risk.PREPARE and authorization.approval is None:
             self._deny(token, "pep.taint",
                        "untrusted-derived argument cannot execute above PREPARE without approval",
                        "I-40", True)

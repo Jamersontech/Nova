@@ -95,6 +95,40 @@ Section 02 document. If Section 12 (Automation & Workflow Engine) later needs co
 workflows, the split deferred here will have to be revisited — recorded so that decision is made
 deliberately rather than discovered.
 
+### 8. `PROVENANCE_AND_TRUST.md` §1.1 and `MODEL_TRUST_AND_AUTHORITY.md` §3 — **"untrusted content" is a provenance class** *(added 2026-08-15)*
+
+***Folded into this ADR rather than minting a new one.*** This is the plan-taint family: `I-112`
+makes the plan carry `I-99`'s union, and this settles what the union is *read for*. Splitting one
+taint decision across two ADRs would make the family harder to follow.
+
+**Found by implementation, not review.** Building the vertical slice showed that the Planner is a
+model, so `I-99` gives **every plan** `model.generated` provenance at Low trust and
+`min(anything, Low) = Low`. **A plan James stated directly is indistinguishable *by trust* from
+one shaped by injected content**, so reading `I-40`/`I-100`/`MT-7`'s *"derived from untrusted
+content"* as a trust level would ceiling every action above `PREPARE` permanently and demand an
+approval *naming a source* that does not exist — making `PERMISSION_ARCHITECTURE.md` §5's standing
+approvals unreachable.
+
+**Amended:** *"untrusted content"* is defined as a **provenance class** — `external.web`,
+`client.supplied`, `integration.supplied` — not a trust level. **Why required:** `I-40` is one
+sentence joining *"**External** content may inform a plan"* to *"a plan influenced by
+**untrusted** content"*; the provenance reading makes it internally consistent and the trust
+reading makes its two clauses disagree. **`I-40`, `I-99`, `I-100` and `MT-7` are unamended** —
+this defines a term they already use, exactly as Section 09 defined *source identity* for `I-110`.
+
+**Not a trust downgrade and not an exemption.** A Low-trust plan remains Low trust; the argument
+envelope, classification egress, scope containment, binding envelope, approval and risk ceilings
+are each evaluated independently and unchanged. Provenance cannot be shed — immutable (`I-38`),
+unioned at every hop (`I-99`), surviving persistence (`I-111`) — so this is not a laundering path.
+**Amendment status:** **Proposed**, marked in place. Evidence:
+[`slice/FINDINGS.md`](../../slice/FINDINGS.md) finding 2, with ten tests proving both sides.
+
+**Recorded, not acted on:** `I-109` says its bound properties are checked *"against current
+state"*, but at execution **eight of the ten are independently recomputable and two — the argument
+envelope and the cost ceiling — are authorization-issued values with no independent source**.
+Harmless (they cannot drift) but the phrasing implies otherwise. **No invariant or decision is
+created for this**; it is noted for a future revision of `I-109`.
+
 ## Consequences
 
 Accepting `0034`–`0035` accepts these seven amendments. **`EXECUTION_ARCHITECTURE.md` is

@@ -20,8 +20,8 @@ from typing import Optional
 from .audit import AuditWriter
 from .context_service import ContextService
 from .scope_tree import ScopeTree
-from .types import (ArgumentEnvelope, Authorization, Classification, ContextToken,
-                    Denied, ExecutionBinding, Plan, Risk)
+from .types import (Approval, ArgumentEnvelope, Authorization, Classification,
+                    ContextToken, Denied, ExecutionBinding, Plan, Risk)
 
 # DATA_CLASSIFICATION.md section 2, "Transmitted externally" row.
 # S13-D1: this is what PDP step 7 consults for an outbound action.
@@ -47,7 +47,7 @@ class PolicyDecisionPoint:
                        argument_envelope: ArgumentEnvelope,
                        cost_ceiling: int,
                        delegation_ancestry: tuple[str, ...] = (),
-                       approval_id: Optional[str] = None,
+                       approval: Optional[Approval] = None,
                        is_external_transmission: bool = False) -> Authorization:
         """Runs the ten-step sequence, then fixes the envelope (I-113, I-114(b)).
 
@@ -134,16 +134,24 @@ class PolicyDecisionPoint:
         # ---- 9. Does the risk class require approval? --------------------
         # PERMISSION_ARCHITECTURE.md section 5. I-09: only James approves;
         # nothing in this module can create an approval.
-        if plan.declared_risk >= Risk.EXECUTE and approval_id is None:
+        if plan.declared_risk >= Risk.EXECUTE and approval is None:
             self._deny(token, "step9.approval",
                        f"{plan.declared_risk.name} requires approval", "I-09")
 
-        # I-40 / MT-7 row 3: untrusted-derived content cannot execute above
-        # PREPARE without an approval naming the source.
-        if plan.taint.is_untrusted_derived() and plan.declared_risk > Risk.PREPARE and approval_id is None:
-            self._deny(token, "step9.approval",
-                       "untrusted-derived plan cannot exceed PREPARE without approval naming source",
-                       "I-40", security_event=True)
+        # I-40 / MT-7 row 3: a plan influenced by EXTERNAL content cannot
+        # exceed PREPARE without an approval NAMING THE SOURCE.
+        #
+        # Resolved 2026-08-15: "untrusted content" is a PROVENANCE CLASS, not
+        # a trust level (slice/FINDINGS.md finding 2). A standing approval --
+        # which names no source -- therefore CANNOT satisfy this, while a
+        # James-stated objective never reaches it, because there is no
+        # external source in its provenance to name.
+        if plan.taint.is_untrusted_derived() and plan.declared_risk > Risk.PREPARE:
+            required = plan.taint.external_sources()
+            if approval is None or not approval.covers_sources(required):
+                self._deny(token, "step9.approval",
+                           f"externally-influenced plan needs approval naming {sorted(required)}",
+                           "I-40", security_event=True)
 
         # ---- 10. Otherwise ALLOW ----------------------------------------
         auth = Authorization(
@@ -157,7 +165,7 @@ class PolicyDecisionPoint:
             effective_rights=frozenset(effective_rights),
             delegation_ancestry=delegation_ancestry,
             granted_at=time.time(),
-            approval_id=approval_id,
+            approval=approval,
         )
         self._audit.decision(plan.scope_path, token.trace_id, "allow",
                              f"plan={auth.plan_identity} binding_id={auth.binding_identity()}")

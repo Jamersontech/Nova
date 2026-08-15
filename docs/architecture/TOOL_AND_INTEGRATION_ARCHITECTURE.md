@@ -201,6 +201,23 @@ C->>C: at call time, check the resolved binding against the authorized envelope
         not covered → DENY + security event (not a retryable error)
 ```
 
+**Scope containment is established first, and `I-114`(a) is unweakened.** ***Ordering found by
+implementation*** *(2026-08-15; see [`slice/FINDINGS.md`](../../slice/FINDINGS.md) finding 1).*
+Resolution must not produce an authorization-relevant result **or error** before the token is
+known to cover the target scope — otherwise a request reveals cross-scope binding existence or
+non-existence through resolution behaviour, which `I-03` forbids **"by any path, including error
+messages and timing"**. The conceptual sequence is therefore:
+
+```text
+scope containment  →  binding resolution  →  authorization decision  →  binding-envelope
+   (I-03)               (I-114(a))             (the ten steps)           enforcement (I-114(b))
+```
+
+**This is `AUTHORIZATION_MODEL.md` §3's own reasoning extended**, not a new model: step 3
+precedes step 5 there because *"scope containment is checked before permissions exist"*, and the
+same holds for anything else that can leak. **`I-114` is not weakened** — the binding is still
+resolved before the decision, and `I-03` remains the boundary preventing cross-scope disclosure.
+
 **Resolve, then decide** (`I-114`(a)); the authorization fixes a **binding envelope** and the
 enforcement point checks the actual binding against it (`I-114`(b)) — the same
 envelope-then-check structure `I-100` uses for argument values and `I-113` for plans. **The ten-step

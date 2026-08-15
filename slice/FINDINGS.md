@@ -4,9 +4,9 @@
 No invariant was created, no ADR was accepted, no document in `docs/` was changed to make
 implementation easier.
 
-Two findings. The first was resolved from the architecture's own reasoning. **The second
-requires James's decision and is currently implemented under the stricter reading, marked
-provisional.**
+Two findings, **both now resolved**. The first from the architecture's own reasoning; the
+second by James on 2026-08-15. Both resolutions are documented in `docs/` as **Proposed**
+amendments under existing ADRs — no ADR was accepted and no invariant was created.
 
 ---
 
@@ -52,18 +52,23 @@ the **decision**.
 Implemented in `runtime.py` as an explicit precheck, with a uniform message that names no
 scope. Both defects are covered by `Test03WrongScope`.
 
-### Worth noting for the architecture
+### Now documented
 
 `I-114(a)` says "resolved before the authorization decision" without saying *how far*
-before. An engineer reading only `I-114` would put resolution first and reintroduce this.
-**A one-clause note in `TOOL_AND_INTEGRATION_ARCHITECTURE.md` §3 would close it** — but
-that is a documentation change to an Active document and is **not** made here.
+before, so an engineer reading only `I-114` would reintroduce this.
+**`TOOL_AND_INTEGRATION_ARCHITECTURE.md` §3 now records the ordering** (2026-08-15,
+Proposed): scope containment → binding resolution → authorization decision →
+binding-envelope enforcement. **`I-114` is not weakened** and `I-03` remains the boundary
+preventing cross-scope disclosure.
 
 ---
 
 ## Finding 2 — every plan is LOW trust, so "untrusted-derived" may gate everything
 
-**REQUIRES JAMES'S DECISION. Implemented under the stricter reading, provisionally.**
+**RESOLVED by James 2026-08-15: it is a PROVENANCE CLASS, not a trust level.**
+Implemented, documented in `PROVENANCE_AND_TRUST.md` §1.1 and
+`MODEL_TRUST_AND_AUTHORITY.md` §3 under ADR 0035 (Proposed), and covered by ten tests
+proving **both sides** of the distinction.
 
 ### What happened
 
@@ -99,20 +104,36 @@ them, and then they diverge completely:
 different systems.** That is the same defect shape Sections 05, 08 and 14 each found by
 reading — this one was found by running.
 
-### What the slice currently does
+### Resolution
 
-`Taint.is_untrusted_derived()` uses **`trust <= LOW`** — the stricter, fail-closed
-reading. Every test above `PREPARE` therefore supplies an approval, which is why the
-suite is green: **the ambiguity is masked by approval, not resolved by it.**
+**Provenance class.** `is_untrusted_derived()` is true when the provenance union contains
+`external.web`, `client.supplied` or `integration.supplied`.
 
-`slice/core/types.py` marks the method as provisional. **It is not a decision and must
-not be read as one.**
+**The decisive evidence is `I-40`'s own text.** It is one sentence: *"**External** content
+may inform a plan but never escalate one; a plan influenced by **untrusted** content cannot
+exceed `PREPARE` without approval naming the source."* One rule, joined by a semicolon —
+so *untrusted* **is** *external*. The provenance reading makes `I-40` internally
+consistent; the trust reading makes its two clauses disagree. **No invariant changed,
+because `I-40` was already correct under this reading.**
+
+**The conflation entered through `I-100`'s parenthetical** — *"derived from untrusted
+content (`I-99`)"* — which points a provenance question at the trust mechanism.
+
+**Not a downgrade, and not a loophole.** A Low-trust plan remains Low trust. Every other
+control is evaluated independently and was tested to confirm it: argument envelope
+(`I-100`), classification egress (`S13-D1`), scope containment (`I-03`), binding envelope
+(`I-114`), approval (`I-09`). Provenance cannot be shed — immutable (`I-38`), unioned at
+every hop (`I-99`), surviving persistence (`I-111`) — and a standing approval, which names
+no source, **cannot** satisfy `I-40`.
+
+**Standing approvals are now reachable**, which they were not under the trust reading.
 
 ### What this is not
 
-Not an invariant defect. `I-99`, `I-40` and `MT-7` are each individually consistent. The
-gap is that **no document says whether "untrusted" means a trust level or a provenance
-class**, and `I-99`'s arithmetic makes the two coincide for every plan.
+Not an invariant defect. `I-99`, `I-40` and `MT-7` are each individually consistent, and
+none was amended. The gap was that **no document said whether "untrusted" means a trust
+level or a provenance class**, and `I-99`'s arithmetic makes the two coincide for every
+plan. That definition now exists.
 
 ---
 

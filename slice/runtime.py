@@ -31,7 +31,7 @@ from .core.context_service import ContextService
 from .core.policy import PolicyDecisionPoint
 from .core.scope_tree import ScopeTree
 from .core.store import StoreRegistry
-from .core.types import (ArgumentEnvelope, Authorization, Classification, ContextToken,
+from .core.types import (Approval, ArgumentEnvelope, Authorization, Classification, ContextToken,
                          Denied, Outcome, Plan, Risk, Taint)
 from .tools.pep import ToolPEP
 from .tools.registry import ToolRegistry
@@ -72,7 +72,7 @@ class Runtime:
 
     def authorize(self, token: ContextToken, agent_name: str, plan: Plan,
                   tool_version: str, argument_envelope: ArgumentEnvelope,
-                  cost_ceiling: int = 10, approval_id: Optional[str] = None,
+                  cost_ceiling: int = 10, approval: Optional["Approval"] = None,
                   is_external_transmission: bool = False) -> Authorization:
         """Resolve-then-decide. I-114(a): the binding exists BEFORE the PDP is
         asked, and is an input to the decision."""
@@ -122,7 +122,7 @@ class Runtime:
         return self.pdp.authorize_plan(
             token=token, plan=plan, resolved_bindings=resolved,
             argument_envelope=argument_envelope, cost_ceiling=cost_ceiling,
-            approval_id=approval_id, is_external_transmission=is_external_transmission,
+            approval=approval, is_external_transmission=is_external_transmission,
         )
 
     def execute(self, token: ContextToken, plan: Plan, authorization: Authorization,

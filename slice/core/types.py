@@ -112,28 +112,40 @@ class Taint:
             classification=self.classification,
         )
 
-    # Provenance classes that are unambiguously EXTERNAL under I-40's wording.
+    # I-40's first clause is about EXTERNAL content. These are the provenance
+    # classes that are external to NOVA's trust boundary.
     EXTERNAL_PROVENANCE = frozenset({"external.web", "client.supplied", "integration.supplied"})
 
     def is_untrusted_derived(self) -> bool:
-        """MT-7 row 3 / I-40: "derived from untrusted content".
+        """MT-7 row 3 / I-100 / I-40: "derived from untrusted content".
 
-        *** PROVISIONAL -- SEE slice/FINDINGS.md FINDING 2. NOT A DECISION. ***
+        RESOLVED 2026-08-15 by James: this is a PROVENANCE-CLASS property, not
+        a trust-level one. See slice/FINDINGS.md finding 2.
 
-        The Planner is a model, so I-99 gives EVERY plan model.generated
-        provenance at LOW trust, and min(anything, LOW) = LOW. A plan James
-        stated directly is therefore indistinguishable BY TRUST from one shaped
-        by injected web content.
+        I-40 reads: "EXTERNAL content may inform a plan but never escalate one;
+        a plan influenced by UNTRUSTED content cannot exceed PREPARE without
+        approval naming the source." One sentence, one rule -- so "untrusted
+        content" IS "external content". This reading makes I-40 internally
+        consistent; the trust reading makes its two clauses disagree.
 
-        MT-7 and I-100 gate on "untrusted content" citing I-99 (a TRUST
-        mechanism); I-40 says "EXTERNAL content" (a PROVENANCE class). The two
-        readings produce materially different systems and no document chooses.
+        Why the trust reading fails: the Planner is a model, so I-99 gives
+        EVERY plan model.generated provenance at LOW trust, and
+        min(anything, LOW) = LOW. Gating on trust would ceiling every action
+        NOVA ever takes and make standing approvals unreachable, because a
+        James-stated objective has no external source to name.
 
-        This implements the STRICTER, fail-closed reading (trust level). The
-        alternative is `bool(self.provenance & Taint.EXTERNAL_PROVENANCE)`.
-        James decides; this is not the slice's call to make.
+        NOT A TRUST DOWNGRADE. A LOW-trust plan remains LOW trust. This governs
+        ONLY whether the "derived from untrusted content" gates apply. Trust,
+        classification, approval, scope, binding and PREPARE-ceiling rules are
+        all untouched and are evaluated independently.
         """
-        return self.trust <= Trust.LOW
+        return bool(self.provenance & Taint.EXTERNAL_PROVENANCE)
+
+    def external_sources(self) -> frozenset[str]:
+        """I-40 requires the approval to NAME THE SOURCE. This is the set an
+        approval must name; empty means there is no source to name, which is
+        why a James-stated objective cannot require a source-naming approval."""
+        return frozenset(self.provenance & Taint.EXTERNAL_PROVENANCE)
 
     def to_row(self) -> str:
         return "|".join(sorted(self.provenance)) + f"#{int(self.trust)}#{int(self.classification)}"
@@ -267,6 +279,24 @@ class ArgumentEnvelope:
 
 
 @dataclass(frozen=True)
+class Approval:
+    """PERMISSION_ARCHITECTURE.md section 5. I-09: only James creates one.
+
+    `names_sources` is what distinguishes a STANDING approval ("deploy Client
+    A's staging without asking" -- names nothing) from the source-naming
+    approval I-40 demands for a plan influenced by external content. An
+    approval that names no source cannot satisfy I-40; an approval naming a
+    source it was not given for cannot either.
+    """
+    approval_id: str
+    names_sources: frozenset[str] = frozenset()
+    standing: bool = False
+
+    def covers_sources(self, required: frozenset[str]) -> bool:
+        return required <= self.names_sources
+
+
+@dataclass(frozen=True)
 class Authorization:
     """The authorization decision's product.
 
@@ -284,7 +314,7 @@ class Authorization:
     effective_rights: frozenset[str]
     delegation_ancestry: tuple[str, ...]
     granted_at: float
-    approval_id: Optional[str] = None
+    approval: Optional["Approval"] = None
 
     def binding_identity(self) -> str:
         """I-109's ten bound properties, as a deterministic identity.

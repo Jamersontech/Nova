@@ -127,6 +127,16 @@ argument:
 | The value is **not** covered | **Deny.** This is a boundary violation, recorded as a security event (`SECURITY_BOUNDARIES.md` §6), not a retryable error |
 | The value is covered but **derived from untrusted content** | **`PREPARE` ceiling.** It may not execute above `PREPARE` without approval naming the external source (`I-40`, `I-58`) |
 
+> **What "untrusted content" means in row three.** ***PROPOSED — added by Section 08, not yet
+> accepted*** *(2026-08-15; authority
+> [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), Proposed;
+> removed if rejected.)* It is a **provenance class** — `external.web`, `client.supplied` or
+> `integration.supplied` present in the value's provenance union — **not a trust level**.
+> `I-100`'s parenthetical citation of `I-99` points at the mechanism that *carries* the union,
+> not at its trust arithmetic. **Every plan is `model.generated` at Low trust** (the Planner is
+> a model), so a trust reading would put every argument in row three permanently. Full model
+> and derivation: [`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §1.1.
+
 **The third row is the one that matters.** It is `I-40` applied at argument granularity rather
 than plan granularity. A plan authorized to "email the client" cannot be turned by injected
 content into an email to a different recipient, and cannot be turned into an email whose

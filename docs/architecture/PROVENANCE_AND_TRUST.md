@@ -23,6 +23,59 @@ EPISTEMIC    what kind of claim it is  — fact · inference · assumption · un
 verified fact. An assumption from James outranks an inference from a website — but it is
 still an assumption. Collapsing these loses exactly the distinctions that matter.
 
+### 1.1 "Untrusted content" names a provenance class, not a trust level
+
+> ***PROPOSED — added by Section 08, not yet accepted*** *(2026-08-15; authority
+> [ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), Proposed;
+> removed and the accepted text restored verbatim if rejected.* **Found by implementation**,
+> not by review — see [`slice/FINDINGS.md`](../../slice/FINDINGS.md) finding 2.)
+>
+> **`I-40`, `I-100` and `MT-7` all gate on *"derived from untrusted content"*, and the axes
+> above make that ambiguous.** Read as a **trust level** the gate catches everything; read as
+> a **provenance class** it catches what it was written for. The two produce materially
+> different systems, and building the vertical slice forced the choice.
+
+**It is a provenance class.** *"Untrusted content"* means content whose provenance union
+contains **`external.web`**, **`client.supplied`** or **`integration.supplied`** — the classes
+originating outside NOVA's trust boundary.
+
+**Why, from `I-40`'s own text.** `I-40` is one sentence: *"**External** content may inform a
+plan but never escalate one; a plan influenced by **untrusted** content cannot exceed
+`PREPARE` without approval naming the source."* One rule, joined by a semicolon — so
+*untrusted* **is** *external*. **The provenance reading makes `I-40` internally consistent;
+the trust reading makes its two clauses disagree.**
+
+**Why the trust reading is not merely stricter but unworkable.** The Planner is a model, so
+`I-99` gives **every** plan `model.generated` provenance at **Low** trust, and the lowest-trust
+rule means `min(anything, Low) = Low`. **Every plan NOVA can produce is therefore Low trust** —
+including one James stated directly with no external content anywhere. Gating on trust would
+ceiling every action above `PREPARE` forever and demand *"approval naming the source"* where
+**there is no source to name**, making `PERMISSION_ARCHITECTURE.md` §5's standing approvals
+unreachable.
+
+```text
+James states an objective   → provenance {james.stated, model.generated}  trust LOW
+                            → untrusted-derived?  NO   (no external class)
+Injected page shapes a plan → provenance {external.web, model.generated}  trust LOW
+                            → untrusted-derived?  YES  (external.web present)
+```
+
+**This is not a trust downgrade, and creates no exemption.** A Low-trust plan remains Low
+trust, and every other rule is evaluated independently and unchanged: the argument envelope
+(`I-100`), classification on egress (`DATA_CLASSIFICATION.md` §2), scope containment (`I-03`),
+the binding envelope (`I-114`), approval (`I-09`), risk ceilings and the `PREPARE` rule itself.
+**`model.generated` remains Low trust and everything that follows from Low trust still
+follows.** What is settled is only *which* gate the phrase *"derived from untrusted content"*
+opens.
+
+**Provenance cannot be shed.** Provenance is immutable (`I-38`), the union is taken at **every
+hop** (`I-99`), and it survives persistence and retrieval (`I-111`). No derivation, summary,
+union with a higher-trust source, or round-trip through storage removes an external class once
+present — which is what stops the distinction becoming a laundering path.
+
+**No invariant changes.** `I-40`, `I-99`, `I-100` and `MT-7` are unamended; this defines a term
+they already use, as Section 09 defined *source identity* for `I-110`.
+
 ---
 
 ## 2. Provenance
