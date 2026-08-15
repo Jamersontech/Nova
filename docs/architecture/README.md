@@ -43,6 +43,7 @@ document; everything else elaborates one part of it.
 | [`MODEL_ARCHITECTURE.md`](./MODEL_ARCHITECTURE.md) | Provider-neutral model access |
 | [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) | What may be sent to a model, where, and under whose authority *(§5)* |
 | [`MODEL_TRUST_AND_AUTHORITY.md`](./MODEL_TRUST_AND_AUTHORITY.md) | What model output may cause, and what it may never establish *(§5)* |
+| [`COMMUNICATION_ARCHITECTURE.md`](./COMMUNICATION_ARCHITECTURE.md) | What may be sent to a person, to whom, and what comes back — **Proposed** *(§13)* |
 | [`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) | Events, traces, audit |
 | [`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) | Failure, retry, partial completion |
 | [`USER_INTERFACE_ARCHITECTURE.md`](./USER_INTERFACE_ARCHITECTURE.md) | Information architecture; devices |

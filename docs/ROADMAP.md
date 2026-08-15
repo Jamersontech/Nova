@@ -37,7 +37,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 10 — Tool & Capability Architecture | **PROPOSED, awaiting James's approval** |
 | 11 — Integration Architecture | **PROPOSED, awaiting James's approval — `S11-D1` approved for implementation 2026-08-15, folded into ADR `0037`** |
 | 12 — Automation & Workflow Engine | **PROPOSED, awaiting James's approval** |
-| 13 and beyond | Not started |
+| 13 — Communication System | **PROPOSED, awaiting James's approval** |
+| 14 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -263,6 +264,58 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 13 — PROPOSED, awaiting James's approval
+
+**Communication System.** **No new invariant, no new enforcement point, no new PEP, no new security
+object.** One new document, justified below.
+
+**Delivered — all Proposed:** ADR `0039`, `COMMUNICATION_ARCHITECTURE.md`, threat `T-41`.
+**`INVARIANTS.md` is untouched:** `I-01`–`I-114` are byte-identical.
+
+**Most of the surface was already governed, and the vocabulary census proved it** rather than
+assuming it. Recipient identity and recipient-list size are already consequence-determining
+(`MT-5`'s *Target* and *Magnitude* rows), and `I-100`'s worked example is literally
+`recipients ⊆ client-a's contacts, ≤ 1 message`. The sending account is the **execution binding**
+(`I-114`) — communication is that invariant's first major consumer and needs nothing added.
+Inbound replies and delivery receipts are ADR 0037's `S11-D3` and `S11-D2`. Rate is **PDP step 8**.
+Bulk is magnitude. A scheduled campaign is an automation — intent, not authority (Section 12).
+**A conversation is explicitly not a context**, so thread continuation grants nothing.
+
+**Four terms returned zero occurrences repository-wide:** *sender*, *reply*, *bounce / read
+receipt*, and *unsubscribe / opt-out*. Three were governed under other names. The fourth is real.
+
+**The finding — `S13-D1`.** **Communication is the second egress path out of the trust boundary,
+and only the first was given an enforcement story.** `DATA_CLASSIFICATION.md` §2's *"Transmitted
+externally"* row has been normative since Section 03 — CLIENT-CONFIDENTIAL *to that client only*,
+SENSITIVE-PERSONAL and SECURITY-CRITICAL **never** — and **no document named where it is
+enforced**. Section 05 gave the model path `I-94`/`I-96` at a new Model Gateway PEP. The
+communication path needed **no new machinery** and had simply never been composed: `I-99` makes a
+model-composed body a derivation whether or not it is stored, `I-27` gives it the **strictest
+classification among its sources**, §2 governs that classification, and **PDP step 7** asks exactly
+that question at the **Tool call PEP** — one of the six that already exist.
+
+**Why it was easy to miss.** `MT-5` classes wording and summary text as **expressive — not bound**,
+which is *correct* for the argument envelope. An implementer reading `I-100` sees the recipient
+checked and the body unchecked and concludes the body needs no gate. It needs a different gate,
+answering a different question: *"is this argument authorized?"* and *"may this classification
+leave?"* are both live, and the first does not answer the second.
+
+**Deliberately deferred with the reason stated:** consent and opt-out. The **mechanism** is not
+missing — a suppression set narrows the recipient envelope `MT-8` already fixes. The **policy** is,
+and consent is a property of *a person* while the authorization model is scope-shaped throughout.
+**Section 37 (Privacy & Data Governance)**, on the same reasoning that sent Section 09's
+aggregate-sensitivity finding there. Until it exists NOVA has no suppression check — recorded, not
+mitigated.
+
+**A new document was created, against the default.** The surface spans five accepted documents —
+classification, tool/binding, reliability, provenance, events — and **none of them owned
+"communication."** A reader asking *"is this message authorized?"* had nowhere single to look,
+which is precisely how a classification rule sat unenforced. `COMMUNICATION_ARCHITECTURE.md`
+**adds no rule of its own**; every statement cites the accepted rule and its enforcement point.
+
+**Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
+reordered.
 
 ## Section 12 — PROPOSED, awaiting James's approval
 

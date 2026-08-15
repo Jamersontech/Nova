@@ -292,6 +292,21 @@ named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there
 | **Concurrency between firings is bounded by scope and authorization, not by resource** | Two firings touching the same resource are each authorized independently and each isolated by scope, so neither gains authority from the other. **Nothing serialises them.** Lost updates and interleaving are correctness problems the architecture does not address — **recorded, not resolved; this belongs to Sections 29 and 33** | 29 / 33 |
 | **An automation is only as safe as the capability that creates it** | Creating an automation is configuration; what bounds it is that automation-creation must be a tool on an agent's closed list, granted C3. **A permissive grant of that capability is the sharp edge** — not because the definition carries authority, but because it lets an agent schedule requests indefinitely within its own ceiling | 12 / 06 |
 
+## 3.13 Risks Identified in Section 13 — the communication system
+
+> ***PROPOSED — added by Section 13, not yet accepted*** *(2026-08-15; authority
+> [ADR 0039](../decisions/0039-communication-is-classified-egress.md), Proposed; removed if
+> rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **NOVA has no consent or opt-out check** | *Unsubscribe*, *opt-out* and *consent* appear **nowhere in the repository**. The **mechanism** is not missing — a suppression set narrows the recipient envelope `MT-8` already fixes, checked at the Tool PEP like any other membership. The **policy** is: what constitutes consent, how it is evidenced, how long it persists, per channel or per person, and which jurisdictions attach. Consent is a property of **a person** while the authorization model is scope-shaped throughout. **Recorded, not mitigated — this belongs to Section 37 (Privacy & Data Governance)** | 37 |
+| **Recipient expansion is bounded, not closed** | `I-100` checks the recipient *identifier*; it cannot check the *audience*. A distribution list, alias, shared inbox, auto-forward or provider merge tag passes the envelope check while reaching more people, sometimes outside the scope. Detecting it needs provider knowledge NOVA does not hold; the only component that could judge is a model (`I-101`, `I-102`, `I-110`). **`T-39`'s residual in its sharpest form, not reduced.** Its one real bound: `DATA_CLASSIFICATION.md` §2 still refuses the payload | 13 / 38 |
+| **Classification-union accuracy is load-bearing on the send path** | Step 7 now gates transmission on the body's inherited classification. A retrieval that fails to carry its classification into the composed body makes the gate pass on wrong information — the claims-not-facts limit in a fourth place, after tool declarations, provider outcomes and integration fields | 13 / 31 |
+| **The strictest-source rule is blunt, and its correct denials invite overrides** | One CLIENT-CONFIDENTIAL item retrieved into an otherwise-public newsletter blocks the whole send. That is the correct direction and it will feel wrong often. The pressure is a per-send override — which is **downward reclassification**, already `I-30`-governed, never automatic and never agent-performed. The pressure is the risk, not the rule | 13 / 26 |
+| **Individually authorized messages aggregate into spam** | Rate is a PDP step-8 condition and standing approvals carry rate limits, so frequency is governable. **Nothing judges appropriateness.** A sequence of individually reasonable, individually authorized messages is still what a recipient experiences as spam, and no enforcement point evaluates the sequence as a whole | 13 / 26 |
+| **A message delivered cannot be recalled** | Communication egress is irreversible in a way model egress is not. `T-38` already establishes NOVA cannot recall a submitted side effect; for communication the recipient is a person, and stop, revocation and compensation all arrive too late by construction | 13 / 35 |
+
 ---
 
 ## 4. What Would Invalidate This Architecture

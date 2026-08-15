@@ -629,6 +629,55 @@ still cause authorized work to run at a moment of an attacker's choosing. **And 
 is unchanged** — an over-wide plan envelope authorized correctly is still an over-wide envelope,
 whether a human or a schedule caused the plan.
 
+### T-41 Communication as unenforced egress
+*Added 2026-08-15 — **PROPOSED**, Section 13. Authority
+[ADR 0039](../decisions/0039-communication-is-classified-egress.md).*
+
+**Failure:** Communication is the second path by which content leaves NOVA's trust boundary, and
+unlike model egress it is **irreversible and aimed at a person**. Three shapes. **Payload** — the
+recipient, the binding and the attachments are all checked while the **message body** is not:
+`MT-5` correctly classes wording and summary text as *expressive*, so an implementer building a
+send path checks `to` and concludes the body needs no gate, and SENSITIVE-PERSONAL,
+SECURITY-CRITICAL or another client's CLIENT-CONFIDENTIAL material leaves inside a legitimate
+message to a legitimate recipient. **Audience** — a permitted recipient identifier denotes a set:
+a distribution list, alias, shared inbox, auto-forward, or a provider-side merge tag, so the
+envelope check passes on the identifier while the real audience is larger. **Inbound** — a reply,
+bounce or delivery receipt is treated as authority or as fact: a destination named inside a reply
+adopted as a recipient, a thread treated as a continuing authorization, a receipt recorded as proof
+of delivery.
+
+**Defense:** The payload shape is closed by composition, with no new mechanism: `I-99` makes a
+model-composed body a derivation whether or not it is stored, `I-27` gives it the **strictest
+classification among its sources**, `DATA_CLASSIFICATION.md` §2's *"Transmitted externally"* row
+governs that classification, and **PDP step 7** asks exactly that question at the **Tool call
+PEP**, one of the six that already exist. Recipient identity and recipient-list size are
+consequence-determining and envelope-checked (`I-100`, `MT-5`); an unfixable envelope is a denial
+(`MT-9`); the sending account is the execution binding, not an argument (`I-114`); rate is PDP step
+8; bulk is magnitude. Inbound carries **no identity, token or grant** (`S11-D3`;
+`AUTHENTICATION_MODEL.md` §2), receipts are `integration.supplied` testimony and never
+`system.verified` (`S11-D2`, `I-110`), unknown is never "failed" and never auto-retried without
+provider-enforced deduplication, and **a conversation is not a context** — *"never a
+conversation"* (`AUTHORIZATION_MODEL.md` §2), *"a conversation does not accumulate authority"*
+(`CONTEXT_ARCHITECTURE.md` §1) — so thread continuation grants nothing. A scheduled campaign is an
+automation: **intent, not authority**, authorized freshly per firing (`ORCHESTRATION_ARCHITECTURE.md`
+§5).
+
+**Residual:** **Audience is bounded, not closed** — `I-100` checks the identifier and cannot check
+what an external address resolves to; detecting expansion needs provider knowledge NOVA does not
+hold, and the only component that could judge it is a model, barred by `I-101`/`I-102`/`I-110`.
+This is **`T-39`'s semantic-divergence residual in its sharpest form, unchanged and not reduced**;
+its one real bound is that §2 still refuses the payload, so an expansion reaching outside a client
+cannot legitimately carry that client's confidential material. **Classification-union accuracy is
+now load-bearing on the send path**: a retrieval that does not carry its classification into the
+composed body makes step 7 pass on wrong information — the claims-not-facts limit in a fourth
+place. **The union is blunt**, so correct denials will feel wrong and invite a per-send override —
+which is downward reclassification, `I-30`-governed and never automatic or agent-performed.
+**Individually authorized messages still aggregate into behaviour a recipient experiences as spam**
+— rate limits bound frequency, not appropriateness. **NOVA has no consent or suppression check
+at all**: the mechanism is expressible as envelope narrowing, the *policy* is Section 37's, and
+until it exists there is nothing to check. `T-03`'s, `T-16`'s and `T-38`'s residuals are
+**unchanged**.
+
 ### T-25 Compromised Data-Access Boundary
 *Added 2026-08-13 following the final pre-approval review (R-5). Section 04 registers this as a
 new TRUSTED-zone responsibility ([ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),

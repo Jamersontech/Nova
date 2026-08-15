@@ -321,6 +321,7 @@ changes no lifecycle stage.
 | [0036](./0036-tool-declarations-are-claims-not-facts.md) | **Tool declarations are claims, not facts** — the classification must be **total** over the input schema, and an absent or unparseable claim is read as **consequence-determining**. No new invariant | Proposed |
 | [0037](./0037-provider-outcomes-and-provider-initiated-paths.md) | **Provider outcomes are claims; provider-initiated paths carry no authority; and authorization binds the execution binding (`I-114`)** — unknown is distinct from failure, retry needs **provider-enforced** deduplication, an inbound webhook/callback/event has no identity, and a tool action is authorized against the integration/credential binding that produces the consequence, with `I-109` amended in place | Proposed |
 | [0038](./0038-automations-are-intent-not-authority.md) | **Automations are intent, not authority** — a stored definition plus its trigger carries no authorization; every firing is authorized freshly at fire time through the unmodified pipeline. No new invariant: a derivation from `I-10`, `I-14`, `I-17`, `I-112`, `I-113`, `S11-D3`, `V-2` | Proposed |
+| [0039](./0039-communication-is-classified-egress.md) | **Communication is classified egress** — the classification of the content leaving governs the send, enforced at PDP step 7 via the existing Tool call PEP. No new invariant, PEP or object; consent/opt-out deferred to Section 37 | Proposed |
 
 ### Amendment-authority audit — Section 08 edits to Active/Accepted documents
 
@@ -451,6 +452,37 @@ revocable grant.
 
 All are **Proposed** under ADR 0038 and marked in place. **`INVARIANTS.md` is deliberately not
 amended** — `I-01`–`I-114` are byte-identical to their current text.
+
+---
+
+### Section 13 — Proposed, awaiting James
+
+**One ADR, one new document, no new invariant, no new enforcement point, no new security object.**
+[ADR 0039](./0039-communication-is-classified-egress.md) resolves `S13-D1`, the only Section 13
+decision. Most of the communication surface was already governed — recipients and recipient-list
+size by `MT-5`/`I-100`, the sending account by `I-114`, inbound and receipts by ADR 0037, rate by
+PDP step 8, scheduled sends by Section 12's automation model, and thread continuation by
+`AUTHORIZATION_MODEL.md` §2's *"never a conversation"*.
+
+**The gap was an enforcement point nobody had named.** `DATA_CLASSIFICATION.md` §2's *"Transmitted
+externally"* row has been normative since Section 03; Section 05 gave the **model** egress path
+`I-94`/`I-96`, and the **communication** path was never composed. It needs no new machinery:
+`I-99` (a body is a derivation, stored or not) → `I-27` (strictest classification among sources) →
+§2 → **PDP step 7** at the **Tool call PEP**.
+
+| Document | Section / status | What Section 13 changes |
+| --- | --- | --- |
+| [`../architecture/COMMUNICATION_ARCHITECTURE.md`](../architecture/COMMUNICATION_ARCHITECTURE.md) | **new** · 13 · Proposed | The communication security surface in one place; adds no rule of its own |
+| [`../architecture/DATA_CLASSIFICATION.md`](../architecture/DATA_CLASSIFICATION.md) §2 | 03 · Active | Names the enforcement point for its own "Transmitted externally" row |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-41`. **`T-03`'s, `T-16`'s, `T-38`'s and `T-39`'s residuals not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.13 | 03 · Active | Six Section 13 residuals, one deferred to Section 37 |
+
+All are **Proposed** under ADR 0039 and marked in place. **`INVARIANTS.md` is deliberately not
+amended** — `I-01`–`I-114` are byte-identical.
+
+**Consent and opt-out are deferred to Section 37 with the reason stated.** The mechanism is not
+missing — a suppression set narrows the recipient envelope `MT-8` already fixes. The policy is, and
+consent is a property of a person while the authorization model is scope-shaped throughout.
 ---
 
 Decisions that were consciously postponed are tracked separately in

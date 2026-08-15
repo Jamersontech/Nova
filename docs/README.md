@@ -91,4 +91,8 @@ The Section 12 model is **Proposed** — ADR `0038` awaits James's approval. **N
 its single decision (`S12-D1`, automations are intent not authority) is a derivation from
 `I-10`, `I-14`, `I-17`, `I-40`, `I-98`–`I-114`, `V-2` and `X-1`–`X-7`.
 
-Next: **Section 13 — Communication System**.
+The Section 13 model is **Proposed** — ADR `0039` awaits James's approval. **No new invariant**:
+its single decision (`S13-D1`, communication is classified egress) composes `I-99`, `I-27`,
+`DATA_CLASSIFICATION.md` §2 and PDP step 7 at the existing Tool call PEP.
+
+Next: **Section 14 — Voice & Conversational Interface**.
