@@ -77,7 +77,11 @@ class Seam:
 
     def __init__(self, context: ContextService, pdp: PolicyDecisionPoint,
                  boundary: DataAccessBoundary, auth: AuthenticationService,
-                 write_path=None, approvals=None):
+                 write_path=None, approvals=None, tree=None):
+        # The scope tree, for navigation only. Every path it offers is checked
+        # against a grant before it is shown, and entering one still issues a
+        # token and runs the PDP -- navigation is not authorization.
+        self._tree = tree
         self._context = context
         self._pdp = pdp
         self._boundary = boundary
@@ -172,6 +176,89 @@ class Seam:
         return 200, _page("Approved",
                           f"<p>{html.escape(outcome.detail)} in "
                           f"<code>{html.escape(scope_path)}</code></p>")
+
+    # -- the product: where James actually starts --------------------------
+
+    def home_page(self, session_id: Optional[str]) -> tuple[int, str]:
+        """Level 2 of USER_INTERFACE_ARCHITECTURE section 4: "see the three
+        areas and current state".
+
+        The three areas are LIFE, BUSINESS and WEALTH and there is never a
+        fourth -- section 2 is explicit that businesses, clients and projects
+        grow INSIDE, never beside. So this page enumerates roots; it does not
+        enumerate subsystems.
+        """
+        session, refusal = self._signed_in(session_id, execute=False)
+        if refusal:
+            return refusal
+        if self._tree is None:
+            return 404, _page("Not found", "<p>No scope tree is loaded.</p>")
+
+        areas = [p for p in self._tree.roots() if self._may_read(session, p)]
+        if not areas:
+            body = "<p class=\"muted\">Nothing is available to you yet.</p>"
+        else:
+            body = "".join(
+                f"<article class=\"card\"><h2><a href=\"/scope{html.escape(p)}\">"
+                f"{html.escape(_label(p))}</a></h2>"
+                f"<p class=\"muted\"><code>{html.escape(p)}</code></p></article>"
+                for p in areas)
+        return 200, _page("NOVA", body + _footer_links())
+
+    def scope_page(self, session_id: Optional[str], scope_path: str) -> tuple[int, str]:
+        """Level 3: drill into one area, business, client or life area.
+
+        Answers the two questions section 3 says cut across the tree, for THIS
+        scope: what needs my decision, and what did NOVA do. Both are read
+        through the Data-Access Boundary, so both are bounded by RLS.
+        """
+        session, refusal = self._signed_in(session_id, execute=False)
+        if refusal:
+            return refusal
+        if self._tree is None:
+            return 404, _page("Not found", "<p>No scope tree is loaded.</p>")
+
+        # Issuance is the first enforcement point: no grant, unknown scope or
+        # inactive scope refuses here, before anything is rendered (I-14, I-80).
+        try:
+            token = self._context.issue_root(
+                identity=session.identity, actor=session.actor,
+                scope_path=scope_path, rights=frozenset({"read"}),
+                ceiling=Risk.READ, ttl=60)
+            self._pdp.authorize_data_read(token, scope_path)
+        except (Denied, KeyError):
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        try:
+            with self._boundary.open(token) as ch:
+                pending = ch.fetch(
+                    "SELECT count(*) FROM approval WHERE status = 'pending'")[0][0]
+                # A-3a: reviewing audit records across MORE THAN ONE scope
+                # requires step-up, and step-up does not exist yet. So this is
+                # pinned to the exact scope rather than the token's coverage --
+                # NOT an isolation control (RLS is still what bounds
+                # reachability) but the line A-3a draws, enforced.
+                activity = ch.fetch(
+                    "SELECT written_at, category, detail FROM audit_record"
+                    " WHERE scope_path = %s ORDER BY written_at DESC LIMIT 10",
+                    (scope_path,))
+        except Denied:
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        children = [p for p in self._tree.children(scope_path)
+                    if self._may_read(session, p)]
+        return 200, _page(
+            html.escape(_label(scope_path)),
+            f"<p class=\"muted\">Active context: <code>{html.escape(scope_path)}</code></p>"
+            + _decision_card(scope_path, pending)
+            + _children_card(children)
+            + _activity_card(activity, scope_path))
+
+    def _may_read(self, session, scope_path: str) -> bool:
+        """Navigation offers only what a grant already permits. This is a
+        display filter -- entering the scope re-decides from scratch."""
+        return self._tree is not None and self._tree.find_grant(
+            session.identity, "read", "*", scope_path) is not None
 
     # -- authentication routes (D-09) ---------------------------------------
     # These four are the ONLY places the browser talks to the authentication
@@ -343,6 +430,55 @@ class Seam:
         return 200, _page("Written",
                           f"<p>{html.escape(outcome.detail)} in "
                           f"<code>{html.escape(scope_path)}</code></p>")
+
+
+def _label(scope_path: str) -> str:
+    """A scope path is machinery; a name is what James reads."""
+    return scope_path.rstrip("/").rsplit("/", 1)[-1].replace("-", " ").upper()
+
+
+def _footer_links() -> str:
+    return ("<p class=\"muted\"><a href=\"/auth/sessions\">Sessions</a></p>")
+
+
+def _decision_card(scope_path: str, pending: int) -> str:
+    """Approvals are "surfaced where the work is… never buried"
+    (USER_INTERFACE_ARCHITECTURE section 3)."""
+    if not pending:
+        return ("<article class=\"card\"><h2>Nothing needs your decision</h2>"
+                "<p class=\"muted\">NOVA is not waiting on you here.</p></article>")
+    word = "action" if pending == 1 else "actions"
+    return (f"<article class=\"card\"><span class=\"risk\">awaiting you</span>"
+            f"<h2>{pending} {word} need your decision</h2>"
+            f"<div class=\"actions\"><a href=\"/scope{html.escape(scope_path)}/approvals\">"
+            f"<button class=\"primary\" type=\"button\">Review</button></a></div></article>")
+
+
+def _children_card(children: list) -> str:
+    if not children:
+        return ""
+    items = "".join(
+        f"<li><a href=\"/scope{html.escape(p)}\">{html.escape(_label(p))}</a></li>"
+        for p in children)
+    return f"<article class=\"card\"><h2>Inside</h2><ul>{items}</ul></article>"
+
+
+def _activity_card(rows: list, scope_path: str) -> str:
+    """What NOVA did here. One scope only -- A-3a puts cross-scope review
+    behind step-up, and step-up does not exist yet, so the cross-scope view is
+    deliberately absent rather than quietly ungated."""
+    if not rows:
+        entries = "<li class=\"muted\">Nothing has happened here yet.</li>"
+    else:
+        entries = "".join(
+            f"<li><code>{when:%Y-%m-%d %H:%M}</code> — "
+            f"<strong>{html.escape(category)}</strong> {html.escape(detail)}</li>"
+            for when, category, detail in rows)
+    return (f"<article class=\"card\"><h2>What NOVA did here</h2>"
+            f"<ul>{entries}</ul>"
+            f"<p class=\"muted\">This scope only. Reviewing activity across more "
+            f"than one scope requires a stronger sign-in (A-3a), which NOVA does "
+            f"not yet offer.</p></article>")
 
 
 def _approval_card(r) -> str:
@@ -520,6 +656,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._respond(*_Handler.seam.sessions_page(self._session()))
             return
 
+        if self.path == "/" or self.path == "":
+            self._respond(*_Handler.seam.home_page(self._session()))
+            return
+
         if self.path == "/static/tokens.css":
             try:
                 css = TOKENS_CSS.read_bytes()
@@ -540,13 +680,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
 
         prefix, suffix = "/scope/", "/items"
-        if not (self.path.startswith(prefix) and self.path.endswith(suffix)):
-            self._respond(404, _page("Not found", "<p>Unknown route.</p>"))
+        if self.path.startswith(prefix) and self.path.endswith(suffix):
+            scope_path = "/" + self.path[len(prefix):-len(suffix)].strip("/")
+            self._respond(*_Handler.seam.items_page(self._session(), scope_path))
             return
-        scope_path = "/" + self.path[len(prefix):-len(suffix)].strip("/")
 
-        status, body = _Handler.seam.items_page(self._session(), scope_path)
-        self._respond(status, body)
+        # /scope/<path> -- one scope. Last, so the specific routes above win.
+        if self.path.startswith(prefix) and "?" not in self.path:
+            scope_path = "/" + self.path[len(prefix):].strip("/")
+            self._respond(*_Handler.seam.scope_page(self._session(), scope_path))
+            return
+
+        self._respond(404, _page("Not found", "<p>Unknown route.</p>"))
 
     def _cookie(self, wanted: str) -> Optional[str]:
         for part in self.headers.get("Cookie", "").split(";"):

@@ -33,6 +33,13 @@ BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'nova_auth') THEN
         CREATE ROLE nova_auth LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
     END IF;
+    -- The scope tree and its grants ARE the permission model, so something has
+    -- to read them before any scope binding can exist. That reader is this
+    -- role, at startup only, never in the request path. It is NOT a bypass:
+    -- see the control-plane policies below.
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'nova_control') THEN
+        CREATE ROLE nova_control LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+    END IF;
 END
 $$;
 
@@ -243,6 +250,24 @@ $$;
 
 -- actor carries no scope_path and is deliberately not scope-isolated.
 
+-- The control-plane read. `scope` and `grant` define where the boundaries ARE,
+-- which is a genuine bootstrap problem: a scope-bound channel cannot be opened
+-- until the tree that decides the binding has been read.
+--
+-- Solved with the engine's own mechanism rather than around it. These policies
+-- are attached TO ONE ROLE, so PostgreSQL applies them to `nova_control` and to
+-- nothing else. `nova_app` still sees only `scope_isolation` and is still
+-- bounded by it -- asserted by test, in both directions.
+--
+-- nova_control is READ-ONLY on exactly these two tables, holds no privilege on
+-- `item`, `approval` or `audit_record`, and is used only when the application
+-- starts. It is NOT NOBYPASSRLS as a formality: it genuinely cannot bypass RLS,
+-- it is simply named by a policy that permits the read it needs.
+DROP POLICY IF EXISTS control_plane_read ON scope;
+CREATE POLICY control_plane_read ON scope FOR SELECT TO nova_control USING (true);
+DROP POLICY IF EXISTS control_plane_read ON "grant";
+CREATE POLICY control_plane_read ON "grant" FOR SELECT TO nova_control USING (true);
+
 -- ---------------------------------------------------------------------------
 -- Privileges
 -- ---------------------------------------------------------------------------
@@ -261,6 +286,14 @@ GRANT EXECUTE ON FUNCTION nova.current_scope(), nova.in_scope(text) TO nova_app;
 GRANT USAGE ON SCHEMA public TO nova_auth;
 GRANT SELECT, INSERT, UPDATE ON auth_credential, auth_session TO nova_auth;
 GRANT USAGE, SELECT ON SEQUENCE auth_credential_id_seq, auth_session_id_seq TO nova_auth;
+
+-- The generic `scope_isolation` policy still applies to this role as well --
+-- permissive policies are OR'd, not replaced -- so it must be able to EVALUATE
+-- that predicate even though `control_plane_read` is what admits its rows.
+-- Granting EXECUTE on two boolean predicates widens no data access.
+GRANT USAGE ON SCHEMA public, nova TO nova_control;
+GRANT EXECUTE ON FUNCTION nova.current_scope(), nova.in_scope(text) TO nova_control;
+GRANT SELECT ON scope, "grant" TO nova_control;
 
 -- ...and nova_app must NOT reach them. Authentication state is not application
 -- data; the application role having it would make the privilege split cosmetic.

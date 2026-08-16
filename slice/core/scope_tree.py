@@ -50,6 +50,22 @@ class ScopeTree:
             raise Denied("scope.resolve", f"unknown scope {path}", "I-79", True)
         return self._scopes[path]
 
+    def paths(self) -> list[str]:
+        """Every scope that exists. Structure only -- says nothing about who
+        may enter one; that is `find_grant`'s answer, and every caller that
+        renders navigation asks it per path."""
+        return sorted(self._scopes)
+
+    def children(self, parent: str) -> list[str]:
+        """Direct children only. One level, so navigation cannot accidentally
+        become an enumeration of the whole tree."""
+        depth = parent.count("/") + 1
+        return [p for p in sorted(self._scopes)
+                if p.startswith(parent + "/") and p.count("/") == depth]
+
+    def roots(self) -> list[str]:
+        return [p for p in sorted(self._scopes) if p.count("/") == 1]
+
     @staticmethod
     def contains(ancestor: str, descendant: str) -> bool:
         return descendant == ancestor or descendant.startswith(ancestor + "/")

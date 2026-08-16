@@ -40,6 +40,13 @@ def app_dsn() -> str:
     return _dsn(os.environ.get("NOVA_PGAPPUSER", "nova_app"))
 
 
+def control_dsn() -> str:
+    """The control-plane reader: SELECT on `scope` and `grant`, nothing else.
+    Used once at startup to load the permission model, never in the request
+    path. Not a bypass -- a policy names this role for exactly those reads."""
+    return _dsn(os.environ.get("NOVA_PGCONTROLUSER", "nova_control"))
+
+
 def auth_dsn() -> str:
     """The authentication identity. Privileges on the two auth tables and
     nothing else -- authentication runs before a Context Token exists, so it
