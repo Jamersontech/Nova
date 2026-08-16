@@ -39,6 +39,7 @@ import dataclasses
 import hashlib
 import html
 import http.server
+import pathlib
 import secrets
 import threading
 from typing import Optional
@@ -47,6 +48,13 @@ from ..core.context_service import ContextService
 from ..core.policy import PolicyDecisionPoint
 from ..core.types import Denied, Risk
 from .boundary import DataAccessBoundary
+
+
+# I-09: only James approves. The identity that may decide, checked server-side.
+APPROVER_IDENTITY = "james"
+
+# Section 15's generated stylesheet -- served, not duplicated.
+TOKENS_CSS = pathlib.Path(__file__).resolve().parent.parent / "ui" / "tokens" / "tokens.css"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -80,7 +88,7 @@ class Seam:
 
     def __init__(self, context: ContextService, pdp: PolicyDecisionPoint,
                  boundary: DataAccessBoundary, sessions: SessionStore,
-                 write_path=None):
+                 write_path=None, approvals=None):
         self._context = context
         self._pdp = pdp
         self._boundary = boundary
@@ -88,6 +96,70 @@ class Seam:
         # Optional: the consequence-producing write path (write_path.WritePath).
         # The read seam predates it and works without it.
         self._writes = write_path
+        # Optional: the approval experience (approval_flow.ApprovalService).
+        self._approvals = approvals
+
+    # -- approvals ----------------------------------------------------------
+
+    def _execute_token(self, session, scope_path: str):
+        """An EXECUTE-ceiling token. Issuance enforces grants first (I-14)."""
+        return self._context.issue_root(
+            identity=session.identity, actor=session.actor,
+            scope_path=scope_path, rights=frozenset({"write"}),
+            ceiling=Risk.EXECUTE, ttl=60,
+        )
+
+    def approvals_page(self, session_id: Optional[str], scope_path: str) -> tuple[int, str]:
+        """What needs James's decision, in this scope."""
+        if self._approvals is None:
+            return 404, _page("Not found", "<p>Approvals are not enabled.</p>")
+        session = self._sessions.resolve(session_id)
+        if session is None:
+            return 401, _page("Not signed in", "<p>No session.</p>")
+        try:
+            token = self._execute_token(session, scope_path)
+            requests = self._approvals.pending(token)
+        except Denied:
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        if not requests:
+            body = "<p class=\"muted\">Nothing needs your decision here.</p>"
+        else:
+            body = "".join(_approval_card(r) for r in requests)
+        return 200, _page(f"Approvals — {html.escape(scope_path)}",
+                          f"<p class=\"muted\">Active context: "
+                          f"<code>{html.escape(scope_path)}</code></p>{body}")
+
+    def decide_page(self, session_id: Optional[str], scope_path: str,
+                    approval_id: str, approve: bool) -> tuple[int, str]:
+        """Record the decision. On approval the action executes through the
+        full authorization path -- this handler authorizes nothing itself."""
+        if self._approvals is None:
+            return 404, _page("Not found", "<p>Approvals are not enabled.</p>")
+        session = self._sessions.resolve(session_id)
+        if session is None:
+            return 401, _page("Not signed in", "<p>No session.</p>")
+
+        # I-09: only James approves. Checked server-side, from the session --
+        # never from anything the browser could assert.
+        if session.identity != APPROVER_IDENTITY:
+            return 403, _page("Not permitted",
+                              "<p>Only James can approve or deny an action.</p>")
+        try:
+            token = self._execute_token(session, scope_path)
+            status, outcome = self._approvals.decide(
+                token, approval_id, approve, decided_by=session.actor)
+        except Denied as d:
+            if d.invariant == "I-09":
+                return 409, _page("Already decided",
+                                  "<p>This approval has already been decided.</p>")
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        if status == "denied":
+            return 200, _page("Denied", "<p>Nothing was done. The action was declined.</p>")
+        return 200, _page("Approved",
+                          f"<p>{html.escape(outcome.detail)} in "
+                          f"<code>{html.escape(scope_path)}</code></p>")
 
     def items_page(self, session_id: Optional[str], scope_path: str) -> tuple[int, str]:
         """The one route. Returns (http_status, html_body)."""
@@ -190,11 +262,96 @@ class Seam:
                           f"<code>{html.escape(scope_path)}</code></p>")
 
 
+def _approval_card(r) -> str:
+    """The five things USER_INTERFACE_ARCHITECTURE.md section 6 requires, and
+    the statement that NOVA is not the approving authority (I-09).
+
+    Approve and Deny are separate forms: one action each, no default, and no
+    script. The browser posts a decision; it does not make one.
+    """
+    def field(label: str, value: str) -> str:
+        return (f"<div class=\"field\"><span class=\"label\">{html.escape(label)}</span>"
+                f"<span>{html.escape(value)}</span></div>")
+
+    return f"""
+    <article class="card">
+      <span class="risk">{html.escape(r.risk_class)}</span>
+      <h2>{html.escape(r.action_text)}</h2>
+      {field("in scope", r.scope_path)}
+      {field("why approval is needed", r.why_text)}
+      {field("what it costs", r.cost_text)}
+      {field("if this is wrong", r.if_wrong_text)}
+      {field("requested by", r.requested_by)}
+      <p class="muted">Only James can approve this. NOVA prepared the request;
+         it cannot approve it.</p>
+      <div class="actions">
+        <form method="post" action="/scope{html.escape(r.scope_path)}/approvals/{html.escape(r.approval_id)}">
+          <input type="hidden" name="decision" value="approve">
+          <button type="submit" class="primary">Approve</button>
+        </form>
+        <form method="post" action="/scope{html.escape(r.scope_path)}/approvals/{html.escape(r.approval_id)}">
+          <input type="hidden" name="decision" value="deny">
+          <button type="submit">Decline</button>
+        </form>
+      </div>
+    </article>"""
+
+
+# Layout only. Every colour, size and space is a Section 15 token
+# (ADR 0041) -- no visual value is declared here.
+_STYLE = """
+body { background: var(--nova-color-surface-base); color: var(--nova-color-text-primary);
+       font-family: var(--nova-type-family-ui); font-size: var(--nova-type-size-body);
+       line-height: var(--nova-type-leading-normal); margin: 0;
+       padding: var(--nova-space-section); }
+h1 { font-size: var(--nova-type-size-title); margin: 0 0 var(--nova-space-gutter) 0; }
+h2 { font-size: var(--nova-type-size-lead); margin: 0 0 var(--nova-space-snug) 0; }
+code { font-family: var(--nova-type-family-code); }
+.muted { color: var(--nova-color-text-muted); font-size: var(--nova-type-size-caption); }
+.card { background: var(--nova-color-surface-raised);
+        border: var(--nova-border-width) solid var(--nova-color-border-strong);
+        border-radius: var(--nova-radius-card); padding: var(--nova-space-gutter);
+        margin-bottom: var(--nova-space-gutter); box-shadow: var(--nova-elevation-modal);
+        max-width: 46rem; }
+.risk { display: inline-block; color: var(--nova-color-risk-contextual);
+        background: var(--nova-color-risk-contextual-soft);
+        border: var(--nova-border-width) solid var(--nova-color-risk-contextual);
+        border-radius: var(--nova-radius-pill);
+        padding: var(--nova-space-tight) var(--nova-space-snug);
+        font-size: var(--nova-type-size-caption);
+        letter-spacing: var(--nova-type-tracking-label); text-transform: uppercase;
+        margin-bottom: var(--nova-space-snug); }
+.field { display: flex; flex-direction: column; gap: var(--nova-space-tight);
+         margin-bottom: var(--nova-space-snug); }
+.label { color: var(--nova-color-text-muted); font-size: var(--nova-type-size-caption);
+         letter-spacing: var(--nova-type-tracking-label); text-transform: uppercase; }
+.actions { display: flex; gap: var(--nova-space-tight);
+           margin-top: var(--nova-space-gutter); }
+button { font-family: var(--nova-type-family-ui); font-size: var(--nova-type-size-body);
+         color: var(--nova-color-text-secondary);
+         background: var(--nova-color-surface-inset);
+         border: var(--nova-border-width) solid var(--nova-color-border-strong);
+         border-radius: var(--nova-radius-control);
+         padding: var(--nova-space-tight) var(--nova-space-gutter);
+         min-height: var(--nova-control-target); cursor: pointer; }
+button.primary { background: var(--nova-color-accent-base);
+                 color: var(--nova-color-text-oncolor);
+                 border-color: var(--nova-color-accent-base); }
+button:focus-visible { outline: var(--nova-border-emphasis) solid
+                       var(--nova-color-border-accent);
+                       outline-offset: var(--nova-space-tight); }
+"""
+
+
 def _page(title: str, body: str) -> str:
     """Server-rendered, self-contained, no scripts, no token material."""
     return (
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
-        f"<title>{title}</title></head><body><h1>{title}</h1>{body}</body></html>"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        f"<title>{title}</title>"
+        "<link rel=\"stylesheet\" href=\"/static/tokens.css\">"
+        f"<style>{_STYLE}</style></head>"
+        f"<body><main><h1>{title}</h1>{body}</main></body></html>"
     )
 
 
@@ -206,41 +363,66 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     seam: Seam  # set by serve()
 
     def do_GET(self) -> None:  # noqa: N802 (stdlib naming)
+        if self.path == "/static/tokens.css":
+            try:
+                css = TOKENS_CSS.read_bytes()
+            except OSError:
+                self._respond(404, _page("Not found", "<p>No stylesheet.</p>"))
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/css; charset=utf-8")
+            self.send_header("Content-Length", str(len(css)))
+            self.end_headers()
+            self.wfile.write(css)
+            return
+
+        if self.path.startswith("/scope/") and self.path.endswith("/approvals"):
+            scope_path = "/" + self.path[len("/scope/"):-len("/approvals")].strip("/")
+            status, body = _Handler.seam.approvals_page(self._session(), scope_path)
+            self._respond(status, body)
+            return
+
         prefix, suffix = "/scope/", "/items"
         if not (self.path.startswith(prefix) and self.path.endswith(suffix)):
             self._respond(404, _page("Not found", "<p>Unknown route.</p>"))
             return
         scope_path = "/" + self.path[len(prefix):-len(suffix)].strip("/")
 
-        cookie = self.headers.get("Cookie", "")
-        session_id = None
-        for part in cookie.split(";"):
+        status, body = _Handler.seam.items_page(self._session(), scope_path)
+        self._respond(status, body)
+
+    def _session(self) -> Optional[str]:
+        for part in self.headers.get("Cookie", "").split(";"):
             name, _, value = part.strip().partition("=")
             if name == "nova_session":
-                session_id = value
-        status, body = _Handler.seam.items_page(session_id, scope_path)
-        self._respond(status, body)
+                return value
+        return None
 
     def do_POST(self) -> None:  # noqa: N802 (stdlib naming)
         import urllib.parse
+
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        form = urllib.parse.parse_qs(self.rfile.read(length).decode())
+
+        # /scope/<path>/approvals/<approval_id>
+        if self.path.startswith("/scope/") and "/approvals/" in self.path:
+            head, _, approval_id = self.path.partition("/approvals/")
+            scope_path = "/" + head[len("/scope/"):].strip("/")
+            approve = (form.get("decision") or [""])[0] == "approve"
+            status, page = _Handler.seam.decide_page(
+                self._session(), scope_path, approval_id, approve)
+            self._respond(status, page)
+            return
+
         prefix, suffix = "/scope/", "/items"
         if not (self.path.startswith(prefix) and self.path.endswith(suffix)):
             self._respond(404, _page("Not found", "<p>Unknown route.</p>"))
             return
         scope_path = "/" + self.path[len(prefix):-len(suffix)].strip("/")
 
-        length = int(self.headers.get("Content-Length", "0") or "0")
-        form = urllib.parse.parse_qs(self.rfile.read(length).decode())
         item_ref = (form.get("item_ref") or [""])[0]
         body = (form.get("body") or [""])[0]
-
-        cookie = self.headers.get("Cookie", "")
-        session_id = None
-        for part in cookie.split(";"):
-            name, _, value = part.strip().partition("=")
-            if name == "nova_session":
-                session_id = value
-        status, page = _Handler.seam.write_item(session_id, scope_path, item_ref, body)
+        status, page = _Handler.seam.write_item(self._session(), scope_path, item_ref, body)
         self._respond(status, page)
 
     def _respond(self, status: int, body: str) -> None:

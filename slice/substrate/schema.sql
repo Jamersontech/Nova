@@ -104,6 +104,29 @@ CREATE TABLE IF NOT EXISTS approval (
     created_at        timestamptz NOT NULL DEFAULT now()
 );
 
+-- The fields USER_INTERFACE_ARCHITECTURE.md section 6 requires an approval
+-- request to state "in plain language: what will happen, in which scope, why
+-- it needs approval, what it costs, and what happens if it is wrong".
+-- Added as columns rather than a second table: an approval request IS an
+-- approval awaiting a decision, and splitting them would make the pending and
+-- decided states two things that must be kept in step.
+--
+-- `plan_identity` is what binds the decision to one exact action (I-112).
+-- The arguments are stored so the plan can be RECONSTRUCTED at execution and
+-- its identity compared -- an approval whose plan no longer hashes the same
+-- does not apply (I-109).
+ALTER TABLE approval
+    ADD COLUMN IF NOT EXISTS plan_identity  text,
+    ADD COLUMN IF NOT EXISTS status         text NOT NULL DEFAULT 'pending',
+    ADD COLUMN IF NOT EXISTS action_text    text NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS why_text       text NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS cost_text      text NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS if_wrong_text  text NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS item_ref       text,
+    ADD COLUMN IF NOT EXISTS body           text,
+    ADD COLUMN IF NOT EXISTS decided_at     timestamptz,
+    ADD COLUMN IF NOT EXISTS decided_by     text;
+
 -- I-93: every mandatory audit record carries a deterministic event identity, so
 -- an uncertain write is retried and de-duplicated by identity rather than
 -- producing a second event. The UNIQUE constraint is that rule, enforced.
