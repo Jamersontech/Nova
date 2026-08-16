@@ -57,6 +57,17 @@ load-bearing:
 | --- | --- | --- |
 | **Primitive** | Raw values — a hex code, a rem, a shadow | **Nothing outside the token file** |
 | **Semantic** | References to primitives, by path | Components |
+| **Responsive** *(Section 17)* | Per-viewport **overrides of semantic tokens that already exist** | Components, via the cascade |
+
+**Base values and viewport-varying values are distinct.** A semantic token declares the value that
+applies everywhere; a responsive band re-declares it inside a `@media` block for one viewport range.
+A band may **only** override a token the semantic tier already defines — introducing one would create
+a value present at a single viewport and nowhere else, which the generator refuses.
+
+**Components remain unaware that breakpoints exist.** They read the same `var(--nova-*)` at every
+width and the cascade supplies the band's value, so no component contains a media query, a breakpoint
+literal or viewport logic. Layout is computed by the browser, never by JavaScript
+([ADR 0043](../decisions/0043-responsive-layout-is-css-driven-from-tokens.md), **Proposed**).
 
 A semantic token that references a missing primitive is a **build failure, never a fallback** — a
 fallback is precisely how a design system loses a value: the build succeeds, one surface renders the

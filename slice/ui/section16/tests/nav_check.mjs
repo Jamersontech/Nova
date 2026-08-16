@@ -73,7 +73,10 @@ const probe = (page) => page.evaluate(() => {
     stopPresent: !!stop && !!stop.shadowRoot?.querySelector("nova-button"),
     crossViews: Array.from(cross?.shadowRoot?.querySelectorAll("button") || [])
       .map((b) => b.dataset.view),
-    dialogVisible: dialog ? !dialog.hidden : false,
+    // Measured, not inferred. Reading the `hidden` attribute would report a
+    // dialog as closed while it rendered full height -- which is exactly the
+    // defect Section 17's viewport work uncovered.
+    dialogVisible: dialog ? getComputedStyle(dialog).display !== "none" : false,
     dialogMode: dialog?.getAttribute("mode") || null,
     dialogRole: dialog?.shadowRoot?.querySelector("[role=alertdialog]") ? "alertdialog" : null,
     dialogText: dialog?.hidden ? "" : (dialog?.shadowRoot?.textContent.replace(/\s+/g, " ").trim() || ""),

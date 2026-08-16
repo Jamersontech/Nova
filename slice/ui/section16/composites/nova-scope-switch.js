@@ -60,6 +60,10 @@ class NovaScopeSwitch extends NovaElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
+        /* :host { display: block } is an author style and outranks the user
+           agent's [hidden] { display: none }, so the host must opt back in.
+           Without this the dialog renders on every load. */
+        :host([hidden]) { display: none; }
         ul { list-style: none; margin: 0; padding: 0;
              display: flex; flex-direction: column; gap: var(--nova-space-tight); }
         li button {

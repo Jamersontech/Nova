@@ -52,6 +52,7 @@ class NovaNav extends NovaElement {
           border: var(--nova-border-width) solid var(--nova-color-border-subtle);
           border-radius: var(--nova-radius-control);
           padding: var(--nova-space-tight) var(--nova-space-snug);
+          min-height: var(--nova-control-target);
         }
         button:hover { background: var(--nova-color-surface-hover);
                        color: var(--nova-color-text-primary); }

@@ -52,6 +52,7 @@ class NovaAreaNav extends NovaElement {
           border: var(--nova-border-width) solid var(--nova-color-border-subtle);
           border-radius: var(--nova-radius-panel);
           padding: var(--nova-space-snug);
+          min-height: var(--nova-control-target);
         }
         .area[aria-current="true"] {
           background: var(--nova-color-surface-inset);

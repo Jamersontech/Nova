@@ -71,9 +71,15 @@ class TestTokenSource(unittest.TestCase):
             build_tokens.resolve(broken)
 
     def test_generated_css_is_current(self):
-        """tokens.css must be what tokens.json currently produces."""
-        primitives, semantics = build_tokens.resolve(build_tokens.load(TOKENS_JSON))
-        expected = build_tokens.render_css(primitives, semantics)
+        """tokens.css must be what tokens.json currently produces.
+
+        Includes the Section 17 responsive bands: a stale band would mean one
+        viewport rendering from a value the source no longer declares.
+        """
+        doc = build_tokens.load(TOKENS_JSON)
+        primitives, semantics = build_tokens.resolve(doc)
+        bands = build_tokens.resolve_responsive(doc, primitives, semantics)
+        expected = build_tokens.render_css(primitives, semantics, bands)
         self.assertEqual(
             expected,
             TOKENS_CSS.read_text(),

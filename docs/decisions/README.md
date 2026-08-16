@@ -554,6 +554,25 @@ text of `USER_INTERFACE_ARCHITECTURE.md` only, with a test asserting that ADR 00
 step-up and session-strength semantics have not leaked in. **`D-13`'s application-framework half
 remains deferred**, protected by a tested cap against a router or state layer arriving by accretion.
 
+## Section 17 — Responsive reflow (ADR `0043`, **Proposed**)
+
+**Responsive layout is computed by the browser from viewport-varying design tokens.** A `responsive`
+tier in `tokens.json` declares two breakpoints and, per band, overrides of semantic tokens that
+already exist; the generator emits them as `@media` blocks. **Components contain no media query, no
+breakpoint literal and no viewport logic**, and the demonstration screen is unedited between
+viewports.
+
+**The breakpoint values are a Section 17 implementation decision, not an inherited requirement** — no
+accepted document names a breakpoint, and WCAG 1.4.10 fixes a 320px test *condition* rather than a
+scale. Section 17 adds four tested accessibility criteria (1.4.10, 1.3.4, 1.4.4, 2.5.8); **no
+conformance is claimed.**
+
+**No new invariant**: `I-01`–`I-114` byte-identical. **`D-13`, `D-12` and `D-14` remain deferred** —
+no framework, no new tooling, no voice — and Sections 18, 29, 30 and 43 are unconstrained. The
+implementation lives in [`../../slice/ui/section17/`](../../slice/ui/section17/README.md) and is
+**slice-local**. Nothing depends on Proposed ADRs `0038`–`0040`.
+
+
 
 ---
 

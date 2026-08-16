@@ -33,6 +33,8 @@
   --nova-primitive-elevation-high: 0 8px 28px rgba(0,0,0,0.5);
   --nova-primitive-elevation-low: 0 1px 2px rgba(0,0,0,0.4);
   --nova-primitive-elevation-none: none;
+  --nova-primitive-layout-split: 1fr 3fr;
+  --nova-primitive-layout-stack: 1fr;
   --nova-primitive-motion-duration-fast: 120ms;
   --nova-primitive-motion-duration-instant: 0ms;
   --nova-primitive-motion-duration-normal: 220ms;
@@ -42,6 +44,8 @@
   --nova-primitive-radius-md: 8px;
   --nova-primitive-radius-none: 0;
   --nova-primitive-radius-sm: 4px;
+  --nova-primitive-size-target-comfortable: 44px;
+  --nova-primitive-size-target-min: 24px;
   --nova-primitive-space-0: 0;
   --nova-primitive-space-1: 0.25rem;
   --nova-primitive-space-2: 0.5rem;
@@ -94,9 +98,11 @@
   --nova-color-text-oncolor: #080a0f;
   --nova-color-text-primary: #f4f7fb;
   --nova-color-text-secondary: #9aa5b6;
+  --nova-control-target: 24px;
   --nova-elevation-flat: none;
   --nova-elevation-modal: 0 8px 28px rgba(0,0,0,0.5);
   --nova-elevation-panel: 0 1px 2px rgba(0,0,0,0.4);
+  --nova-layout-columns: 1fr 3fr;
   --nova-motion-duration: 120ms;
   --nova-motion-ease: cubic-bezier(0.2, 0, 0.2, 1);
   --nova-radius-card: 14px;
@@ -122,4 +128,23 @@
   --nova-type-weight-medium: 500;
   --nova-type-weight-normal: 400;
   --nova-type-weight-strong: 600;
+}
+
+/* ---- responsive band: mid (<= 1023px) ---- */
+@media (max-width: 1023px) {
+  :root {
+    --nova-layout-columns: 1fr;
+    --nova-space-section: 1.5rem;
+  }
+}
+
+/* ---- responsive band: narrow (<= 599px) ---- */
+@media (max-width: 599px) {
+  :root {
+    --nova-layout-columns: 1fr;
+    --nova-space-roomy: 1rem;
+    --nova-space-section: 1rem;
+    --nova-type-size-display: 1.125rem;
+    --nova-type-size-title: 0.9375rem;
+  }
 }

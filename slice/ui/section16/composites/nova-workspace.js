@@ -25,8 +25,14 @@ class NovaWorkspace extends NovaElement {
           font-family: var(--nova-type-family-ui);
         }
         .stack { display: flex; flex-direction: column; gap: var(--nova-space-roomy); }
-        .columns { display: grid; grid-template-columns: 1fr 3fr;
+        /* The track definition is a token, so the two-column layout collapses to
+           a single column at narrower viewports without this component, the
+           screen, or any JavaScript knowing a breakpoint exists (Section 17). */
+        .columns { display: grid; grid-template-columns: var(--nova-layout-columns);
                    gap: var(--nova-space-roomy); align-items: start; }
+        /* Long scope paths and prose must wrap rather than force the page wider
+           than the viewport -- WCAG 1.4.10 forbids two-dimensional scrolling. */
+        :host, .stack, .columns, .side, .main { min-width: 0; }
         .side, .main { display: flex; flex-direction: column; gap: var(--nova-space-gutter); }
         main:focus-visible, .skip:focus-visible {
           outline: var(--nova-border-emphasis) solid var(--nova-color-border-accent);

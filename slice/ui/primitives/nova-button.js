@@ -36,6 +36,9 @@ class NovaButton extends NovaElement {
           border: var(--nova-border-width) solid ${borderColor};
           border-radius: var(--nova-radius-control);
           padding: var(--nova-space-tight) var(--nova-space-gutter);
+          /* WCAG 2.5.8 (AA): pointer targets are at least 24x24 CSS px. */
+          min-height: var(--nova-control-target);
+          min-width: var(--nova-control-target);
           cursor: pointer;
           width: 100%;
           transition: background var(--nova-motion-duration) var(--nova-motion-ease),

@@ -89,7 +89,63 @@ def resolve(doc: dict) -> tuple[dict[str, str], dict[str, str]]:
     return primitives, semantics
 
 
-def render_css(primitives: dict[str, str], semantics: dict[str, str]) -> str:
+def resolve_responsive(doc: dict, primitives: dict[str, str],
+                       semantics: dict[str, str]) -> list[tuple[str, str, dict[str, str]]]:
+    """Return [(band, max_width, {semantic-path: literal})], widest band first.
+
+    A responsive band may only re-declare a token the semantic tier already
+    defines. Overriding an undeclared token would create a value that exists at
+    one viewport and nowhere else -- a token the base stylesheet never mentions,
+    which is how a design system grows a value nobody can find.
+    """
+    block = doc.get("responsive")
+    if not block:
+        return []
+
+    breakpoints = block.get("breakpoints")
+    if not breakpoints:
+        raise TokenError("responsive tier declares no breakpoints")
+
+    bands = []
+    for band, max_width in breakpoints.items():
+        if band.startswith("$"):
+            continue
+        overrides = block.get(band)
+        if overrides is None:
+            raise TokenError(f"breakpoint '{band}' has no override block")
+
+        resolved: dict[str, str] = {}
+        for dotted, raw in overrides.items():
+            if dotted.startswith("$"):
+                continue
+            if dotted not in semantics:
+                raise TokenError(
+                    f"responsive band '{band}' overrides '{dotted}', "
+                    f"which the semantic tier does not define"
+                )
+            match = REF.match(str(raw).strip())
+            if match is None:
+                resolved[dotted] = raw
+                continue
+            target = match.group(1)
+            if target not in primitives:
+                raise TokenError(
+                    f"responsive band '{band}' token '{dotted}' references "
+                    f"'{target}', which is not a primitive token"
+                )
+            resolved[dotted] = primitives[target]
+        bands.append((band, max_width, resolved))
+
+    # Widest first: a narrower band must be able to win by source order.
+    def width_of(item):
+        return int(re.sub(r"[^0-9]", "", item[1]) or 0)
+
+    bands.sort(key=width_of, reverse=True)
+    return bands
+
+
+def render_css(primitives: dict[str, str], semantics: dict[str, str],
+               bands: list[tuple[str, str, dict[str, str]]] | None = None) -> str:
     lines = [
         "/* GENERATED FILE -- do not edit.",
         " * Source: slice/ui/tokens/tokens.json",
@@ -111,13 +167,30 @@ def render_css(primitives: dict[str, str], semantics: dict[str, str]) -> str:
         lines.append(f"  {_css_name(dotted)}: {semantics[dotted]};")
 
     lines.append("}")
+
+    # ---- responsive bands -------------------------------------------------
+    # The only place a viewport appears. Components stay unaware: they read the
+    # same var(--nova-*) at every width and the cascade supplies the band's
+    # value. Nothing in JavaScript participates.
+    for band, max_width, overrides in (bands or []):
+        lines.append("")
+        lines.append(f"/* ---- responsive band: {band} (<= {max_width}) ---- */")
+        lines.append(f"@media (max-width: {max_width}) {{")
+        lines.append("  :root {")
+        for dotted in sorted(overrides):
+            lines.append(f"    {_css_name(dotted)}: {overrides[dotted]};")
+        lines.append("  }")
+        lines.append("}")
+
     lines.append("")
     return "\n".join(lines)
 
 
 def build(source: pathlib.Path = SOURCE, output: pathlib.Path = OUTPUT) -> str:
-    primitives, semantics = resolve(load(source))
-    css = render_css(primitives, semantics)
+    doc = load(source)
+    primitives, semantics = resolve(doc)
+    bands = resolve_responsive(doc, primitives, semantics)
+    css = render_css(primitives, semantics, bands)
     output.write_text(css)
     return css
 

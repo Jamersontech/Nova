@@ -27,6 +27,7 @@ class NovaDisclosure extends NovaElement {
           display: flex; align-items: center; gap: var(--nova-space-snug);
           width: 100%; text-align: left; cursor: pointer;
           background: none; border: none; padding: 0;
+          min-height: var(--nova-control-target);
         }
         .head:focus-visible {
           outline: var(--nova-border-emphasis) solid var(--nova-color-border-accent);

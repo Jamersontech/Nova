@@ -41,7 +41,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 14 — Voice & Conversational Interface | **PROPOSED, awaiting James's approval** |
 | 15 — NOVA Design System | **Complete — ADR `0041` Accepted by James 2026-08-15** |
 | 16 — UX & Information Architecture | **Complete — ADR `0042` Accepted by James 2026-08-15** |
-| 17 and beyond | Not started |
+| 17 — Desktop / Mobile / Responsive Architecture | **PROPOSED, awaiting James's approval** |
+| 18 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -275,6 +276,29 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 17 — PROPOSED, awaiting James's approval
+
+**Desktop / Mobile / Responsive Architecture — responsive reflow only.** **No new invariant, no new
+architecture document, no new enforcement point.** `INVARIANTS.md` is untouched; `I-01`–`I-114` are
+byte-identical.
+
+**Delivered — Proposed:** ADR `0043`. Responsive layout is computed by the browser from
+viewport-varying design tokens: a `responsive` tier in `tokens.json`, emitted as `@media` bands.
+**Components contain no media query, no breakpoint literal and no viewport logic**, and the
+**Section 16 screen is driven unedited** at 1440 / 900 / 390 / 320px — 21 structural tests and 39
+browser checks.
+
+**Deliberately narrow.** Section 17 implements the responsive requirements the accepted architecture
+and ADR 0042 already bind — reflow, orientation, text resize, target size, and the §7 rule that
+mobile retains approvals and the emergency stop. **Breakpoint values are recorded as a Section 17
+implementation decision, not presented as architecture.** Viewport classes, device capability
+models, touch behaviour, density and safe areas are **not built** — no accepted requirement governs
+them.
+
+**`D-13` remains deferred** (no framework), as do **`D-12`** (no new tooling) and **`D-14`** (no
+voice). **Not security-tested and not externally validated**; **no WCAG conformance claimed** — four
+criteria added to the tested list, the rest named as untested.
 
 ## Section 16 — **Complete: ADR `0042` Accepted by James 2026-08-15**
 
