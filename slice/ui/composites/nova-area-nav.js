@@ -22,26 +22,49 @@ class NovaAreaNav extends NovaElement {
       ? this.getAttribute("active")
       : "business";
 
+    // Real buttons, not clickable boxes: an area switch must be reachable and
+    // operable from the keyboard (WCAG 2.2 AA, ADR 0042 Proposed), and the
+    // active area must be conveyed to assistive technology rather than by
+    // border colour alone.
     const items = AREAS.map(
       (area) => `
-      <nova-box class="area" data-area="${area}"
-                surface="${area === active ? "inset" : "raised"}"
-                border="${area === active ? "accent" : "subtle"}"
-                pad="snug" radius="panel" direction="row" gap="snug" align="center">
-        <nova-badge area="${area}">${area}</nova-badge>
-        <nova-text size="body" tone="${area === active ? "primary" : "secondary"}">
-          ${area === active ? "active" : "switch"}
-        </nova-text>
-      </nova-box>`
+      <li>
+        <button type="button" class="area" data-area="${area}"
+                ${area === active ? 'aria-current="true"' : ""}
+                aria-label="${area === active ? `${area}, active area` : `Switch to ${area}`}">
+          <nova-badge area="${area}">${area}</nova-badge>
+          <nova-text size="body" tone="${area === active ? "primary" : "secondary"}">
+            ${area === active ? "active" : "switch"}
+          </nova-text>
+        </button>
+      </li>`
     ).join("");
 
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
-        .areas { display: flex; flex-direction: column; gap: var(--nova-space-tight); }
-        .area { cursor: pointer; }
+        ul.areas { list-style: none; margin: 0; padding: 0;
+                   display: flex; flex-direction: column; gap: var(--nova-space-tight); }
+        .area {
+          display: flex; align-items: center; gap: var(--nova-space-snug);
+          width: 100%; text-align: left; cursor: pointer;
+          background: var(--nova-color-surface-raised);
+          border: var(--nova-border-width) solid var(--nova-color-border-subtle);
+          border-radius: var(--nova-radius-panel);
+          padding: var(--nova-space-snug);
+        }
+        .area[aria-current="true"] {
+          background: var(--nova-color-surface-inset);
+          border-color: var(--nova-color-border-accent);
+        }
+        .area:focus-visible {
+          outline: var(--nova-border-emphasis) solid var(--nova-color-border-accent);
+          outline-offset: var(--nova-space-tight);
+        }
       </style>
-      <div class="areas" part="areas">${items}</div>
+      <nav aria-label="Top-level areas">
+        <ul class="areas" part="areas">${items}</ul>
+      </nav>
     `;
 
     // Switching is explicit and obvious (USER_INTERFACE_ARCHITECTURE.md section 5).

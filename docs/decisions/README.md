@@ -535,6 +535,26 @@ because the demonstration needed them; two were implementation necessities found
 rather than planned at the gate. **Section 16 may add, replace or reorganise all of them** — only
 the token layer is inherited.
 
+## Section 16 — Navigation and Context Lock (ADR `0042`, **Accepted** 2026-08-15)
+
+**Section 16 owns UX and the concrete navigation model; the information architecture itself was
+decided in Section 02 and is Active.** This section implements
+[`../architecture/USER_INTERFACE_ARCHITECTURE.md`](../architecture/USER_INTERFACE_ARCHITECTURE.md)
+§3 rather than re-deciding it, and resolves the **UI half of `D-23a`** (Context Lock): how context
+is displayed, how switching is represented and confirmed, and how ambiguity is surfaced. **Section
+08 remains authoritative for the underlying policy semantics** — nothing here changes authority,
+identity, the PDP or approval.
+
+Its single decision (`0042`) adopts **WCAG 2.2 AA** as NOVA's accessibility baseline, binding
+Sections 17, 18 and 43. **No new invariant**: `I-01`–`I-114` are byte-identical. The implementation
+lives in [`../../slice/ui/section16/`](../../slice/ui/section16/README.md) and is **slice-local**.
+
+**Nothing depends on Proposed ADRs `0038`–`0040`** — the demonstration is built against the accepted
+text of `USER_INTERFACE_ARCHITECTURE.md` only, with a test asserting that ADR 0040's
+step-up and session-strength semantics have not leaked in. **`D-13`'s application-framework half
+remains deferred**, protected by a tested cap against a router or state layer arriving by accretion.
+
+
 ---
 
 Decisions that were consciously postponed are tracked separately in

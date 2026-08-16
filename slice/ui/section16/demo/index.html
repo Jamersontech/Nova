@@ -1,0 +1,38 @@
+<!doctype html>
+<!--
+  NOVA Section 16 navigation and Context Lock demonstration.
+
+  Like Section 15's screen, this file composes composites and declares no visual
+  value: no colour, size, spacing, font, <style> block, style attribute or class
+  hook anywhere below.
+
+  It is NOT NOVA's application. It exists to make the navigation model and the
+  Context Lock behaviour observable: that no sibling path can be constructed,
+  that switching is explicit, that ambiguity is asked about rather than guessed,
+  and that context, approvals and the emergency stop are present in every state.
+
+  Nothing is wired to any action. Approving approves nothing (I-09).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NOVA — navigation and Context Lock (Section 16)</title>
+    <link rel="stylesheet" href="../../tokens/tokens.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <nova-workspace>
+      <span slot="title">NOVA</span>
+      <nova-context-bar slot="context"></nova-context-bar>
+      <nova-crosscut slot="views" pending="2"></nova-crosscut>
+
+      <nova-nav slot="side"></nova-nav>
+      <nova-area-nav slot="side"></nova-area-nav>
+      <nova-stop slot="side"></nova-stop>
+
+      <nova-scope-switch slot="main" hidden></nova-scope-switch>
+      <nova-view slot="main"></nova-view>
+    </nova-workspace>
+  </body>
+</html>

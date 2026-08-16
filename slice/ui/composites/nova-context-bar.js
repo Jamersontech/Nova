@@ -36,8 +36,12 @@ class NovaContextBar extends NovaElement {
         :host { display: block; }
         .row { display: flex; align-items: center; gap: var(--nova-space-snug); flex-wrap: wrap; }
       </style>
+      <!-- The context indicator is a safety surface (Constitution section 7), so
+           it carries an accessible name and announces changes: a user who cannot
+           see the bar must still know which scope NOVA is operating in. -->
       <nova-box surface="raised" pad="snug" radius="panel" border="subtle" direction="row"
-                gap="snug" align="center" justify="space-between">
+                gap="snug" align="center" justify="space-between"
+                role="status" aria-live="polite" aria-label="Active context">
         <div class="row">
           <nova-badge area="${area}">${area}</nova-badge>
           <div class="row">${crumbs}</div>

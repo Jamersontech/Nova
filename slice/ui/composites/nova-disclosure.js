@@ -23,18 +23,29 @@ class NovaDisclosure extends NovaElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
-        .head { display: flex; align-items: center; gap: var(--nova-space-snug); cursor: pointer; }
+        .head {
+          display: flex; align-items: center; gap: var(--nova-space-snug);
+          width: 100%; text-align: left; cursor: pointer;
+          background: none; border: none; padding: 0;
+        }
+        .head:focus-visible {
+          outline: var(--nova-border-emphasis) solid var(--nova-color-border-accent);
+          outline-offset: var(--nova-space-tight);
+        }
         .body { display: ${open ? "block" : "none"}; }
         .marker { transition: transform var(--nova-motion-duration) var(--nova-motion-ease); }
       </style>
       <nova-box surface="raised" pad="snug" radius="panel" border="subtle"
                 direction="column" gap="tight">
-        <div class="head" part="head">
+        <!-- A real button with aria-expanded: the open/closed state must be
+             announced, not inferred from a "+" glyph (WCAG 2.2 AA). -->
+        <button type="button" class="head" part="head"
+                aria-expanded="${open}" aria-controls="body">
           <nova-text class="marker" size="body" tone="muted" inline>${open ? "−" : "+"}</nova-text>
           <nova-text size="body" tone="secondary">${summary}</nova-text>
           ${level ? `<nova-text size="caption" tone="muted" tracking="label">${level}</nova-text>` : ""}
-        </div>
-        <div class="body" part="body"><slot></slot></div>
+        </button>
+        <div class="body" id="body" part="body"><slot></slot></div>
       </nova-box>
     `;
 

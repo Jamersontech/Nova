@@ -40,7 +40,8 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 13 — Communication System | **PROPOSED, awaiting James's approval** |
 | 14 — Voice & Conversational Interface | **PROPOSED, awaiting James's approval** |
 | 15 — NOVA Design System | **Complete — ADR `0041` Accepted by James 2026-08-15** |
-| 16 and beyond | Not started |
+| 16 — UX & Information Architecture | **Complete — ADR `0042` Accepted by James 2026-08-15** |
+| 17 and beyond | Not started |
 
 **"Next" in the table above is descriptive, not a decision.** *(Flagged 2026-08-12, L-4.)* It
 records the roadmap's existing numeric order and carries no C3 ordering decision. **Roadmap
@@ -274,6 +275,31 @@ Partially mitigated the `T-19` compromised-PDP risk via [ADR 0017](./decisions/0
 a compromised PDP alone no longer yields cross-client data. **The independence is from the PDP
 only — both mechanisms derive from the Context Token, so compromising the Context service
 defeats both (`T-23a`). Reduced in blast radius, not resolved.**
+
+## Section 16 — **Complete: ADR `0042` Accepted by James 2026-08-15**
+
+**UX & Information Architecture.** **No new invariant, no new architecture document beyond the
+design system, no new enforcement point.** `INVARIANTS.md` is untouched; `I-01`–`I-114` are
+byte-identical.
+
+**The information architecture was decided in Section 02 and is Active.** Section 16 implements
+[`architecture/USER_INTERFACE_ARCHITECTURE.md`](./architecture/USER_INTERFACE_ARCHITECTURE.md) §3
+rather than re-deciding it, and resolves the **UI half of `D-23a`** (Context Lock). Section 08
+remains authoritative for the policy semantics.
+
+**Delivered — Accepted:** ADR `0042` (WCAG 2.2 AA as the accessibility baseline, binding Sections
+17, 18 and 43), plus [`design/DESIGN_SYSTEM.md`](./design/DESIGN_SYSTEM.md), the architecture
+document Section 15 did not produce.
+
+**Executable evidence:** [`slice/ui/section16/`](../slice/ui/section16/README.md) implements the
+navigation model and Context Lock behaviour — 29 structural tests and 43 browser checks, covering
+refused sibling moves, explicit switching, surfaced ambiguity, and context, approvals and the
+emergency stop persisting across every reachable state. **`D-13`'s framework half remains
+deferred**, with a tested cap against a router or state layer arriving by accretion.
+
+**Not security-tested and not externally validated**, and deliberately not claimed as either: the
+interface enforces nothing — the PDP does. **No accessibility conformance is claimed**; only the
+specific criteria listed in the slice README were tested.
 
 ## Section 15 — **Complete: ADR `0041` Accepted by James 2026-08-15**
 

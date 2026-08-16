@@ -10,7 +10,9 @@ That is a claim about behaviour under change. Written down it is an intention; h
 checked by changing a token and re-rendering in a real browser.
 
 Authority: [ADR 0041](../../docs/decisions/0041-design-tokens-are-css-custom-properties.md)
-(**Proposed**). Like the rest of [`slice/`](../README.md), the technology here is **slice-local**.
+(**Accepted** 2026-08-15). The architecture document is
+[`docs/design/DESIGN_SYSTEM.md`](../../docs/design/DESIGN_SYSTEM.md). Like the rest of
+[`slice/`](../README.md), the technology here is **slice-local**.
 
 ---
 
