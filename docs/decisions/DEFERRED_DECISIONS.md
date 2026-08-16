@@ -148,10 +148,10 @@ which is the single authoritative list** *(corrected 2026-08-13, N-5)*, of which
 
 | # | Deferred decision | Target section |
 | --- | --- | --- |
-| D-01 | Application language, framework, and runtime | 02 / 29 |
-| D-02 | Database technology and hosting | **29** — *remains deferred; no technology to be selected* |
+| D-01 | Application language, framework, and runtime — **resolved by Section 29 (narrowed), 2026-08-15**: server-rendered Python with light presentational islands ([ADR 0044](./0044-runtime-persistence-and-hosting.md), **Proposed**). **`D-13`'s client-framework half remains deferred** | 02 / 29 — *resolved, pending acceptance* |
+| D-02 | Database technology and hosting — **resolved by Section 29 (narrowed), 2026-08-15**: managed PostgreSQL with Row-Level Security, one provider, one region ([ADR 0044](./0044-runtime-persistence-and-hosting.md), **Proposed**). RLS satisfies `C-1`, `C-5`, `C-6`; **`C-2` is satisfied by the Data-Access Boundary, not by RLS**. `C-8` and `C-9` are **not** satisfied and are recorded as open concerns | **29** — *resolved, pending acceptance* |
 | D-03a | Physical schema and storage layout *(conceptual model done in 03)* | **29** |
-| D-04 | Cloud provider and hosting platform | 29 |
+| D-04 | Cloud provider and hosting platform — **resolved by Section 29 (narrowed), 2026-08-15**: one application host, one managed PostgreSQL, one region, provider-managed secrets; no orchestration, queue, vector database or observability platform ([ADR 0044](./0044-runtime-persistence-and-hosting.md), **Proposed**) | 29 — *resolved, pending acceptance* |
 | D-05 | Queue / job execution technology | 12 / 29 |
 | D-06 | Vector database and retrieval technology | 07 / 09 |
 | D-07 | Orchestration platform and execution model | 08 |
