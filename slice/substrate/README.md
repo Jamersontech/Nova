@@ -85,6 +85,7 @@ security suite, which is how isolation failures survive review.
 | --- | --- |
 | **The substrate** (`slice/substrate/`) | **ENFORCED** — below the query layer, evidenced against real PostgreSQL 16.13 |
 | **The application path** (`seam.py` → PEP → boundary → RLS) | **ENFORCED** — the seam drives the same property over real HTTP: no application-side predicate exists (verified by source inspection), an application-level negative control shows RLS is what holds it, and sequential requests on a shared pool carry nothing across scopes |
+| **Conversation** (`conversation.py` → seam → `ModelGateway`) | **REAL** — the interface, wired to the existing machinery ([ADR 0047](../../docs/decisions/0047-conversation-provider-is-anthropic.md), *Proposed*, resolves `D-08` for this slice). The model is downstream of the PDP and RLS, holds no authority, and the only consequence-shaped thing read from its output is a pending approval in the existing `ApprovalService`. Runnable: `python3 -m slice.substrate.app` |
 | **Authentication** (`auth.py` → seam) | **REAL** — WebAuthn passkeys ([ADR 0046](../../docs/decisions/0046-authentication-is-webauthn-passkeys.md), *Proposed*). The last stand-in in the security path is gone; every substrate suite now signs in through a real ceremony |
 | **The pre-substrate slice** (`slice/core` `StoreRegistry`, `runtime.py`) | **DEMONSTRATED** — the earlier SQLite mechanism remains as slice fixtures; it is not the application path |
 

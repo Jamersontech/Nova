@@ -77,7 +77,7 @@ class Seam:
 
     def __init__(self, context: ContextService, pdp: PolicyDecisionPoint,
                  boundary: DataAccessBoundary, auth: AuthenticationService,
-                 write_path=None, approvals=None, tree=None):
+                 write_path=None, approvals=None, tree=None, conversation=None):
         # The scope tree, for navigation only. Every path it offers is checked
         # against a grant before it is shown, and entering one still issues a
         # token and runs the PDP -- navigation is not authorization.
@@ -91,6 +91,11 @@ class Seam:
         self._writes = write_path
         # Optional: the approval experience (approval_flow.ApprovalService).
         self._approvals = approvals
+        # Optional: conversation (conversation.ConversationService). The
+        # transcript is in-process and per (session, scope): continuity is not
+        # memory, and it dies with the process on purpose.
+        self._conversation = conversation
+        self._transcripts: dict[tuple[str, str], list[dict]] = {}
 
     # -- the session gate (A-1) ---------------------------------------------
 
@@ -250,6 +255,7 @@ class Seam:
         return 200, _page(
             html.escape(_label(scope_path)),
             f"<p class=\"muted\">Active context: <code>{html.escape(scope_path)}</code></p>"
+            + _talk_link(scope_path)
             + _decision_card(scope_path, pending)
             + _children_card(children)
             + _activity_card(activity, scope_path))
@@ -259,6 +265,75 @@ class Seam:
         display filter -- entering the scope re-decides from scratch."""
         return self._tree is not None and self._tree.find_grant(
             session.identity, "read", "*", scope_path) is not None
+
+    # -- conversation -------------------------------------------------------
+
+    def _transcript(self, session, scope_path: str) -> list[dict]:
+        return self._transcripts.setdefault((session.session_ref, scope_path), [])
+
+    def talk_page(self, session_id: Optional[str], scope_path: str) -> tuple[int, str]:
+        """The interface. One scope, one transcript, one input."""
+        if self._conversation is None:
+            return 404, _page("Not found", "<p>Conversation is not enabled.</p>")
+        session, refusal = self._signed_in(session_id, execute=False)
+        if refusal:
+            return refusal
+        # Entering the conversation is entering the scope: token issuance and
+        # the PDP decide, exactly as for any page (I-14, I-80).
+        try:
+            token = self._context.issue_root(
+                identity=session.identity, actor=session.actor,
+                scope_path=scope_path, rights=frozenset({"read"}),
+                ceiling=Risk.READ, ttl=60)
+            self._pdp.authorize_data_read(token, scope_path)
+        except (Denied, KeyError):
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+        return 200, _talk_page(scope_path, self._transcript(session, scope_path))
+
+    def talk_post(self, session_id: Optional[str], scope_path: str,
+                  message: str) -> tuple[int, str]:
+        """One turn. The model is never an authority: the turn's `state` is
+        the server's account, and any proposal it produced is a pending
+        approval that James decides on the existing approval surface."""
+        if self._conversation is None:
+            return 404, _page("Not found", "<p>Conversation is not enabled.</p>")
+        session, refusal = self._signed_in(session_id, execute=False)
+        if refusal:
+            return refusal
+        message = message.strip()[:2000]
+        if not message:
+            return 400, _page("Bad request", "<p>Say something.</p>")
+
+        try:
+            token = self._context.issue_root(
+                identity=session.identity, actor=session.actor,
+                scope_path=scope_path, rights=frozenset({"read"}),
+                ceiling=Risk.READ, ttl=60)
+        except (Denied, KeyError):
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        # Recording a proposal is EXECUTE-shaped, so it takes an EXECUTE
+        # token -- issued only for a two-factor session (A-1) and only if the
+        # grant exists. Absent either, the turn still answers; it just cannot
+        # record a proposal, and says so.
+        execute_token = None
+        if session.is_multi_factor:
+            try:
+                execute_token = self._execute_token(session, scope_path)
+            except (Denied, KeyError):
+                execute_token = None
+
+        turn = self._conversation.respond(token, scope_path, message,
+                                          execute_token=execute_token)
+
+        log = self._transcript(session, scope_path)
+        log.append({"role": "james", "text": message})
+        log.append({"role": "nova", "text": turn.reply, "state": turn.state,
+                    "approval_id": turn.approval_id, "detail": turn.detail})
+        status = 200 if turn.state in ("answered", "proposed") else 502
+        if turn.state == "refused":
+            status = 403
+        return status, _talk_page(scope_path, log)
 
     # -- authentication routes (D-09) ---------------------------------------
     # These four are the ONLY places the browser talks to the authentication
@@ -441,6 +516,16 @@ def _footer_links() -> str:
     return ("<p class=\"muted\"><a href=\"/auth/sessions\">Sessions</a></p>")
 
 
+def _talk_link(scope_path: str) -> str:
+    """Conversation is the interface, so it is first on the page."""
+    return (f"<article class=\"card\"><h2>Ask NOVA</h2>"
+            f"<p class=\"muted\">Talk about what is in this scope, or ask for a "
+            f"note to be recorded.</p><div class=\"actions\">"
+            f"<a href=\"/scope{html.escape(scope_path)}/talk\">"
+            f"<button class=\"primary\" type=\"button\">Open conversation</button>"
+            f"</a></div></article>")
+
+
 def _decision_card(scope_path: str, pending: int) -> str:
     """Approvals are "surfaced where the work is… never buried"
     (USER_INTERFACE_ARCHITECTURE section 3)."""
@@ -479,6 +564,52 @@ def _activity_card(rows: list, scope_path: str) -> str:
             f"<p class=\"muted\">This scope only. Reviewing activity across more "
             f"than one scope requires a stronger sign-in (A-3a), which NOVA does "
             f"not yet offer.</p></article>")
+
+
+def _talk_page(scope_path: str, log: list) -> str:
+    """Server-rendered transcript. The honesty rules live HERE: what James is
+    told about actions comes from each turn's server-side `state`, never from
+    model prose -- a model claiming "done" is just text in a bubble."""
+    turns = []
+    for entry in log:
+        if entry["role"] == "james":
+            turns.append(f"<div class=\"turn you\"><span class=\"label\">you</span>"
+                         f"<p>{html.escape(entry['text'])}</p></div>")
+            continue
+        state = entry.get("state", "answered")
+        text = html.escape(entry["text"]) if entry["text"] else ""
+        block = [f"<div class=\"turn nova\"><span class=\"label\">nova</span>"]
+        if text:
+            block.append(f"<p>{text}</p>")
+        if state == "proposed":
+            # The card is the SERVER's statement. Deciding happens on the
+            # existing approval surface -- no second approval path.
+            block.append(
+                f"<p class=\"pending\">I need your approval before I do this. "
+                f"<a href=\"/scope{html.escape(scope_path)}/approvals\">"
+                f"Review and decide</a>.</p>")
+        elif state == "unavailable":
+            block.append("<p class=\"pending\">I couldn\u2019t reach the model, so "
+                         "nothing was answered and nothing was done.</p>")
+        elif state == "refused":
+            block.append("<p class=\"pending\">I couldn\u2019t complete that: the "
+                         "request was not authorized. Nothing was done.</p>")
+        if entry.get("detail") and state in ("answered",):
+            block.append(f"<p class=\"muted\">{html.escape(entry['detail'])}</p>")
+        block.append("</div>")
+        turns.append("".join(block))
+    chat = "".join(turns) or "<p class=\"muted\">Ask NOVA about this scope.</p>"
+    body = (
+        f"<p class=\"muted\">Active context: <code>{html.escape(scope_path)}</code>"
+        f" \u2014 <a href=\"/scope{html.escape(scope_path)}\">back to this scope</a></p>"
+        f"<section class=\"chat\" aria-label=\"Conversation\">"
+        f"{chat}"
+        f"</section>"
+        f"<form method=\"post\" action=\"/scope{html.escape(scope_path)}/talk\" class=\"say\">"
+        f"<label class=\"label\" for=\"m\">Message</label>"
+        f"<input id=\"m\" name=\"message\" required maxlength=\"2000\" autocomplete=\"off\">"
+        f"<button type=\"submit\" class=\"primary\">Send</button></form>")
+    return _page(f"NOVA \u2014 {html.escape(_label(scope_path))}", body)
 
 
 def _approval_card(r) -> str:
@@ -556,7 +687,26 @@ button { font-family: var(--nova-type-family-ui); font-size: var(--nova-type-siz
 button.primary { background: var(--nova-color-accent-base);
                  color: var(--nova-color-text-oncolor);
                  border-color: var(--nova-color-accent-base); }
-button:focus-visible { outline: var(--nova-border-emphasis) solid
+.chat { display: flex; flex-direction: column; gap: var(--nova-space-snug);
+        max-width: 46rem; margin-bottom: var(--nova-space-gutter); }
+.turn { background: var(--nova-color-surface-raised);
+        border: var(--nova-border-width) solid var(--nova-color-border-strong);
+        border-radius: var(--nova-radius-card);
+        padding: var(--nova-space-snug) var(--nova-space-gutter); }
+.turn.you { background: var(--nova-color-surface-inset); }
+.turn p { margin: var(--nova-space-tight) 0 0 0; }
+.pending { color: var(--nova-color-risk-contextual); }
+.say { display: flex; gap: var(--nova-space-tight); align-items: center;
+       max-width: 46rem; }
+.say input { flex: 1; font-family: var(--nova-type-family-ui);
+       font-size: var(--nova-type-size-body);
+       color: var(--nova-color-text-primary);
+       background: var(--nova-color-surface-inset);
+       border: var(--nova-border-width) solid var(--nova-color-border-strong);
+       border-radius: var(--nova-radius-control);
+       padding: var(--nova-space-tight) var(--nova-space-snug);
+       min-height: var(--nova-control-target); }
+button:focus-visible, .say input:focus-visible { outline: var(--nova-border-emphasis) solid
                        var(--nova-color-border-accent);
                        outline-offset: var(--nova-space-tight); }
 """
@@ -679,6 +829,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._respond(status, body)
             return
 
+        if self.path.startswith("/scope/") and self.path.endswith("/talk"):
+            scope_path = "/" + self.path[len("/scope/"):-len("/talk")].strip("/")
+            self._respond(*_Handler.seam.talk_page(self._session(), scope_path))
+            return
+
         prefix, suffix = "/scope/", "/items"
         if self.path.startswith(prefix) and self.path.endswith(suffix):
             scope_path = "/" + self.path[len(prefix):-len(suffix)].strip("/")
@@ -724,6 +879,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
 
         form = urllib.parse.parse_qs(raw)
+
+        if self.path.startswith("/scope/") and self.path.endswith("/talk"):
+            scope_path = "/" + self.path[len("/scope/"):-len("/talk")].strip("/")
+            message = (form.get("message") or [""])[0]
+            self._respond(*_Handler.seam.talk_post(self._session(), scope_path, message))
+            return
 
         # /scope/<path>/approvals/<approval_id>
         if self.path.startswith("/scope/") and "/approvals/" in self.path:
