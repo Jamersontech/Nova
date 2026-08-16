@@ -26,7 +26,8 @@ import urllib.request
 
 from .. import db
 from ..boundary import DataAccessBoundary
-from ..seam import Seam, SessionStore, serve
+from ..seam import Seam, serve
+from . import authfixture
 from ..write_path import (ApprovalStore, PostgresItemIntegration, WritePath,
                           write_item_tool, TOOL)
 from ...core.audit import AuditWriter
@@ -85,10 +86,12 @@ class WritePathTest(unittest.TestCase):
         self.writes = WritePath(self.pdp, registry, pep, broker,
                                 self.integration, "db-item-write")
 
-        self.sessions = SessionStore()
-        self.james_sid = self.sessions.create("james", "james")
-        self.assistant_sid = self.sessions.create("assistant", "assistant")
-        self.seam = Seam(self.context, self.pdp, self.boundary, self.sessions,
+        self.auth = authfixture.service()
+        self.james_sid = authfixture.sign_in(
+            self.auth, authfixture.enrol(self.auth, "james", "james"))
+        self.assistant_sid = authfixture.sign_in(
+            self.auth, authfixture.enrol(self.auth, "assistant", "assistant"))
+        self.seam = Seam(self.context, self.pdp, self.boundary, self.auth,
                          write_path=self.writes)
 
     def tearDown(self):

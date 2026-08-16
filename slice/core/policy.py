@@ -182,7 +182,8 @@ class PolicyDecisionPoint:
         actions, a read has no tool and no binding, and inventing a fake one
         to satisfy authorize_plan's signature would misapply the invariant.
         Steps applied: validity, subject, containment, explicit denial, grant,
-        risk ceiling, record. See ADR 0045 for the step-by-step reading.
+        record. Steps 3a, 6, 7, 8 and 9 are inapplicable to a read, each for a
+        different and stated reason. See ADR 0045 for the step-by-step reading.
 
         Deliberately returns nothing: an allow confers no capability object.
         Reachability is bounded separately by the Data-Access Boundary and RLS
@@ -224,9 +225,18 @@ class PolicyDecisionPoint:
                 self._deny(token, "step5.grant",
                            f"token does not carry right {right}", "I-07")
 
-        # 6-7. Risk ceiling: a read is class READ; the token must admit it.
-        if token.risk_ceiling < Risk.READ:
-            self._deny(token, "step6.risk", "token ceiling below READ", "I-101")
+        # 6. Risk ceiling. A read is class READ, which is the LOWEST class, so
+        # every valid ceiling admits it and this step cannot deny. There is
+        # deliberately no comparison here: `token.risk_ceiling < Risk.READ` is
+        # unsatisfiable, and a check that cannot fail reads as a control while
+        # being none. The step is stated as inapplicable rather than performed
+        # vacuously (ADR 0045).
+        #
+        # 7. Classification egress. Inapplicable for the same reason step 8 is:
+        # nothing is transmitted outside NOVA. A read moves data from NOVA's own
+        # datastore to NOVA's own renderer. When an egress path exists, this
+        # step becomes live and needs a classification to reason about, which
+        # the schema does not yet carry -- recorded in ADR 0045, not implied.
 
         # 10. Allow, recorded (W-2).
         self._audit.decision(resource_scope, token.trace_id, "allow",

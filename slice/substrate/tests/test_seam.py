@@ -23,7 +23,8 @@ import urllib.request
 
 from .. import db
 from ..boundary import DataAccessBoundary
-from ..seam import Seam, SessionStore, serve
+from ..seam import Seam, serve
+from . import authfixture
 from ...core.audit import AuditWriter
 from ...core.context_service import ContextService
 from ...core.policy import PolicyDecisionPoint
@@ -62,11 +63,15 @@ class SeamTest(unittest.TestCase):
         audit = AuditWriter(StoreRegistry(tempfile.mkdtemp(prefix="nova-seam-")))
         pdp = PolicyDecisionPoint(tree, context, audit)
         cls.boundary = DataAccessBoundary(db.app_dsn(), context)
-        cls.sessions = SessionStore()
-        cls.seam = Seam(context, pdp, cls.boundary, cls.sessions)
+        # Real authentication: two enrolled passkeys and two real signed-in
+        # sessions. Nothing below this line changed to accommodate it.
+        cls.auth = authfixture.service()
+        cls.seam = Seam(context, pdp, cls.boundary, cls.auth)
 
-        cls.james_sid = cls.sessions.create(identity="james", actor="james")
-        cls.assistant_sid = cls.sessions.create(identity="assistant", actor="assistant")
+        cls.james_key = authfixture.enrol(cls.auth, "james", "james")
+        cls.assistant_key = authfixture.enrol(cls.auth, "assistant", "assistant")
+        cls.james_sid = authfixture.sign_in(cls.auth, cls.james_key)
+        cls.assistant_sid = authfixture.sign_in(cls.auth, cls.assistant_key)
 
         # Seed data as the owner, not through the seam.
         conn = psycopg2.connect(db.superuser_dsn())

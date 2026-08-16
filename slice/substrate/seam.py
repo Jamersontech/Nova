@@ -25,12 +25,20 @@ browser is never an authority -- if it lies about the path, token issuance and
 the PDP deny, and even a compromised handler reaches nothing outside the
 token's scope because the channel is bound below it (I-62).
 
-WHAT IS A STAND-IN
-------------------
-Authentication. `SessionStore` maps an opaque id to a server-side actor; the
-real provider is D-09 (deferred) and A-1/A-2's factors cannot be satisfied by
-a test fixture. The stand-in is confined to this one class so the D-09
-resolution replaces it without touching the chain below.
+WHAT IS NO LONGER A STAND-IN
+---------------------------
+Authentication. `SessionStore` was a dictionary; it is gone. `auth.py` resolves
+D-09 with WebAuthn passkeys and opaque server-side sessions, and the chain below
+this line did not change to accommodate it -- authentication terminates at an
+authenticated server identity and hands over exactly that.
+
+A-1 IS ENFORCED HERE
+--------------------
+A session's strength comes from the user-verification flag inside the verified
+signature. Read routes accept a single factor; every EXECUTE-class route --
+writing, and deciding an approval -- requires two. The browser cannot assert
+its own strength, because the flag was signed by the authenticator and checked
+by the server.
 """
 
 from __future__ import annotations
@@ -47,39 +55,20 @@ from typing import Optional
 from ..core.context_service import ContextService
 from ..core.policy import PolicyDecisionPoint
 from ..core.types import Denied, Risk
+from .auth import AuthenticationFailed, AuthenticationService
 from .boundary import DataAccessBoundary
 
 
 # I-09: only James approves. The identity that may decide, checked server-side.
 APPROVER_IDENTITY = "james"
 
+# The browser holds exactly these two, both opaque and both HttpOnly: a session
+# reference and an in-flight ceremony reference. No token, no scope, no rights.
+SESSION_COOKIE = "nova_session"
+CEREMONY_COOKIE = "nova_ceremony"
+
 # Section 15's generated stylesheet -- served, not duplicated.
 TOKENS_CSS = pathlib.Path(__file__).resolve().parent.parent / "ui" / "tokens" / "tokens.css"
-
-
-@dataclasses.dataclass(frozen=True)
-class SessionRecord:
-    """Server-side identity. The browser sees only the opaque id."""
-    session_id: str
-    identity: str      # the grantee the PDP checks grants against (I-10)
-    actor: str         # explicit actor identity -- never assumed (Q-04)
-
-
-class SessionStore:
-    """Opaque-cookie session store. STAND-IN for D-09 -- see module docstring."""
-
-    def __init__(self) -> None:
-        self._sessions: dict[str, SessionRecord] = {}
-
-    def create(self, identity: str, actor: str) -> str:
-        sid = secrets.token_urlsafe(32)
-        self._sessions[sid] = SessionRecord(sid, identity, actor)
-        return sid
-
-    def resolve(self, session_id: Optional[str]) -> Optional[SessionRecord]:
-        if not session_id:
-            return None
-        return self._sessions.get(session_id)
 
 
 class Seam:
@@ -87,17 +76,40 @@ class Seam:
     made by the Context service, the PDP, the boundary or RLS."""
 
     def __init__(self, context: ContextService, pdp: PolicyDecisionPoint,
-                 boundary: DataAccessBoundary, sessions: SessionStore,
+                 boundary: DataAccessBoundary, auth: AuthenticationService,
                  write_path=None, approvals=None):
         self._context = context
         self._pdp = pdp
         self._boundary = boundary
-        self._sessions = sessions
+        self._auth = auth
         # Optional: the consequence-producing write path (write_path.WritePath).
         # The read seam predates it and works without it.
         self._writes = write_path
         # Optional: the approval experience (approval_flow.ApprovalService).
         self._approvals = approvals
+
+    # -- the session gate (A-1) ---------------------------------------------
+
+    def _signed_in(self, session_id: Optional[str], *, execute: bool):
+        """Resolve the session and check it is strong enough for what follows.
+
+        Returns (session, None) or (None, (status, page)). A-1: a single-factor
+        session may read; anything EXECUTE-class needs two factors. Expiry and
+        revocation are re-checked here on every request, which is what makes
+        revocation take effect at the next decision (`I-65`).
+        """
+        session = self._auth.resolve(session_id)
+        if session is None:
+            return None, (401, _page("Not signed in",
+                                     "<p>No session. <a href=\"/auth/login\">Sign in</a>.</p>"))
+        if execute and not session.is_multi_factor:
+            # Distinguishable on purpose: stepping up is the caller's next
+            # legitimate move, not a secret.
+            return None, (403, _page(
+                "Stronger sign-in required",
+                "<p>This action needs a second factor. Sign in again with your "
+                "passkey's device verification.</p>"))
+        return session, None
 
     # -- approvals ----------------------------------------------------------
 
@@ -113,9 +125,9 @@ class Seam:
         """What needs James's decision, in this scope."""
         if self._approvals is None:
             return 404, _page("Not found", "<p>Approvals are not enabled.</p>")
-        session = self._sessions.resolve(session_id)
-        if session is None:
-            return 401, _page("Not signed in", "<p>No session.</p>")
+        session, refusal = self._signed_in(session_id, execute=True)
+        if refusal:
+            return refusal
         try:
             token = self._execute_token(session, scope_path)
             requests = self._approvals.pending(token)
@@ -136,9 +148,9 @@ class Seam:
         full authorization path -- this handler authorizes nothing itself."""
         if self._approvals is None:
             return 404, _page("Not found", "<p>Approvals are not enabled.</p>")
-        session = self._sessions.resolve(session_id)
-        if session is None:
-            return 401, _page("Not signed in", "<p>No session.</p>")
+        session, refusal = self._signed_in(session_id, execute=True)
+        if refusal:
+            return refusal
 
         # I-09: only James approves. Checked server-side, from the session --
         # never from anything the browser could assert.
@@ -161,13 +173,84 @@ class Seam:
                           f"<p>{html.escape(outcome.detail)} in "
                           f"<code>{html.escape(scope_path)}</code></p>")
 
+    # -- authentication routes (D-09) ---------------------------------------
+    # These four are the ONLY places the browser talks to the authentication
+    # service. Each returns (status, content_type, body, extra_headers).
+
+    def auth_login_options(self) -> tuple[int, str, str, list[tuple[str, str]]]:
+        ceremony_id, options = self._auth.login_options()
+        return 200, "application/json", options, [self._cookie(CEREMONY_COOKIE, ceremony_id)]
+
+    def auth_login(self, ceremony_id: Optional[str], credential_json: str,
+                   surface: str) -> tuple[int, str, str, list[tuple[str, str]]]:
+        try:
+            token = self._auth.verify_login(ceremony_id, credential_json, surface)
+        except AuthenticationFailed:
+            # One answer for every failure. Which check failed is not the
+            # caller's business.
+            return 401, "application/json", '{"ok":false}', [self._clear(CEREMONY_COOKIE)]
+        return 200, "application/json", '{"ok":true}', [
+            self._cookie(SESSION_COOKIE, token), self._clear(CEREMONY_COOKIE)]
+
+    def auth_enrol_options(self, session_id: Optional[str], identity: str,
+                           actor: str) -> tuple[int, str, str, list[tuple[str, str]]]:
+        """Bootstrap is open only while the actor has no passkey; after that,
+        adding a device requires an authenticated two-factor session."""
+        try:
+            ceremony_id, options = self._auth.enrolment_options(
+                identity, actor, authorized_by=self._auth.resolve(session_id))
+        except AuthenticationFailed:
+            return 403, "application/json", '{"ok":false}', []
+        return 200, "application/json", options, [self._cookie(CEREMONY_COOKIE, ceremony_id)]
+
+    def auth_enrol(self, ceremony_id: Optional[str], credential_json: str,
+                   identity: str, actor: str,
+                   label: str) -> tuple[int, str, str, list[tuple[str, str]]]:
+        try:
+            self._auth.verify_enrolment(ceremony_id, credential_json, identity, actor, label)
+        except AuthenticationFailed:
+            return 400, "application/json", '{"ok":false}', [self._clear(CEREMONY_COOKIE)]
+        return 200, "application/json", '{"ok":true}', [self._clear(CEREMONY_COOKIE)]
+
+    def auth_logout(self, session_id: Optional[str]) -> tuple[int, str, str, list[tuple[str, str]]]:
+        session = self._auth.resolve(session_id)
+        if session is not None:
+            self._auth.revoke(session.session_ref)
+        return 200, "text/html; charset=utf-8", _page(
+            "Signed out", "<p>This session has ended.</p>"), [self._clear(SESSION_COOKIE)]
+
+    def sessions_page(self, session_id: Optional[str]) -> tuple[int, str]:
+        """A-6: James can see and end every active session."""
+        session, refusal = self._signed_in(session_id, execute=True)
+        if refusal:
+            return refusal
+        rows = "".join(
+            f"<li><strong>{html.escape(s.surface or 'unnamed surface')}</strong> — "
+            f"{html.escape(s.strength.replace('_', ' '))}, "
+            f"expires {s.expires_at:%Y-%m-%d %H:%M} UTC"
+            f"{' — this one' if s.session_ref == session.session_ref else ''}</li>"
+            for s in self._auth.active_sessions(session.actor))
+        return 200, _page("Sessions", f"<ul>{rows}</ul>"
+                          "<form method=\"post\" action=\"/auth/logout\">"
+                          "<button type=\"submit\">Sign out of this session</button></form>")
+
+    def _cookie(self, name: str, value: str) -> tuple[str, str]:
+        """HttpOnly so no script can read it; SameSite=Strict so no third-party
+        page can drive a decision; Secure whenever the origin is https."""
+        secure = "; Secure" if self._auth.origin.startswith("https://") else ""
+        return ("Set-Cookie",
+                f"{name}={value}; Path=/; HttpOnly; SameSite=Strict{secure}")
+
+    def _clear(self, name: str) -> tuple[str, str]:
+        return ("Set-Cookie", f"{name}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0")
+
     def items_page(self, session_id: Optional[str], scope_path: str) -> tuple[int, str]:
         """The one route. Returns (http_status, html_body)."""
 
         # -- identity ------------------------------------------------------
-        session = self._sessions.resolve(session_id)
-        if session is None:
-            return 401, _page("Not signed in", "<p>No session.</p>")
+        session, refusal = self._signed_in(session_id, execute=False)
+        if refusal:
+            return refusal
 
         # -- Context Token, server-side only -------------------------------
         # Issuance is itself an enforcement point: no grant, inactive scope or
@@ -230,9 +313,9 @@ class Seam:
         James's approval, and the write lands under RLS WITH CHECK."""
         if self._writes is None:
             return 404, _page("Not found", "<p>Writes are not enabled.</p>")
-        session = self._sessions.resolve(session_id)
-        if session is None:
-            return 401, _page("Not signed in", "<p>No session.</p>")
+        session, refusal = self._signed_in(session_id, execute=True)
+        if refusal:
+            return refusal
         if not item_ref:
             return 400, _page("Bad request", "<p>item_ref is required.</p>")
 
@@ -343,6 +426,66 @@ button:focus-visible { outline: var(--nova-border-emphasis) solid
 """
 
 
+# The ONE page in NOVA that carries a script, and the reason is not a
+# preference: WebAuthn is a browser API and there is no server-rendered way to
+# reach an authenticator. It is a light island in an otherwise server-rendered
+# application (D-13 unchanged -- no framework is introduced), and it holds no
+# authority: it moves bytes between the authenticator and the server, and the
+# server decides.
+#
+# A-5 is why no identity appears anywhere below: one human identity is James's,
+# so there is no username field, and the login ceremony names no user at all.
+_LOGIN_SCRIPT = """
+const b64u = {
+  dec: s => Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0)),
+  enc: b => btoa(String.fromCharCode(...new Uint8Array(b)))
+              .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
+};
+async function ceremony(optionsUrl, submitUrl, kind) {
+  const status = document.getElementById('status');
+  try {
+    const options = await (await fetch(optionsUrl)).json();
+    options.challenge = b64u.dec(options.challenge);
+    if (options.user) options.user.id = b64u.dec(options.user.id);
+    for (const list of [options.allowCredentials, options.excludeCredentials])
+      if (list) list.forEach(c => c.id = b64u.dec(c.id));
+    const credential = kind === 'create'
+      ? await navigator.credentials.create({ publicKey: options })
+      : await navigator.credentials.get({ publicKey: options });
+    const r = credential.response;
+    const payload = {
+      id: credential.id, rawId: b64u.enc(credential.rawId), type: credential.type,
+      clientExtensionResults: {},
+      response: kind === 'create'
+        ? { clientDataJSON: b64u.enc(r.clientDataJSON),
+            attestationObject: b64u.enc(r.attestationObject) }
+        : { clientDataJSON: b64u.enc(r.clientDataJSON),
+            authenticatorData: b64u.enc(r.authenticatorData),
+            signature: b64u.enc(r.signature),
+            userHandle: r.userHandle ? b64u.enc(r.userHandle) : null }
+    };
+    const done = await fetch(submitUrl, { method: 'POST', body: JSON.stringify(payload) });
+    if (!done.ok) { status.textContent = 'Not accepted.'; return; }
+    status.textContent = kind === 'create' ? 'Passkey registered. Sign in.' : 'Signed in.';
+    if (kind === 'get') location.href = '/auth/sessions';
+  } catch (e) { status.textContent = 'Not accepted.'; }
+}
+"""
+
+
+def _login_page() -> str:
+    return _page("Sign in to NOVA",
+                 "<p>NOVA authenticates with a passkey. There is no password to "
+                 "phish and nothing typed that could be replayed.</p>"
+                 "<div class=\"actions\">"
+                 "<button class=\"primary\" onclick=\"ceremony("
+                 "'/auth/login/options','/auth/login','get')\">Sign in</button>"
+                 "<button onclick=\"ceremony("
+                 "'/auth/enrol/options','/auth/enrol','create')\">Register a passkey</button>"
+                 "</div><p class=\"muted\" id=\"status\" role=\"status\"></p>"
+                 f"<script>{_LOGIN_SCRIPT}</script>")
+
+
 def _page(title: str, body: str) -> str:
     """Server-rendered, self-contained, no scripts, no token material."""
     return (
@@ -363,6 +506,20 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     seam: Seam  # set by serve()
 
     def do_GET(self) -> None:  # noqa: N802 (stdlib naming)
+        if self.path == "/auth/login/options":
+            self._respond_raw(*_Handler.seam.auth_login_options())
+            return
+        if self.path == "/auth/login":
+            self._respond(200, _login_page())
+            return
+        if self.path.startswith("/auth/enrol/options"):
+            self._respond_raw(*_Handler.seam.auth_enrol_options(
+                self._session(), APPROVER_IDENTITY, APPROVER_IDENTITY))
+            return
+        if self.path == "/auth/sessions":
+            self._respond(*_Handler.seam.sessions_page(self._session()))
+            return
+
         if self.path == "/static/tokens.css":
             try:
                 css = TOKENS_CSS.read_bytes()
@@ -391,18 +548,37 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         status, body = _Handler.seam.items_page(self._session(), scope_path)
         self._respond(status, body)
 
-    def _session(self) -> Optional[str]:
+    def _cookie(self, wanted: str) -> Optional[str]:
         for part in self.headers.get("Cookie", "").split(";"):
             name, _, value = part.strip().partition("=")
-            if name == "nova_session":
+            if name == wanted:
                 return value
         return None
+
+    def _session(self) -> Optional[str]:
+        return self._cookie(SESSION_COOKIE)
 
     def do_POST(self) -> None:  # noqa: N802 (stdlib naming)
         import urllib.parse
 
         length = int(self.headers.get("Content-Length", "0") or "0")
-        form = urllib.parse.parse_qs(self.rfile.read(length).decode())
+        raw = self.rfile.read(length).decode()
+
+        if self.path == "/auth/login":
+            self._respond_raw(*_Handler.seam.auth_login(
+                self._cookie(CEREMONY_COOKIE), raw,
+                surface=self.headers.get("User-Agent", "")[:120]))
+            return
+        if self.path.startswith("/auth/enrol"):
+            self._respond_raw(*_Handler.seam.auth_enrol(
+                self._cookie(CEREMONY_COOKIE), raw,
+                APPROVER_IDENTITY, APPROVER_IDENTITY, label=""))
+            return
+        if self.path == "/auth/logout":
+            self._respond_raw(*_Handler.seam.auth_logout(self._session()))
+            return
+
+        form = urllib.parse.parse_qs(raw)
 
         # /scope/<path>/approvals/<approval_id>
         if self.path.startswith("/scope/") and "/approvals/" in self.path:
@@ -426,12 +602,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self._respond(status, page)
 
     def _respond(self, status: int, body: str) -> None:
+        self._respond_raw(status, "text/html; charset=utf-8", body, [])
+
+    def _respond_raw(self, status: int, content_type: str, body: str,
+                     extra_headers: list) -> None:
         data = body.encode()
         self.send_response(status)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
         # The browser is a renderer, not a store of authority.
         self.send_header("Cache-Control", "no-store")
+        for name, value in extra_headers:
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(data)
 

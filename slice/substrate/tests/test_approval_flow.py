@@ -31,7 +31,8 @@ import urllib.request
 from .. import db
 from ..approval_flow import APPROVED, DENIED, PENDING, ApprovalService
 from ..boundary import DataAccessBoundary
-from ..seam import Seam, SessionStore, serve
+from ..seam import Seam, serve
+from . import authfixture
 from ..write_path import (PostgresItemIntegration, WritePath, write_item_tool,
                           TOOL)
 from ...core.audit import AuditWriter
@@ -100,10 +101,12 @@ class ApprovalFlowTest(unittest.TestCase):
                                   self.integration, f"db-item-write{B}")
         self.approvals_b = ApprovalService(self.boundary, self.writes_b)
 
-        self.sessions = SessionStore()
-        self.james_sid = self.sessions.create("james", "james")
-        self.assistant_sid = self.sessions.create("assistant", "assistant")
-        self.seam = Seam(self.context, self.pdp, self.boundary, self.sessions,
+        self.auth = authfixture.service()
+        self.james_key = authfixture.enrol(self.auth, "james", "james")
+        self.james_sid = authfixture.sign_in(self.auth, self.james_key)
+        self.assistant_sid = authfixture.sign_in(
+            self.auth, authfixture.enrol(self.auth, "assistant", "assistant"))
+        self.seam = Seam(self.context, self.pdp, self.boundary, self.auth,
                          write_path=self.writes, approvals=self.approvals)
 
     def tearDown(self):

@@ -27,6 +27,12 @@ BEGIN
         -- NOBYPASSRLS and NOSUPERUSER are the load-bearing attributes.
         CREATE ROLE nova_app LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
     END IF;
+    -- Authentication runs before any Context Token exists, so it cannot go
+    -- through the Data-Access Boundary. It gets its own identity instead, with
+    -- privileges on the two auth tables and nothing else.
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'nova_auth') THEN
+        CREATE ROLE nova_auth LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+    END IF;
 END
 $$;
 
@@ -127,6 +133,50 @@ ALTER TABLE approval
     ADD COLUMN IF NOT EXISTS decided_at     timestamptz,
     ADD COLUMN IF NOT EXISTS decided_by     text;
 
+-- ---------------------------------------------------------------------------
+-- Authentication (D-09) -- ABOVE the scope tree
+-- ---------------------------------------------------------------------------
+-- A session is established BEFORE any scope is chosen, so these tables carry no
+-- scope_path and no RLS policy, for the same reason `actor` does not: scoping
+-- identity would make it invisible from the scopes that need it.
+--
+-- They are instead isolated by PRIVILEGE. `nova_auth` may touch these two
+-- tables and nothing else; `nova_app` may touch everything else and NOT these.
+-- The split is the point: authentication runs before a Context Token exists and
+-- therefore cannot go through the Data-Access Boundary, so it must not hold a
+-- connection that could reach scoped data (I-78 is untouched -- no scope-bound
+-- channel is opened here).
+
+CREATE TABLE IF NOT EXISTS auth_credential (
+    id            bigserial PRIMARY KEY,
+    credential_id text NOT NULL UNIQUE,   -- base64url, as the authenticator gave it
+    actor_ref     text NOT NULL,
+    identity      text NOT NULL,
+    public_key    bytea NOT NULL,         -- COSE key. NOT a secret: it is public.
+    sign_count    bigint NOT NULL DEFAULT 0,
+    label         text NOT NULL DEFAULT '',
+    created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- `session_ref` is the SHA-256 of the opaque value the browser holds -- never
+-- the value itself. A dump of this table yields no usable session: the column
+-- is a verifier, not a credential.
+--
+-- A-6: sessions are individually enumerable and revocable. Expiry is ABSOLUTE
+-- and is not extended by activity.
+CREATE TABLE IF NOT EXISTS auth_session (
+    id             bigserial PRIMARY KEY,
+    session_ref    text NOT NULL UNIQUE,
+    actor_ref      text NOT NULL,
+    identity       text NOT NULL,
+    strength       text NOT NULL,          -- A-1: single_factor | multi_factor
+    surface        text NOT NULL DEFAULT '',
+    credential_id  text,
+    established_at timestamptz NOT NULL DEFAULT now(),
+    expires_at     timestamptz NOT NULL,
+    revoked_at     timestamptz
+);
+
 -- I-93: every mandatory audit record carries a deterministic event identity, so
 -- an uncertain write is retried and de-duplicated by identity rather than
 -- producing a second event. The UNIQUE constraint is that rule, enforced.
@@ -161,7 +211,8 @@ CREATE TABLE IF NOT EXISTS item (
 DO $$
 DECLARE t text;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['actor', 'scope', 'grant', 'approval', 'audit_record', 'item']
+    FOREACH t IN ARRAY ARRAY['actor', 'scope', 'grant', 'approval', 'audit_record',
+                             'item', 'auth_credential', 'auth_session']
     LOOP
         EXECUTE format('ALTER TABLE %I OWNER TO nova_owner', t);
     END LOOP;
@@ -202,3 +253,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
     actor, scope, "grant", approval, audit_record, item TO nova_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO nova_app;
 GRANT EXECUTE ON FUNCTION nova.current_scope(), nova.in_scope(text) TO nova_app;
+
+-- nova_auth reaches the two auth tables and NOTHING else. Deliberately no
+-- grant on item, approval, audit_record, scope or "grant": a compromised
+-- authentication path holds a connection that cannot read scoped data at all.
+-- Asserted by test, not assumed.
+GRANT USAGE ON SCHEMA public TO nova_auth;
+GRANT SELECT, INSERT, UPDATE ON auth_credential, auth_session TO nova_auth;
+GRANT USAGE, SELECT ON SEQUENCE auth_credential_id_seq, auth_session_id_seq TO nova_auth;
+
+-- ...and nova_app must NOT reach them. Authentication state is not application
+-- data; the application role having it would make the privilege split cosmetic.
+REVOKE ALL ON auth_credential, auth_session FROM nova_app;

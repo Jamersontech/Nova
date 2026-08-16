@@ -1,9 +1,21 @@
 # 0044 — Runtime, Persistence and Hosting
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-16
 **Proposed:** 2026-08-15 — Section 29 (narrowed)
 **Section:** 29 — *the runtime/persistence/hosting subset only*
 **Resolves:** `D-01`, `D-02`, `D-04`, and `D-33a` **in part**
+
+**Accepted 2026-08-16.** Every claim above about the *runtime and persistence* halves is now
+evidenced against real PostgreSQL 16.13 by the substrate, seam, write-path, approval and
+authentication suites: the role split, `NOBYPASSRLS`, `FORCE ROW LEVEL SECURITY`, the `C-2`
+argument, and the Data-Access Boundary's re-binding refusal are all asserted by test, including a
+negative control that shows RLS is what holds the property.
+
+**What acceptance does NOT claim.** The *hosting* half (`D-04`) is a stated posture, not an
+exercised one: **no provider is selected, no region is chosen, and nothing is deployed.** The
+suites run against a local instance. Accepting this ADR commits NOVA to *one* host, *one* managed
+PostgreSQL, *one* region and *one* provider — it does not name them, and choosing them remains
+open work. `C-8` and `C-9` remain unresolved exactly as recorded above.
 
 ## Decision
 

@@ -42,7 +42,15 @@ has no method that could change it.
 ```
 nova_owner   owns the tables. Migrations only. Never used by request handling.
 nova_app     NOBYPASSRLS, NOSUPERUSER, not a table owner. Subject to RLS.
+nova_auth    authentication only. Privileges on auth_credential and
+             auth_session and NOTHING else.
 ```
+
+**Why a third role.** Authentication runs *before* a Context Token exists, so it cannot go through
+the Data-Access Boundary — there is no scope to bind to yet. Rather than let it hold a connection
+that could reach scoped data, it gets an identity that cannot: `nova_auth` is refused on `item`,
+`approval`, `audit_record`, `scope` and `grant`, and `nova_app` is revoked from both auth tables.
+Both directions are asserted by test. `I-78` is untouched — no scope-bound channel is opened here.
 
 A table owner bypasses RLS unless `FORCE ROW LEVEL SECURITY` is set, and a superuser bypasses it
 unconditionally. **Both are silent** — every application test would still pass while isolation was
@@ -77,6 +85,7 @@ security suite, which is how isolation failures survive review.
 | --- | --- |
 | **The substrate** (`slice/substrate/`) | **ENFORCED** — below the query layer, evidenced against real PostgreSQL 16.13 |
 | **The application path** (`seam.py` → PEP → boundary → RLS) | **ENFORCED** — the seam drives the same property over real HTTP: no application-side predicate exists (verified by source inspection), an application-level negative control shows RLS is what holds it, and sequential requests on a shared pool carry nothing across scopes |
+| **Authentication** (`auth.py` → seam) | **REAL** — WebAuthn passkeys ([ADR 0046](../../docs/decisions/0046-authentication-is-webauthn-passkeys.md), *Proposed*). The last stand-in in the security path is gone; every substrate suite now signs in through a real ceremony |
 | **The pre-substrate slice** (`slice/core` `StoreRegistry`, `runtime.py`) | **DEMONSTRATED** — the earlier SQLite mechanism remains as slice fixtures; it is not the application path |
 
 The Data Access PEP exists: `PolicyDecisionPoint.authorize_data_read`

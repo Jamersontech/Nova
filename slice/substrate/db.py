@@ -40,6 +40,14 @@ def app_dsn() -> str:
     return _dsn(os.environ.get("NOVA_PGAPPUSER", "nova_app"))
 
 
+def auth_dsn() -> str:
+    """The authentication identity. Privileges on the two auth tables and
+    nothing else -- authentication runs before a Context Token exists, so it
+    cannot go through the Data-Access Boundary and must not be able to reach
+    scoped data. Asserted by test."""
+    return _dsn(os.environ.get("NOVA_PGAUTHUSER", "nova_auth"))
+
+
 def superuser_dsn() -> str:
     """Cluster bootstrap only -- creating the database and applying schema.sql.
 
@@ -86,5 +94,6 @@ def reset_data() -> None:
     conn = psycopg2.connect(superuser_dsn())
     conn.autocommit = True
     with conn.cursor() as cur:
-        cur.execute('TRUNCATE item, "grant", approval, audit_record, scope, actor RESTART IDENTITY')
+        cur.execute('TRUNCATE item, "grant", approval, audit_record, scope, actor,'
+                    ' auth_credential, auth_session RESTART IDENTITY')
     conn.close()

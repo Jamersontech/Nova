@@ -574,6 +574,28 @@ implementation lives in [`../../slice/ui/section17/`](../../slice/ui/section17/R
 
 
 
+## The substrate — ADRs `0044`, `0045` (**Accepted** 2026-08-16) and `0046` (**Proposed**)
+
+**`0044` — Runtime, persistence and hosting.** Server-rendered Python over managed PostgreSQL with
+Row-Level Security, one provider in one region. Resolves `D-01`, `D-02`, `D-04` and part of
+`D-33a`. RLS satisfies `C-1`, `C-5` and `C-6` and **fails `C-2`** — which is precisely why the
+Data-Access Boundary exists. `C-8` and `C-9` are recorded unresolved. **Accepted for the runtime
+and persistence halves, which are evidenced against real PostgreSQL; the hosting half is a stated
+posture with no provider selected and nothing deployed.**
+
+**`0045` — The Data Access PEP decision sequence for reads.** The ten steps with the tool-specific
+ones inapplicable *by their own wording*, implemented as one method on the existing PDP rather than
+a second decision engine. **Corrected 2026-08-16** before acceptance: steps 6 and 7 had been merged
+into one row, and the risk-ceiling check in the code was unsatisfiable — a branch that could never
+be taken, reading as a control. Both are fixed; no behaviour changed.
+
+**`0046` — Authentication is WebAuthn passkeys.** Resolves the remaining half of `D-09`. The
+primary factor resists replay *by construction*: an assertion produced at an attacker's origin does
+not verify. Session strength is read out of the verified signature, so the client cannot assert its
+own. The browser holds one opaque reference; the database stores only its hash. **No invariant
+changed and the authorization system was not redesigned around authentication** — it terminates at
+an authenticated server identity and everything below is untouched.
+
 ---
 
 Decisions that were consciously postponed are tracked separately in

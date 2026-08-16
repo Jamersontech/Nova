@@ -129,7 +129,7 @@ the product satisfying it remains deferred.
 | # | Was | Resolved by | Still open |
 | --- | --- | --- | --- |
 | D-33 | Physical isolation strategy | [ADR 0016](./0016-isolation-enforced-below-query-layer.md), [ADR 0017](./0017-isolation-independent-of-pdp.md), [`ISOLATION_ENFORCEMENT.md`](../architecture/ISOLATION_ENFORCEMENT.md) — **requirement fixed, mechanism family criteria defined** | The mechanism itself, with `D-02` in 29 |
-| D-09 | Authentication and identity model | [ADR 0018](./0018-authentication-model.md), [`AUTHENTICATION_MODEL.md`](../architecture/AUTHENTICATION_MODEL.md) | Provider and factor technology — remains under **`D-09`**, owner 04 |
+| D-09 | Authentication and identity model | [ADR 0018](./0018-authentication-model.md), [`AUTHENTICATION_MODEL.md`](../architecture/AUTHENTICATION_MODEL.md) | **Fully resolved 2026-08-16** by [ADR 0046](./0046-authentication-is-webauthn-passkeys.md) (*Proposed*): WebAuthn passkeys, opaque server-side sessions. Nothing remains open under `D-09` |
 | D-10 | Secrets storage requirements | [ADR 0019](./0019-secrets-store-separation.md), [`SECRETS_ARCHITECTURE.md`](../architecture/SECRETS_ARCHITECTURE.md) | Store technology — remains under **`D-10`**, owner 04 |
 | D-34 | Authorization engine requirements | [`POLICY_ENGINE_REQUIREMENTS.md`](../architecture/POLICY_ENGINE_REQUIREMENTS.md) | Language and engine — remains under **`D-34`**, owner 04 |
 | D-35 | Encryption requirements and key scoping | [ADR 0020](./0020-keys-mirror-the-scope-tree.md), [`ENCRYPTION_REQUIREMENTS.md`](../architecture/ENCRYPTION_REQUIREMENTS.md) | Algorithms and key management — remains under **`D-35`**, owner 04 / 38 |
@@ -155,10 +155,10 @@ which is the single authoritative list** *(corrected 2026-08-13, N-5)*, of which
 | D-05 | Queue / job execution technology | 12 / 29 |
 | D-06 | Vector database and retrieval technology | 07 / 09 |
 | D-07 | Orchestration platform and execution model | 08 |
+| ~~D-09~~ | ~~Authentication provider and identity model~~ — **RESOLVED 2026-08-16**, [ADR 0046](./0046-authentication-is-webauthn-passkeys.md) (*Proposed*). WebAuthn passkeys; `py_webauthn` verifies; sessions are opaque, hashed, expiring and individually revocable. No provider was purchased — `A-5` leaves no users to administer. Limitations (bootstrap trust-on-first-use, no attestation, no step-up, no recovery) are recorded in the ADR, not hidden | ~~04~~ — closed |
 | D-08 | AI providers and specific models — **still deferred after Section 05.** Section 05 fixed the criteria a provider must satisfy (`PR-1`–`PR-9`, [`MODEL_GATEWAY_ARCHITECTURE.md`](../architecture/MODEL_GATEWAY_ARCHITECTURE.md) §8) and did **not** select one: the constraints that decide it are `Q-06` and `Q-03`, which are James's to answer. Same posture Section 04 took with `D-09`/`D-10` | 05 — *reopened when `Q-06` is answered* |
 | D-39 | **Provider data-handling verification.** `PR-2` (no training), `PR-3` (retention/logging) and `PR-5` (no cross-request context reuse) are provider **assurances NOVA cannot verify**. Whether attestation, contract, or self-hosting closes any of them is unresolved; until then `T-15`'s residual stands. *(Added by Section 05, 2026-08-14 — **Accepted** by James 2026-08-14.)* | 37 / 38 |
 | D-40 | **Model cost and token ceiling values.** `I-105` fixes that ceilings exist, terminate rather than degrade, and fail closed above `PREPARE`. The numbers depend on lived usage and budget (`Q-06`). *(Added by Section 05, 2026-08-14 — **Accepted** by James 2026-08-14.)* | 34 |
-| D-09 | Authentication provider and identity model *(model resolved in Section 04; provider still open)* | 04 |
 | D-10 | Secrets storage and credential vault technology *(requirements resolved in Section 04)* | 04 |
 | D-11 | Observability, logging, and audit stack | 27 / 28 |
 | D-12 | Testing framework and AI evaluation tooling | 31 |
