@@ -138,7 +138,14 @@ ALTER TABLE approval
     ADD COLUMN IF NOT EXISTS item_ref       text,
     ADD COLUMN IF NOT EXISTS body           text,
     ADD COLUMN IF NOT EXISTS decided_at     timestamptz,
-    ADD COLUMN IF NOT EXISTS decided_by     text;
+    ADD COLUMN IF NOT EXISTS decided_by     text,
+    -- Which tool the approved plan runs, and its arguments. Added when the
+    -- second consequence-producing tool arrived: an approval was previously
+    -- describable by (item_ref, body) because there was only one thing NOVA
+    -- could do. `tool_name` defaults to the original tool so existing rows
+    -- reconstruct exactly as before.
+    ADD COLUMN IF NOT EXISTS tool_name      text NOT NULL DEFAULT 'write_item',
+    ADD COLUMN IF NOT EXISTS arguments      jsonb;
 
 -- ---------------------------------------------------------------------------
 -- Authentication (D-09) -- ABOVE the scope tree
@@ -184,6 +191,31 @@ CREATE TABLE IF NOT EXISTS auth_session (
     revoked_at     timestamptz
 );
 
+-- What needs doing. USER_INTERFACE_ARCHITECTURE section 3 names three views
+-- that cut across the tree "because they answer questions James actually
+-- asks": what needs my decision (approval), what did NOVA do (audit_record),
+-- and WHAT NEEDS DOING -- this table.
+--
+-- One table, not five. No projects, no assignees, no priorities, no labels,
+-- no recurrence: a task is a thing to do, in a scope, optionally by a date,
+-- and eventually done. Everything else is speculation until James's own use
+-- shows otherwise.
+--
+-- Why not an `item`: a due date and a completion state must be QUERYABLE --
+-- "what is open here, soonest first" is not answerable from prose. That is
+-- the only reason this table exists.
+CREATE TABLE IF NOT EXISTS task (
+    id         bigserial PRIMARY KEY,
+    task_ref   text NOT NULL,
+    scope_path text NOT NULL,
+    actor_ref  text,
+    title      text NOT NULL,
+    due_on     date,
+    done_at    timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (scope_path, task_ref)
+);
+
 -- I-93: every mandatory audit record carries a deterministic event identity, so
 -- an uncertain write is retried and de-duplicated by identity rather than
 -- producing a second event. The UNIQUE constraint is that rule, enforced.
@@ -219,7 +251,7 @@ DO $$
 DECLARE t text;
 BEGIN
     FOREACH t IN ARRAY ARRAY['actor', 'scope', 'grant', 'approval', 'audit_record',
-                             'item', 'auth_credential', 'auth_session']
+                             'item', 'task', 'auth_credential', 'auth_session']
     LOOP
         EXECUTE format('ALTER TABLE %I OWNER TO nova_owner', t);
     END LOOP;
@@ -235,7 +267,7 @@ $$;
 DO $$
 DECLARE t text;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['scope', 'grant', 'approval', 'audit_record', 'item']
+    FOREACH t IN ARRAY ARRAY['scope', 'grant', 'approval', 'audit_record', 'item', 'task']
     LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
         EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
@@ -275,7 +307,7 @@ CREATE POLICY control_plane_read ON "grant" FOR SELECT TO nova_control USING (tr
 
 GRANT USAGE ON SCHEMA public, nova TO nova_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON
-    actor, scope, "grant", approval, audit_record, item TO nova_app;
+    actor, scope, "grant", approval, audit_record, item, task TO nova_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO nova_app;
 GRANT EXECUTE ON FUNCTION nova.current_scope(), nova.in_scope(text) TO nova_app;
 

@@ -58,6 +58,7 @@ from ..core.gateway import CapabilityProfile, ModelGateway, ModelRequestItem
 from ..core.types import Classification, ContextToken, Denied, Risk, Taint
 from .approval_flow import ApprovalService
 from .boundary import DataAccessBoundary
+from .write_path import ADD_TASK, COMPLETE_TASK, TOOL
 
 # ---------------------------------------------------------------------------
 # D-08, resolved for Conversation (ADR 0047). This block is the application's
@@ -77,11 +78,18 @@ CONVERSATION_PROFILE = CapabilityProfile(
 # and escalates -- the gateway will not quietly truncate to fit (AG-15).
 TURN_BUDGET = 200_000
 
-# The ONE structured thing the server reads out of model text. Strict on
+# The ONLY structured things the server reads out of model text. Strict on
 # purpose: anything that does not match EXACTLY is prose, not a proposal.
-_PROPOSAL = re.compile(
-    r'\[\[PROPOSE_NOTE ref="([A-Za-z0-9][A-Za-z0-9_.-]{0,63})" '
-    r'body="([^"\n]{1,1000})"\]\]')
+# Each maps to ONE existing tool; the model cannot name a tool itself.
+_REF = r'([A-Za-z0-9][A-Za-z0-9_.-]{0,63})'
+_MARKERS = (
+    (TOOL, re.compile(r'\[\[PROPOSE_NOTE ref="' + _REF +
+                      r'" body="([^"\n]{1,1000})"\]\]')),
+    (ADD_TASK, re.compile(r'\[\[PROPOSE_TASK ref="' + _REF +
+                          r'" title="([^"\n]{1,300})" due="(\d{4}-\d{2}-\d{2}|)"\]\]')),
+    (COMPLETE_TASK, re.compile(r'\[\[COMPLETE_TASK ref="' + _REF + r'"\]\]')),
+)
+_ANY_MARKER = re.compile(r'\[\[[A-Z_]+[^\]]*\]\]')
 
 _INSTRUCTIONS = """\
 You are NOVA, James's private operating system. You are speaking with James \
@@ -89,12 +97,16 @@ inside ONE scope of his life; the scope path and its current data are below. \
 Answer from that data. If the data does not contain the answer, say so plainly \
 -- do not invent records.
 
-You cannot perform actions. If James asks you to save or add a note, reply \
-normally and then emit EXACTLY one final line of the form:
+You cannot perform actions. If James asks for something to be recorded or \
+changed, reply normally and then emit EXACTLY one final line, one of:
 [[PROPOSE_NOTE ref="short-ref" body="the note text"]]
-That line is a request for James's approval, not an action. Never state or \
-imply that an action has been performed, and never emit the marker unless \
-James asked for something to be recorded."""
+[[PROPOSE_TASK ref="short-ref" title="what needs doing" due="YYYY-MM-DD"]]
+[[COMPLETE_TASK ref="the-existing-task-ref"]]
+Use PROPOSE_TASK when something needs to be DONE, with a due date if James \
+gave one (otherwise due=""). Use COMPLETE_TASK only with a task ref that \
+appears in the data below. That line is a request for James's approval, not \
+an action. Never state or imply that an action has been performed, and never \
+emit a marker unless James asked for something to be recorded or changed."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -140,6 +152,9 @@ class ConversationService:
         self._pdp.authorize_data_read(token, scope_path)
         with self._boundary.open(token) as ch:
             items = ch.fetch("SELECT item_ref, body FROM item ORDER BY item_ref")
+            tasks = ch.fetch(
+                "SELECT task_ref, title, due_on FROM task WHERE done_at IS NULL"
+                " ORDER BY due_on NULLS LAST, task_ref")
             pending = ch.fetch(
                 "SELECT count(*) FROM approval WHERE status = 'pending'")[0][0]
             event_identity = hashlib.sha256(
@@ -154,6 +169,12 @@ class ConversationService:
                  f"conversation context items={len(items)}"))
         lines = [f"Scope: {scope_path}",
                  f"Pending approvals awaiting James: {pending}"]
+        if tasks:
+            lines.append("Open tasks in this scope (ref, title, due):")
+            lines += [f"  - {ref} | {title} | due {due or 'no date'}"
+                      for ref, title, due in tasks]
+        else:
+            lines.append("No open tasks in this scope.")
         if items:
             lines.append("Notes in this scope:")
             lines += [f"  - {ref}: {body}" for ref, body in items]
@@ -217,8 +238,16 @@ class ConversationService:
         stripped from what James reads either way -- what he sees about a
         proposal is the SERVER's approval card, built from the stored
         approval row, never the model's own description of it."""
-        match = _PROPOSAL.search(text)
-        prose = _PROPOSAL.sub("", text).strip()
+        tool_name, match = None, None
+        for candidate, pattern in _MARKERS:
+            found = pattern.search(text)
+            if found:
+                tool_name, match = candidate, found
+                break
+        # Strip EVERY marker-shaped thing, matched or not: a malformed or
+        # invented marker is not an action, and it is not shown to James as
+        # though it were one either.
+        prose = _ANY_MARKER.sub("", text).strip()
         if match is None:
             return Turn("answered", prose)
 
@@ -228,10 +257,24 @@ class ConversationService:
             return Turn("answered", prose,
                         detail="a proposal was suggested but this session "
                                "cannot record one")
-        item_ref, body = match.group(1), match.group(2)
+        ref = match.group(1)
         try:
-            approval_id = self._approvals.propose(
-                execute_token, scope_path, item_ref, body)
+            if tool_name == ADD_TASK:
+                title, due = match.group(2), match.group(3)
+                approval_id = self._approvals.propose_action(
+                    execute_token, scope_path, ADD_TASK,
+                    {"task_ref": ref, "title": title, "due_on": due},
+                    action_text=(f"Add task \u201c{title}\u201d"
+                                 + (f", due {due}." if due else ", with no due date.")),
+                    if_wrong_text="A task you did not want appears in this scope.")
+            elif tool_name == COMPLETE_TASK:
+                approval_id = self._approvals.propose_action(
+                    execute_token, scope_path, COMPLETE_TASK, {"task_ref": ref},
+                    action_text=f"Mark task \u201c{ref}\u201d done.",
+                    if_wrong_text="A task still outstanding is recorded as finished.")
+            else:
+                approval_id = self._approvals.propose(
+                    execute_token, scope_path, ref, match.group(2))
         except Denied as d:
             return Turn("answered", prose, detail=f"proposal refused: {d.reason}")
         return Turn("proposed", prose, approval_id=approval_id)

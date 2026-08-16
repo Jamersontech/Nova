@@ -101,6 +101,6 @@ def reset_data() -> None:
     conn = psycopg2.connect(superuser_dsn())
     conn.autocommit = True
     with conn.cursor() as cur:
-        cur.execute('TRUNCATE item, "grant", approval, audit_record, scope, actor,'
-                    ' auth_credential, auth_session RESTART IDENTITY')
+        cur.execute('TRUNCATE item, task, "grant", approval, audit_record, scope,'
+                    ' actor, auth_credential, auth_session RESTART IDENTITY')
     conn.close()

@@ -48,6 +48,8 @@ from .boundary import DataAccessBoundary
 
 TOOL = "write_item"
 TOOL_VERSION = "1.0.0"
+ADD_TASK = "add_task"
+COMPLETE_TASK = "complete_task"
 
 
 def write_item_tool() -> ToolDefinition:
@@ -70,6 +72,55 @@ def write_item_tool() -> ToolDefinition:
             "body": EXPRESSIVE,        # prose -- MT-5, same ruling as harness
         },
     )
+
+
+def add_task_tool() -> ToolDefinition:
+    """Record something that needs doing, in this scope."""
+    return ToolDefinition(
+        name=ADD_TASK, version=TOOL_VERSION,
+        purpose="Add or update one task in this scope",
+        input_schema={"task_ref": "str", "title": "str", "due_on": "str"},
+        output_schema={"status": "str"},
+        required_rights=frozenset({"write"}),
+        auth_requirements="datastore",
+        risk_class=Risk.EXECUTE,
+        context_requirements=frozenset({"client"}),
+        error_behaviour="typed", audit_behaviour="reference-only",
+        idempotent=True, cost_profile=1,
+        consequence_determining={
+            "task_ref": CONSEQUENCE,   # addresses the record
+            # A DATE IS CONSEQUENCE-DETERMINING, not expressive. "Friday" and
+            # "next month" are different commitments, and ADR 0036 rule 2 makes
+            # consequence the default anyway -- only prose earns expressive.
+            "due_on": CONSEQUENCE,
+            "title": EXPRESSIVE,       # prose -- MT-5, same ruling as write_item
+        },
+    )
+
+
+def complete_task_tool() -> ToolDefinition:
+    """Mark one task done. Consequence-producing: it changes stored state, so
+    it is EXECUTE-class and needs James's approval like any other write. That
+    is the architecture working, not an oversight -- NOVA does not get to
+    quietly close James's commitments."""
+    return ToolDefinition(
+        name=COMPLETE_TASK, version=TOOL_VERSION,
+        purpose="Mark one task in this scope as done",
+        input_schema={"task_ref": "str"},
+        output_schema={"status": "str"},
+        required_rights=frozenset({"write"}),
+        auth_requirements="datastore",
+        risk_class=Risk.EXECUTE,
+        context_requirements=frozenset({"client"}),
+        error_behaviour="typed", audit_behaviour="reference-only",
+        # The UPDATE is conditional on `done_at IS NULL`, so a retry is a
+        # no-op at the provider rather than a second completion.
+        idempotent=True, cost_profile=1,
+        consequence_determining={"task_ref": CONSEQUENCE},
+    )
+
+
+ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool)
 
 
 class ApprovalStore:
@@ -101,20 +152,46 @@ class PostgresItemIntegration:
         self._boundary = boundary
         self.side_effects = 0
 
-    def transport_for(self, token: ContextToken):
+    def transport_for(self, token: ContextToken, tool_name: str = TOOL):
+        """The transport for one tool. Every branch below writes through the
+        SAME scope-bound channel and names `ch.scope_path` -- never a scope
+        from the payload -- so WITH CHECK refuses anything else regardless of
+        which tool ran."""
+
         def transport(payload: dict[str, Any], secret: str) -> Outcome:
             with self._boundary.open(token) as ch:
-                # The row's scope is the CHANNEL's scope -- the transport
-                # cannot name another one, and WITH CHECK would refuse it.
-                ch.execute(
-                    "INSERT INTO item (item_ref, scope_path, body)"
-                    " VALUES (%s, %s, %s)"
-                    " ON CONFLICT (scope_path, item_ref)"
-                    " DO UPDATE SET body = EXCLUDED.body",
-                    (payload["item_ref"], ch.scope_path, payload["body"]),
-                )
+                if tool_name == ADD_TASK:
+                    ref = payload["task_ref"]
+                    ch.execute(
+                        "INSERT INTO task (task_ref, scope_path, actor_ref, title, due_on)"
+                        " VALUES (%s,%s,%s,%s, NULLIF(%s,'')::date)"
+                        " ON CONFLICT (scope_path, task_ref)"
+                        " DO UPDATE SET title = EXCLUDED.title, due_on = EXCLUDED.due_on",
+                        (ref, ch.scope_path, token.actor, payload["title"],
+                         payload.get("due_on", "")))
+                    detail, said = f"task_ref={ref}", f"added task {ref}"
+                elif tool_name == COMPLETE_TASK:
+                    ref = payload["task_ref"]
+                    # Conditional on done_at IS NULL: a retry is a no-op at the
+                    # provider, which is what `idempotent=True` claims.
+                    ch.execute(
+                        "UPDATE task SET done_at = now()"
+                        " WHERE task_ref = %s AND done_at IS NULL", (ref,))
+                    detail, said = f"task_ref={ref}", f"completed task {ref}"
+                else:
+                    ref = payload["item_ref"]
+                    # The row's scope is the CHANNEL's scope -- the transport
+                    # cannot name another one, and WITH CHECK would refuse it.
+                    ch.execute(
+                        "INSERT INTO item (item_ref, scope_path, body)"
+                        " VALUES (%s, %s, %s)"
+                        " ON CONFLICT (scope_path, item_ref)"
+                        " DO UPDATE SET body = EXCLUDED.body",
+                        (ref, ch.scope_path, payload["body"]))
+                    detail, said = f"item_ref={ref}", f"wrote {ref}"
+
                 event_identity = hashlib.sha256(
-                    f"data_write:{token.trace_id}:{ch.scope_path}:{payload['item_ref']}".encode()
+                    f"data_write:{token.trace_id}:{ch.scope_path}:{tool_name}:{ref}".encode()
                 ).hexdigest()[:32]
                 ch.execute(
                     "INSERT INTO audit_record"
@@ -122,11 +199,10 @@ class PostgresItemIntegration:
                     " VALUES (%s,'W-1','data.write',%s,%s,%s,%s)"
                     " ON CONFLICT (event_identity) DO NOTHING",
                     (event_identity, ch.scope_path, token.trace_id, token.actor,
-                     f"item_ref={payload['item_ref']}"),
+                     f"{tool_name} {detail}"),
                 )
             self.side_effects += 1
-            return Outcome("success_claimed", f"wrote {payload['item_ref']}",
-                           Taint.of("integration.supplied"))
+            return Outcome("success_claimed", said, Taint.of("integration.supplied"))
         return transport
 
 
@@ -146,11 +222,16 @@ class WritePath:
 
     # -- the proposed execution, deterministic (I-112) ----------------------
 
-    def plan_for(self, scope_path: str, item_ref: str, body: str) -> Plan:
+    def plan_for_action(self, scope_path: str, tool_name: str,
+                        arguments: dict[str, Any]) -> Plan:
+        """I-112: deterministic identity over the tool AND its arguments, so
+        two different tools -- or the same tool with different arguments --
+        are two different plans and one approval never covers the other."""
         return Plan(
-            steps=(PlanStep(action=TOOL, resource=scope_path, tool_name=TOOL,
+            steps=(PlanStep(action=tool_name, resource=scope_path,
+                            tool_name=tool_name,
                             required_rights=frozenset({"write"}),
-                            arguments={"item_ref": item_ref, "body": body}),),
+                            arguments=dict(arguments)),),
             required_rights=frozenset({"write"}),
             declared_risk=Risk.EXECUTE,
             scope_path=scope_path,
@@ -158,10 +239,16 @@ class WritePath:
             cost_estimate=1,
         )
 
-    def binding_for(self, scope_path: str) -> ExecutionBinding:
-        """I-114: the concrete substrate, resolved before the decision."""
+    def plan_for(self, scope_path: str, item_ref: str, body: str) -> Plan:
+        return self.plan_for_action(scope_path, TOOL,
+                                    {"item_ref": item_ref, "body": body})
+
+    def binding_for(self, scope_path: str, tool_name: str = TOOL) -> ExecutionBinding:
+        """I-114: the concrete substrate, resolved before the decision. The
+        tool is part of the binding identity, so an approval for one tool's
+        binding does not cover another's."""
         return ExecutionBinding(
-            tool_name=TOOL, tool_version=TOOL_VERSION,
+            tool_name=tool_name, tool_version=TOOL_VERSION,
             integration_id="int-postgres-items", provider="postgresql",
             account="nova_substrate", endpoint="local:5433", api_version="16",
             credential_binding_id=self._cred_id, scope_path=scope_path,
@@ -169,29 +256,44 @@ class WritePath:
 
     # -- the full authorized execution --------------------------------------
 
-    def execute(self, token: ContextToken, scope_path: str,
-                item_ref: str, body: str) -> Outcome:
+    def execute_action(self, token: ContextToken, scope_path: str,
+                       tool_name: str, arguments: dict[str, Any]) -> Outcome:
         """Authorize, then execute. No database write occurs before
         authorize_plan has succeeded -- the transport is not even constructed
         until the PEP, and the PEP requires the authorization object."""
-        plan = self.plan_for(scope_path, item_ref, body)
-        binding = self.binding_for(scope_path)
+        plan = self.plan_for_action(scope_path, tool_name, arguments)
+        binding = self.binding_for(scope_path, tool_name)
+
+        # I-100: the envelope pins every CONSEQUENCE-DETERMINING argument to
+        # the exact value authorized. Which arguments those are is READ FROM
+        # THE TOOL'S OWN DECLARATION rather than listed here, so a new tool
+        # cannot arrive with an under-specified envelope by omission.
+        definition = self._registry.get(tool_name, TOOL_VERSION)
         envelope = ArgumentEnvelope(
-            allowed_values={"item_ref": frozenset({item_ref})},
+            allowed_values={
+                leaf: frozenset({str(arguments.get(leaf, ""))})
+                for leaf in definition.leaves()
+                if definition.is_consequence_determining(leaf)
+            },
             magnitude_ceilings={},
         )
         approval = self.approvals.for_plan(plan.identity())
 
         # The full ten steps. Step 9 denies EXECUTE with no approval (I-09).
         authorization = self._pdp.authorize_plan(
-            token, plan, {TOOL: binding}, envelope,
+            token, plan, {tool_name: binding}, envelope,
             cost_ceiling=10, approval=approval,
         )
 
         return self._pep.invoke(
             token, plan, plan.steps[0], authorization,
-            resolve_binding=lambda name, scope: self.binding_for(scope),
-            transport=self._integration.transport_for(token),
+            resolve_binding=lambda name, scope: self.binding_for(scope, name),
+            transport=self._integration.transport_for(token, tool_name),
             tool_version=TOOL_VERSION,
             provider_enforces_dedup=True,
         )
+
+    def execute(self, token: ContextToken, scope_path: str,
+                item_ref: str, body: str) -> Outcome:
+        return self.execute_action(token, scope_path, TOOL,
+                                   {"item_ref": item_ref, "body": body})

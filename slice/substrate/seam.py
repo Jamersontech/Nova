@@ -44,6 +44,7 @@ by the server.
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import hashlib
 import html
 import http.server
@@ -238,6 +239,9 @@ class Seam:
             with self._boundary.open(token) as ch:
                 pending = ch.fetch(
                     "SELECT count(*) FROM approval WHERE status = 'pending'")[0][0]
+                tasks = ch.fetch(
+                    "SELECT task_ref, title, due_on FROM task WHERE done_at IS NULL"
+                    " ORDER BY due_on NULLS LAST, task_ref")
                 # A-3a: reviewing audit records across MORE THAN ONE scope
                 # requires step-up, and step-up does not exist yet. So this is
                 # pinned to the exact scope rather than the token's coverage --
@@ -257,6 +261,7 @@ class Seam:
             f"<p class=\"muted\">Active context: <code>{html.escape(scope_path)}</code></p>"
             + _talk_link(scope_path)
             + _decision_card(scope_path, pending)
+            + _tasks_card(tasks)
             + _children_card(children)
             + _activity_card(activity, scope_path))
 
@@ -526,6 +531,28 @@ def _talk_link(scope_path: str) -> str:
             f"</a></div></article>")
 
 
+def _tasks_card(rows: list) -> str:
+    """The third of the three views USER_INTERFACE_ARCHITECTURE section 3
+    names: what needs doing. Open tasks only, soonest first, overdue marked --
+    a list James has to filter himself is a list he stops reading."""
+    if not rows:
+        return ("<article class=\"card\"><h2>Nothing to do here</h2>"
+                "<p class=\"muted\">No open tasks in this scope.</p></article>")
+    today = datetime.date.today()
+    entries = []
+    for ref, title, due in rows:
+        if due is None:
+            when = "<span class=\"muted\">no date</span>"
+        elif due < today:
+            when = f"<span class=\"overdue\">overdue \u2014 {due:%d %b}</span>"
+        else:
+            when = f"<span class=\"muted\">{due:%d %b}</span>"
+        entries.append(f"<li>{html.escape(title)} {when} "
+                       f"<code>{html.escape(ref)}</code></li>")
+    return (f"<article class=\"card\"><h2>What needs doing</h2>"
+            f"<ul>{''.join(entries)}</ul></article>")
+
+
 def _decision_card(scope_path: str, pending: int) -> str:
     """Approvals are "surfaced where the work is… never buried"
     (USER_INTERFACE_ARCHITECTURE section 3)."""
@@ -696,6 +723,7 @@ button.primary { background: var(--nova-color-accent-base);
 .turn.you { background: var(--nova-color-surface-inset); }
 .turn p { margin: var(--nova-space-tight) 0 0 0; }
 .pending { color: var(--nova-color-risk-contextual); }
+.overdue { color: var(--nova-color-risk-contextual); }
 .say { display: flex; gap: var(--nova-space-tight); align-items: center;
        max-width: 46rem; }
 .say input { flex: 1; font-family: var(--nova-type-family-ui);

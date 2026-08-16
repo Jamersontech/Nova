@@ -55,8 +55,7 @@ from .auth import AuthenticationService
 from .boundary import DataAccessBoundary
 from .conversation import (CONVERSATION_MODEL, PROVIDER, ConversationService)
 from .seam import Seam, serve
-from .write_path import (PostgresItemIntegration, WritePath, write_item_tool,
-                         TOOL)
+from .write_path import (ALL_TOOLS, PostgresItemIntegration, WritePath, TOOL)
 from ..tools.pep import ToolPEP
 from ..tools.registry import ToolRegistry
 
@@ -76,8 +75,8 @@ class ScopedWritePath(WritePath):
     own scope), so the binding id is derived from the scope instead of fixed
     at construction. `wire()` registers one binding per scope to match."""
 
-    def binding_for(self, scope_path: str):
-        return dataclasses.replace(super().binding_for(scope_path),
+    def binding_for(self, scope_path: str, tool_name: str = TOOL):
+        return dataclasses.replace(super().binding_for(scope_path, tool_name),
                                    credential_binding_id=f"db-item-write{scope_path}")
 
 
@@ -101,11 +100,13 @@ def wire(data_dir: str, rp_id: str, origin: str) -> Seam:
     for path in tree.paths():
         broker.register(
             CredentialBinding(binding_id=f"db-item-write{path}", scope_path=path,
-                              permitted_operations=frozenset({TOOL})),
+                              permitted_operations=frozenset(
+                                  t().name for t in ALL_TOOLS)),
             secret="datastore-" + os.urandom(8).hex())
 
     registry = ToolRegistry()
-    registry.register(write_item_tool())
+    for tool in ALL_TOOLS:
+        registry.register(tool())
     pep = ToolPEP(registry, broker, context, audit)
     writes = ScopedWritePath(pdp, registry, pep, broker,
                              PostgresItemIntegration(boundary), "unused-see-subclass")

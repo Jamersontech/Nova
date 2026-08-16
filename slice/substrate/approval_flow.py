@@ -33,12 +33,13 @@ own scope. That is free isolation, inherited rather than designed.
 from __future__ import annotations
 
 import dataclasses
+import json
 import secrets
-from typing import Optional
+from typing import Any, Optional
 
 from ..core.types import ContextToken, Denied, Outcome, Risk
 from .boundary import DataAccessBoundary
-from .write_path import WritePath
+from .write_path import TOOL, WritePath
 
 PENDING, APPROVED, DENIED = "pending", "approved", "denied"
 
@@ -59,6 +60,18 @@ class ApprovalRequest:
     body: str
     requested_by: str
     decided_by: Optional[str] = None
+    tool_name: str = TOOL
+    arguments: Optional[dict] = None
+
+    def plan_arguments(self) -> dict:
+        """The arguments the plan is rebuilt from. `write_item` reads the
+        original two columns -- they are its authoritative storage and were
+        so before any other tool existed -- everything else reads
+        `arguments`. Both are compared against the stored plan identity, so
+        tampering with either is caught."""
+        if self.tool_name == TOOL:
+            return {"item_ref": self.item_ref, "body": self.body}
+        return dict(self.arguments or {})
 
 
 class ApprovalService:
@@ -72,25 +85,36 @@ class ApprovalService:
 
     def propose(self, token: ContextToken, scope_path: str,
                 item_ref: str, body: str) -> str:
-        """Record a pending approval for one exact action. Writes nothing else."""
-        plan = self._writes.plan_for(scope_path, item_ref, body)
+        """Record a pending approval for one exact write. Writes nothing else."""
+        return self.propose_action(
+            token, scope_path, TOOL, {"item_ref": item_ref, "body": body},
+            action_text=f"Write item \u201c{item_ref}\u201d in this scope.",
+            if_wrong_text="The item holds the wrong content until it is corrected.")
+
+    def propose_action(self, token: ContextToken, scope_path: str,
+                       tool_name: str, arguments: dict[str, Any],
+                       action_text: str, if_wrong_text: str,
+                       cost_text: str = "One row written or updated. No spend.",
+                       why_text: str = ("Writing changes stored data. Reading it "
+                                        "was autonomous; changing it is not.")) -> str:
+        """Record a pending approval for one exact action, of any tool."""
+        plan = self._writes.plan_for_action(scope_path, tool_name, arguments)
         approval_id = "ap-" + secrets.token_hex(8)
 
         with self._boundary.open(token) as ch:
             ch.execute(
                 "INSERT INTO approval (approval_id, actor_ref, scope_path,"
                 " binding_identity, risk_class, plan_identity, status,"
-                " action_text, why_text, cost_text, if_wrong_text, item_ref, body)"
-                " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                " action_text, why_text, cost_text, if_wrong_text, item_ref, body,"
+                " tool_name, arguments)"
+                " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (approval_id, token.actor, ch.scope_path,
-                 self._writes.binding_for(scope_path).identity(),
+                 self._writes.binding_for(scope_path, tool_name).identity(),
                  plan.declared_risk.name, plan.identity(), PENDING,
                  # The five things section 6 requires, in plain language.
-                 f"Write item “{item_ref}” in this scope.",
-                 "Writing changes stored data. Reading it was autonomous; changing it is not.",
-                 "One row written or updated. No spend.",
-                 "The item holds the wrong content until it is corrected.",
-                 item_ref, body),
+                 action_text, why_text, cost_text, if_wrong_text,
+                 arguments.get("item_ref"), arguments.get("body"),
+                 tool_name, json.dumps(arguments)),
             )
         return approval_id
 
@@ -98,7 +122,7 @@ class ApprovalService:
 
     _COLUMNS = ("approval_id, scope_path, plan_identity, risk_class, status,"
                 " action_text, why_text, cost_text, if_wrong_text, item_ref, body,"
-                " actor_ref, decided_by")
+                " actor_ref, decided_by, tool_name, arguments")
 
     def _row_to_request(self, row) -> ApprovalRequest:
         return ApprovalRequest(*row)
@@ -146,7 +170,8 @@ class ApprovalService:
         # I-112 / I-109: reconstruct the plan from the stored arguments and
         # require the identity James saw. A request edited after the fact --
         # or pointed at another action -- no longer matches and cannot execute.
-        plan = self._writes.plan_for(request.scope_path, request.item_ref, request.body)
+        plan = self._writes.plan_for_action(request.scope_path, request.tool_name,
+                                            request.plan_arguments())
         if plan.identity() != request.plan_identity:
             raise Denied("approval.decide",
                          "plan identity differs from the approved plan", "I-112", True)
@@ -159,6 +184,7 @@ class ApprovalService:
         # I-09's act, recorded. The PDP still decides: this is an INPUT to
         # step 9, and execute() re-runs the full ten steps below it.
         self._writes.approvals.james_approves(plan.identity())
-        outcome = self._writes.execute(token, request.scope_path,
-                                       request.item_ref, request.body)
+        outcome = self._writes.execute_action(token, request.scope_path,
+                                              request.tool_name,
+                                              request.plan_arguments())
         return APPROVED, outcome
