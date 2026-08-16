@@ -62,10 +62,10 @@ upward. **Does not own:** business meaning of the data it moves.
 Memory, knowledge, documents, records, and events — scope-partitioned. **Does not own:**
 interpretation. Storage does not decide what is true.
 
-**The Data-Access Boundary sits at the entrance to this layer.** ***PROPOSED — added by Section
-04, not yet accepted*** *(2026-08-13, N-3). This paragraph is an amendment to accepted Section 02
-architecture proposed through [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),
-which remains **Proposed**. It is not approved architecture until James accepts that ADR.*
+**The Data-Access Boundary sits at the entrance to this layer.** ***Added by Section 04 — ACCEPTED
+by James 2026-08-13*** *(2026-08-13, N-3; authority
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md), **Accepted** 2026-08-13). This
+paragraph is an amendment to accepted Section 02 architecture made through ADR 0017.*
 
 It is a **trusted platform responsibility and boundary — not a standalone microservice, not a new
 speculative subsystem, and not separately deployable.** It establishes an execution's storage

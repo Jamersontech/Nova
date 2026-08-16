@@ -190,10 +190,10 @@ binding is derived.
 
 **The Data-Access Boundary is a registered NOVA Core responsibility** as of Section 04 —
 [`MASTER_ARCHITECTURE.md`](./MASTER_ARCHITECTURE.md) §5 and
-[`SYSTEM_LAYERS.md`](./SYSTEM_LAYERS.md) (Knowledge & Data layer), **both marked Proposed in
-place**; the registration is an amendment to accepted Section 02 architecture proposed through
-[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md) and is not approved architecture
-until James accepts that ADR. It is a **trusted platform boundary — not a standalone
+[`SYSTEM_LAYERS.md`](./SYSTEM_LAYERS.md) (Knowledge & Data layer), **both marked ACCEPTED in
+place**; the registration is an amendment to accepted Section 02 architecture made through
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md), **Accepted by James 2026-08-13**,
+so the registration is approved architecture. It is a **trusted platform boundary — not a standalone
 microservice, not a new speculative subsystem, and not separately deployable**.
 
 *One table, deliberately. (Merged 2026-08-13, N-8 — this section previously carried two

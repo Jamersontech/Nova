@@ -137,10 +137,10 @@ UNTRUSTED        External coding agents · sandboxes · all external services
 HOSTILE-ASSUMED  All content originating outside NOVA
 ```
 
-**The two Section 04 additions are namings, not new grants.** ***PROPOSED — added by Section 04,
-not yet accepted*** *(2026-08-13, N-13; this file is Active Section 02 material, so the line above
-is an amendment proposed through [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)
-and is removed if that ADR is rejected).* Both were already inside NOVA Core and therefore
+**The two Section 04 additions are namings, not new grants.** ***Added by Section 04 — ACCEPTED by
+James 2026-08-13*** *(2026-08-13, N-13; this file is Active Section 02 material, so the line above
+is an amendment made through [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),
+**Accepted** 2026-08-13).* Both were already inside NOVA Core and therefore
 already trusted; Section 04 names them because it makes specific claims about each that a reader
 must be able to locate:
 

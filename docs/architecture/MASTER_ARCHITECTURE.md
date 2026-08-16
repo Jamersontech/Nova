@@ -249,11 +249,11 @@ interfaces, each independently replaceable:
 | **Observability** ² | Logs, traces; **collection and routing of audit events** | Enforcement; **owning or reading the audit corpus** |
 | **Data-Access Boundary** ¹ | Establishing and holding the storage scope binding for an execution; opening scope-bound channels | Deciding authorization; interpreting data |
 
-> ¹ **PROPOSED — added by Section 04, not yet accepted.** *(2026-08-13, N-3.)* Every other row
-> in this table was accepted by James on 2026-08-12 with ADRs `0001`–`0008`. This row is an
-> **amendment to accepted Section 02 architecture proposed through Section 04**, and stands or
-> falls with [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md), which remains
-> **Proposed**. Until James accepts that ADR, this row is not approved architecture.
+> ¹ ***Added by Section 04 — ACCEPTED by James 2026-08-13*** *(2026-08-13, N-3; authority
+> [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md), **Accepted** 2026-08-13.)* Every
+> other row in this table was accepted by James on 2026-08-12 with ADRs `0001`–`0008`. This row is
+> an **amendment to accepted Section 02 architecture made through Section 04**, and stands or falls
+> with ADR 0017 — which is Accepted, so the row is approved architecture.
 >
 > **It is a trusted platform responsibility and boundary — not a standalone microservice, not a
 > new speculative subsystem, and not separately deployable.** It is listed here because Section
