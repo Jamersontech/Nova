@@ -79,11 +79,15 @@ class Seam:
     made by the Context service, the PDP, the boundary or RLS."""
 
     def __init__(self, context: ContextService, pdp: PolicyDecisionPoint,
-                 boundary: DataAccessBoundary, sessions: SessionStore):
+                 boundary: DataAccessBoundary, sessions: SessionStore,
+                 write_path=None):
         self._context = context
         self._pdp = pdp
         self._boundary = boundary
         self._sessions = sessions
+        # Optional: the consequence-producing write path (write_path.WritePath).
+        # The read seam predates it and works without it.
+        self._writes = write_path
 
     def items_page(self, session_id: Optional[str], scope_path: str) -> tuple[int, str]:
         """The one route. Returns (http_status, html_body)."""
@@ -148,6 +152,44 @@ class Seam:
         return 200, _page(f"Items — {html.escape(scope_path)}", body)
 
 
+    def write_item(self, session_id: Optional[str], scope_path: str,
+                   item_ref: str, body: str) -> tuple[int, str]:
+        """The write route. EXECUTE-class: the PDP's step 9 denies without
+        James's approval, and the write lands under RLS WITH CHECK."""
+        if self._writes is None:
+            return 404, _page("Not found", "<p>Writes are not enabled.</p>")
+        session = self._sessions.resolve(session_id)
+        if session is None:
+            return 401, _page("Not signed in", "<p>No session.</p>")
+        if not item_ref:
+            return 400, _page("Bad request", "<p>item_ref is required.</p>")
+
+        # EXECUTE needs an EXECUTE-capable token; issuance still enforces
+        # grants and scope existence first (I-14, I-80).
+        try:
+            token = self._context.issue_root(
+                identity=session.identity, actor=session.actor,
+                scope_path=scope_path, rights=frozenset({"write"}),
+                ceiling=Risk.EXECUTE, ttl=60,
+            )
+        except Denied:
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        try:
+            outcome = self._writes.execute(token, scope_path, item_ref, body)
+        except Denied as d:
+            if d.invariant == "I-09":
+                # Approval missing is the one denial worth distinguishing:
+                # it is the caller's next legitimate step, not a secret.
+                return 403, _page("Approval required",
+                                  "<p>This action requires James's approval.</p>")
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        return 200, _page("Written",
+                          f"<p>{html.escape(outcome.detail)} in "
+                          f"<code>{html.escape(scope_path)}</code></p>")
+
+
 def _page(title: str, body: str) -> str:
     """Server-rendered, self-contained, no scripts, no token material."""
     return (
@@ -178,6 +220,28 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 session_id = value
         status, body = _Handler.seam.items_page(session_id, scope_path)
         self._respond(status, body)
+
+    def do_POST(self) -> None:  # noqa: N802 (stdlib naming)
+        import urllib.parse
+        prefix, suffix = "/scope/", "/items"
+        if not (self.path.startswith(prefix) and self.path.endswith(suffix)):
+            self._respond(404, _page("Not found", "<p>Unknown route.</p>"))
+            return
+        scope_path = "/" + self.path[len(prefix):-len(suffix)].strip("/")
+
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        form = urllib.parse.parse_qs(self.rfile.read(length).decode())
+        item_ref = (form.get("item_ref") or [""])[0]
+        body = (form.get("body") or [""])[0]
+
+        cookie = self.headers.get("Cookie", "")
+        session_id = None
+        for part in cookie.split(";"):
+            name, _, value = part.strip().partition("=")
+            if name == "nova_session":
+                session_id = value
+        status, page = _Handler.seam.write_item(session_id, scope_path, item_ref, body)
+        self._respond(status, page)
 
     def _respond(self, status: int, body: str) -> None:
         data = body.encode()
