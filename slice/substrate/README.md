@@ -76,10 +76,17 @@ security suite, which is how isolation failures survive review.
 | Layer | Status |
 | --- | --- |
 | **The substrate** (`slice/substrate/`) | **ENFORCED** — below the query layer, evidenced against real PostgreSQL 16.13 |
-| **The application path** (`slice/core`, `runtime.py`) | **DEMONSTRATED** — still uses the per-scope SQLite `StoreRegistry`; nothing routes through the boundary yet |
+| **The application path** (`seam.py` → PEP → boundary → RLS) | **ENFORCED** — the seam drives the same property over real HTTP: no application-side predicate exists (verified by source inspection), an application-level negative control shows RLS is what holds it, and sequential requests on a shared pool carry nothing across scopes |
+| **The pre-substrate slice** (`slice/core` `StoreRegistry`, `runtime.py`) | **DEMONSTRATED** — the earlier SQLite mechanism remains as slice fixtures; it is not the application path |
 
-**NOVA as a whole does not yet enforce `I-03`. The mechanism does.** The two are joined when the
-Data Access PEP exists — see the open gap below.
+The Data Access PEP exists: `PolicyDecisionPoint.authorize_data_read`
+([ADR 0045](../../docs/decisions/0045-data-access-pep-decision-sequence.md), **Proposed**) — the
+ten-step sequence with the tool-specific steps inapplicable by `I-114`'s own wording. One decision
+authority, not two.
+
+**Still not claimed:** timing (`I-03 [PHYS]` names it; untested, stated), `C-8` backup
+partitioning, `C-9` per-scope keys, and authentication — `SessionStore` is an explicit stand-in
+confined to one class until `D-09` is resolved.
 
 ### What the nine adversarial checks established
 
@@ -109,22 +116,26 @@ Data Access PEP exists — see the open gap below.
 
 ---
 
-## Open gap — the Data Access PEP does not exist
+## The seam
 
-The seam (request → Context → PDP → database → response) is **not built**, and the reason is
-architectural rather than practical.
+```
+HTTP GET /scope/<path>/items
+  → opaque session cookie → server-side actor identity   (D-09 stand-in)
+  → Context service issues the Context Token             (I-106)
+  → PolicyDecisionPoint.authorize_data_read              (I-77; ADR 0045)
+  → Data-Access Boundary opens the scope-bound channel   (I-78, I-79, I-87)
+  → SELECT with no scope predicate — RLS bounds it
+  → audit row, deterministic identity, same transaction  (I-93, W-1)
+  → server-rendered HTML
+```
 
-`I-77` and `AUTHORIZATION_MODEL.md` are explicit: *"The Data Access PEP… still asks the PDP for
-every data access, still running steps 1–10 above in full."* But the implemented PDP decides
-**plans of tool actions**: `PlanStep` requires a `tool_name`, and `authorize_plan` requires a
-resolved `ExecutionBinding` per tool.
+The browser holds one opaque session id and nothing else — no token, no decision, no credential.
+An ungranted scope and a nonexistent scope return byte-identical pages, so a requester without
+access does not learn which it was.
 
-**A data read has no tool and no execution binding.** Representing one as a plan would mean
-inventing a fake tool and a fake binding — and `I-114` is explicitly scoped to *consequence-producing
-tool actions*, so applying it to a read would misapply an invariant.
-
-Deciding which of the ten steps apply to a tool-less read is an architectural decision that no
-accepted document makes. It was not attempted here.
+```bash
+python3 -m unittest slice.substrate.tests.test_seam        # 14 application-path checks
+```
 
 ## Validation state
 

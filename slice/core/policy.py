@@ -171,6 +171,67 @@ class PolicyDecisionPoint:
                              f"plan={auth.plan_identity} binding_id={auth.binding_identity()}")
         return auth
 
+    # -- data access (ADR 0045, Proposed) ----------------------------------
+
+    def authorize_data_read(self, token: ContextToken, resource_scope: str,
+                            rights: frozenset[str] = frozenset({"read"})) -> None:
+        """The Data Access PEP's decision for a read (I-77).
+
+        The ten-step sequence with the tool-specific steps inapplicable by
+        their own wording: I-114 scopes itself to consequence-producing tool
+        actions, a read has no tool and no binding, and inventing a fake one
+        to satisfy authorize_plan's signature would misapply the invariant.
+        Steps applied: validity, subject, containment, explicit denial, grant,
+        risk ceiling, record. See ADR 0045 for the step-by-step reading.
+
+        Deliberately returns nothing: an allow confers no capability object.
+        Reachability is bounded separately by the Data-Access Boundary and RLS
+        (I-62, I-77) -- this decision could be compromised entirely and still
+        reach nothing outside the token's scope.
+        """
+        if not self.available:
+            self._deny(token, "step0.pdp", "PDP unavailable", "I-17")
+
+        # 1. Token validity.
+        try:
+            self._context.verify(token)
+        except Denied as d:
+            self._record_denial(token, d)
+            raise
+        if token.expired():
+            self._deny(token, "step1.context", "context token expired", "I-65")
+
+        # 2. Subject known.
+        if not token.identity or not token.actor:
+            self._deny(token, "step2.subject", "unrecognized execution identity", "I-66")
+
+        # 3. Scope containment -- before grants, deliberately (P-1).
+        if not token.covers(resource_scope):
+            self._deny(token, "step3.scope", f"token does not cover {resource_scope}",
+                       "I-03", security_event=True)
+
+        # 4. Explicit denial overrides any grant (P-2).
+        for right in rights:
+            if self._tree.explicit_denial(token.identity, right, resource_scope):
+                self._deny(token, "step4.denial", "explicit denial overrides any grant", "I-15")
+
+        # 5. Grant present, and inside the token's own rights (I-07 intersection).
+        for right in rights:
+            if self._tree.find_grant(token.identity, right, "*", resource_scope) is None:
+                self._deny(token, "step5.grant",
+                           f"no grant for {right} on {resource_scope}", "I-14")
+            if right not in token.granted_rights:
+                self._deny(token, "step5.grant",
+                           f"token does not carry right {right}", "I-07")
+
+        # 6-7. Risk ceiling: a read is class READ; the token must admit it.
+        if token.risk_ceiling < Risk.READ:
+            self._deny(token, "step6.risk", "token ceiling below READ", "I-101")
+
+        # 10. Allow, recorded (W-2).
+        self._audit.decision(resource_scope, token.trace_id, "allow",
+                             f"data_read scope={resource_scope} rights={sorted(rights)}")
+
     # -- denial helpers ----------------------------------------------------
 
     def _deny(self, token: ContextToken, step: str, reason: str,
