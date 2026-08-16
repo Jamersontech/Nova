@@ -51,6 +51,7 @@ from ..models.anthropic_provider import (ANTHROPIC_ENDPOINT, ANTHROPIC_VERSION,
                                          RealAnthropicTransport)
 from . import db, tree_store
 from .approval_flow import ApprovalService
+from .attention import AttentionService
 from .auth import AuthenticationService
 from .boundary import DataAccessBoundary
 from .conversation import (CONVERSATION_MODEL, PROVIDER, ConversationService)
@@ -131,8 +132,10 @@ def wire(data_dir: str, rp_id: str, origin: str) -> Seam:
 
     conversation = ConversationService(gateway, pdp, boundary, approvals,
                                        budget=budget)
+    attention = AttentionService(tree, context, pdp, boundary)
     return Seam(context, pdp, boundary, auth, write_path=writes,
-                approvals=approvals, tree=tree, conversation=conversation)
+                approvals=approvals, tree=tree, conversation=conversation,
+                attention=attention)
 
 
 def main() -> int:

@@ -78,7 +78,8 @@ class Seam:
 
     def __init__(self, context: ContextService, pdp: PolicyDecisionPoint,
                  boundary: DataAccessBoundary, auth: AuthenticationService,
-                 write_path=None, approvals=None, tree=None, conversation=None):
+                 write_path=None, approvals=None, tree=None, conversation=None,
+                 attention=None):
         # The scope tree, for navigation only. Every path it offers is checked
         # against a grant before it is shown, and entering one still issues a
         # token and runs the PDP -- navigation is not authorization.
@@ -96,6 +97,8 @@ class Seam:
         # transcript is in-process and per (session, scope): continuity is not
         # memory, and it dies with the process on purpose.
         self._conversation = conversation
+        # Optional: the cross-scope attention view (attention.AttentionService).
+        self._attention = attention
         self._transcripts: dict[tuple[str, str], list[dict]] = {}
 
     # -- the session gate (A-1) ---------------------------------------------
@@ -200,16 +203,23 @@ class Seam:
         if self._tree is None:
             return 404, _page("Not found", "<p>No scope tree is loaded.</p>")
 
+        # What needs his attention, first -- before the places he can go.
+        # Composed above N independently authorized single-scope reads; see
+        # attention.py. Ephemeral: rendered here and discarded.
+        attention = ""
+        if self._attention is not None:
+            attention = _attention_section(
+                self._attention.gather(session.identity, session.actor))
+
         areas = [p for p in self._tree.roots() if self._may_read(session, p)]
         if not areas:
             body = "<p class=\"muted\">Nothing is available to you yet.</p>"
         else:
-            body = "".join(
-                f"<article class=\"card\"><h2><a href=\"/scope{html.escape(p)}\">"
-                f"{html.escape(_label(p))}</a></h2>"
-                f"<p class=\"muted\"><code>{html.escape(p)}</code></p></article>"
-                for p in areas)
-        return 200, _page("NOVA", body + _footer_links())
+            body = ("<h2 class=\"section\">Where things live</h2>" + "".join(
+                f"<article class=\"card area\"><h3><a href=\"/scope{html.escape(p)}\">"
+                f"{html.escape(_label(p))}</a></h3></article>"
+                for p in areas))
+        return 200, _page("NOVA", attention + body + _footer_links())
 
     def scope_page(self, session_id: Optional[str], scope_path: str) -> tuple[int, str]:
         """Level 3: drill into one area, business, client or life area.
@@ -512,6 +522,59 @@ class Seam:
                           f"<code>{html.escape(scope_path)}</code></p>")
 
 
+def _scope_trail(scope_path: str) -> str:
+    """BUSINESS / KAIRO / CLIENT A -- context, not a path. Every item on the
+    attention page belongs to exactly one scope and says which."""
+    return " / ".join(_label("/" + p) for p in scope_path.strip("/").split("/"))
+
+
+def _attention_section(a) -> str:
+    """One question, answered. No charts, no scores, no ranking -- ordering is
+    by due date, which is a fact rather than a judgement."""
+    if a.empty:
+        return ("<section class=\"attention\"><h2 class=\"section\">Needs your attention</h2>"
+                "<p class=\"muted\">Nothing right now.</p></section>")
+
+    counts = []
+    if a.approvals:
+        counts.append(f"{len(a.approvals)} "
+                      f"approval{'s' if len(a.approvals) != 1 else ''}")
+    if a.overdue:
+        counts.append(f"{len(a.overdue)} overdue")
+    if a.due_soon:
+        counts.append(f"{len(a.due_soon)} due soon")
+
+    rows = []
+    for ap in a.approvals:
+        rows.append(
+            f"<li class=\"att\"><a href=\"/scope{html.escape(ap.scope_path)}/approvals\">"
+            f"<span class=\"flag\">approval</span>"
+            f"<span class=\"what\">{html.escape(ap.action_text)}</span>"
+            f"<span class=\"where\">{html.escape(_scope_trail(ap.scope_path))}</span>"
+            f"</a></li>")
+    for task in a.overdue + a.due_soon:
+        flag = "overdue" if task.overdue else f"{task.due_on:%d %b}"
+        cls = "flag late" if task.overdue else "flag"
+        rows.append(
+            f"<li class=\"att\"><a href=\"/scope{html.escape(task.scope_path)}\">"
+            f"<span class=\"{cls}\">{html.escape(flag)}</span>"
+            f"<span class=\"what\">{html.escape(task.title)}</span>"
+            f"<span class=\"where\">{html.escape(_scope_trail(task.scope_path))}</span>"
+            f"</a></li>")
+
+    summary = html.escape(" \u00b7 ".join(counts))
+    listing = "".join(rows)
+    areas = len(a.scopes_read)
+    return (f"<section class=\"attention\">"
+            f"<h2 class=\"section\">Needs your attention</h2>"
+            f"<p class=\"counts\">{summary}</p>"
+            f"<ul class=\"attlist\">{listing}</ul>"
+            f"<p class=\"muted\">Approvals and dated tasks, from the {areas} "
+            f"area{'s' if areas != 1 else ''} you can reach. Activity across more "
+            f"than one area needs a stronger sign-in (A-3a) and is not shown "
+            f"here.</p></section>")
+
+
 def _label(scope_path: str) -> str:
     """A scope path is machinery; a name is what James reads."""
     return scope_path.rstrip("/").rsplit("/", 1)[-1].replace("-", " ").upper()
@@ -724,6 +787,32 @@ button.primary { background: var(--nova-color-accent-base);
 .turn p { margin: var(--nova-space-tight) 0 0 0; }
 .pending { color: var(--nova-color-risk-contextual); }
 .overdue { color: var(--nova-color-risk-contextual); }
+.section { font-size: var(--nova-type-size-lead);
+           letter-spacing: var(--nova-type-tracking-label); text-transform: uppercase;
+           color: var(--nova-color-text-muted); margin: 0 0 var(--nova-space-snug) 0; }
+.attention { max-width: 46rem; margin-bottom: var(--nova-space-section); }
+.counts { color: var(--nova-color-text-secondary); margin: 0 0 var(--nova-space-snug) 0; }
+.attlist { list-style: none; padding: 0; margin: 0;
+           border-top: var(--nova-border-width) solid var(--nova-color-border-subtle); }
+.att a { display: grid; grid-template-columns: 7rem 1fr auto;
+         gap: var(--nova-space-gutter); align-items: baseline;
+         padding: var(--nova-space-snug) 0; text-decoration: none;
+         color: var(--nova-color-text-primary);
+         border-bottom: var(--nova-border-width) solid var(--nova-color-border-subtle);
+         min-height: var(--nova-control-target); }
+.att a:hover .what { text-decoration: underline; }
+.flag { color: var(--nova-color-text-muted); font-size: var(--nova-type-size-caption);
+        letter-spacing: var(--nova-type-tracking-label); text-transform: uppercase; }
+.flag.late { color: var(--nova-color-risk-contextual); }
+.where { color: var(--nova-color-text-muted); font-size: var(--nova-type-size-caption);
+         letter-spacing: var(--nova-type-tracking-label); text-transform: uppercase; }
+.card.area { padding: var(--nova-space-snug) var(--nova-space-gutter); }
+.card.area h3 { font-size: var(--nova-type-size-lead); margin: 0; }
+.att a:focus-visible { outline: var(--nova-border-emphasis) solid
+                       var(--nova-color-border-accent); outline-offset: 0; }
+@media (max-width: 40rem) {
+  .att a { grid-template-columns: 1fr; gap: var(--nova-space-tight); }
+}
 .say { display: flex; gap: var(--nova-space-tight); align-items: center;
        max-width: 46rem; }
 .say input { flex: 1; font-family: var(--nova-type-family-ui);
@@ -820,6 +909,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     seam: Seam  # set by serve()
 
     def do_GET(self) -> None:  # noqa: N802 (stdlib naming)
+        # Route on the path alone. No handler reads a query parameter -- every
+        # decision comes from the session and the tree -- so a query string
+        # must neither reach one nor turn a valid route into a 404.
+        self.path = self.path.split("?", 1)[0]
+
         if self.path == "/auth/login/options":
             self._respond_raw(*_Handler.seam.auth_login_options())
             return
@@ -869,7 +963,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
 
         # /scope/<path> -- one scope. Last, so the specific routes above win.
-        if self.path.startswith(prefix) and "?" not in self.path:
+        if self.path.startswith(prefix):
             scope_path = "/" + self.path[len(prefix):].strip("/")
             self._respond(*_Handler.seam.scope_page(self._session(), scope_path))
             return
