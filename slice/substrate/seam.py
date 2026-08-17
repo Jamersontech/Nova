@@ -259,6 +259,12 @@ class Seam:
                 tasks = ch.fetch(
                     "SELECT task_ref, title, due_on FROM task WHERE done_at IS NULL"
                     " ORDER BY due_on NULLS LAST, task_ref")
+                # Notes, same shape as tasks: bounded by RLS to the token's
+                # coverage, no application-side predicate. What James asked
+                # NOVA to remember should be visible where he recorded it.
+                notes = ch.fetch(
+                    "SELECT item_ref, body FROM item ORDER BY created_at DESC, item_ref"
+                    " LIMIT 20")
                 # A-3a: reviewing audit records across MORE THAN ONE scope
                 # requires step-up, and step-up does not exist yet. So this is
                 # pinned to the exact scope rather than the token's coverage --
@@ -279,6 +285,7 @@ class Seam:
             + _talk_link(scope_path)
             + _decision_card(scope_path, pending)
             + _tasks_card(tasks)
+            + _notes_card(notes)
             + _children_card(children)
             + _activity_card(activity, scope_path))
 
@@ -621,6 +628,17 @@ def _tasks_card(rows: list) -> str:
                        f"<code>{html.escape(ref)}</code></li>")
     return (f"<article class=\"card\"><h2>What needs doing</h2>"
             f"<ul>{''.join(entries)}</ul></article>")
+
+
+def _notes_card(rows: list) -> str:
+    """What James asked NOVA to remember, in this scope. Absent entirely when
+    empty -- an empty notes card is furniture, not information."""
+    if not rows:
+        return ""
+    entries = "".join(
+        f"<li>{html.escape(body)} <code>{html.escape(ref)}</code></li>"
+        for ref, body in rows)
+    return (f"<article class=\"card\"><h2>Notes</h2><ul>{entries}</ul></article>")
 
 
 def _decision_card(scope_path: str, pending: int) -> str:
