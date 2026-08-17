@@ -39,8 +39,8 @@ advisory.
 
 Three fields carry particular weight at runtime:
 
-- **Allowed Context** — the maximum scope an instance may ever hold. The runtime cannot
-  issue a token exceeding it, regardless of what the orchestrator requests.
+- **Allowed Context** — the maximum scope an instance may ever hold. No token exceeding it is
+  ever issued. ¹
 - **Allowed Tools** — a closed list. A tool not named cannot be called, even if it exists
   and the context would permit it.
 - **Non-Responsibilities** — what the agent must refuse. Enforced where mechanically
@@ -80,6 +80,27 @@ to multiple clients' data.
 
 **Termination** is always available: on completion, failure, denial, escalation withdrawal,
 or emergency stop. A running agent can always be stopped.
+
+> ¹ **CORRECTED BY SECTION 06 — ACCEPTED by James 2026-08-14.** *(2026-08-14.)* **As accepted
+> 2026-08-12 the bullet read** *"The runtime cannot **issue** a token exceeding it, regardless of
+> what the orchestrator requests."* **That wording is wrong as accepted**, not merely loose: `I-87`
+> requires every consumer to reject a token *"fabricated by anything other than the Context
+> service"*, so a runtime that issues tokens produces tokens every enforcement point is obliged to
+> refuse, and no agent could act.
+>
+> **The Context service is the sole issuer. The runtime requests narrowing** (`I-106`,
+> [`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) §2). At issuance Context refuses any request
+> exceeding the requesting execution's own token, **this agent definition**, James's grants, or the
+> delegation constraints — which is where `I-07`'s intersection stops being asserted and starts
+> being checked. The bound this bullet states is unchanged; only who enforces it is corrected.
+>
+> **Child executions cannot outlive their granting execution identity** (`AG-11`, `I-107`): on
+> completion, failure, termination, revocation or emergency stop alike, a child fails closed at its
+> next enforcement point via `V-2`. **There is no suspended agent state** and Section 06
+> deliberately introduces none (`AG-12`).
+>
+> Authority: [ADR 0029](../decisions/0029-delegated-authority.md) and
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14.
 
 ---
 

@@ -48,6 +48,29 @@ what makes a KAIRO-level summary of Client A's work an explicit, audited elevati
 than a side effect. SENSITIVE-PERSONAL cannot be summarized at all, which is what prevents
 health information from surfacing anywhere it was not deliberately sought.
 
+> **Where "Transmitted externally" is enforced.** ***PROPOSED — added by Section 13, not yet
+> accepted*** *(2026-08-15; authority
+> [ADR 0039](../decisions/0039-communication-is-classified-egress.md), Proposed; removed and the
+> accepted text restored verbatim if rejected).* **The row is normative and no document named its
+> enforcement point.** Two egress paths leave NOVA's trust boundary. The **model** path was given
+> one in Section 05 — `I-94`'s per-call decision and `I-96` at the Model Gateway. The
+> **communication** path — email, SMS, messaging — needed no new machinery and had never been
+> composed:
+>
+> ```text
+> I-99   a model-composed message body is a DERIVATION of its inputs, stored or not
+> I-27   a derived item inherits the STRICTEST classification among its sources
+> §2     this row then governs what that classification may do on transmission
+> step 7 "Does classification permit this action here?" — the PDP's existing step,
+>        asked at the Tool call PEP, which is where a send is enforced
+> ```
+>
+> **No new invariant, PEP or object is created**; the six enforcement points remain six and the
+> decision sequence remains ten steps. **The point worth stating** is that a message body is
+> *expressive* for the argument envelope (`MT-5`) and *classified content* for this row — two
+> different questions, and answering the first does not answer the second. Full model:
+> [`COMMUNICATION_ARCHITECTURE.md`](./COMMUNICATION_ARCHITECTURE.md) §2.
+
 ---
 
 ## 3. Assigning Classification

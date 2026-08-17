@@ -82,6 +82,26 @@ Every retrieval:
 **Retrieval is an authorization event, not a lookup.** Treating it otherwise is precisely
 how memory becomes the hidden channel this model exists to prevent.
 
+**Three further requirements on every retrieval.** ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+[ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), **Accepted** 2026-08-15).*
+
+6. **The union provenance and lowest trust are restored, not just a single provenance value**
+   (`I-111`). Rule 2 above labels items with *"provenance, trust, epistemic status, and age"* —
+   singular fields. `I-99` requires the **union** of every contributing source and the **lowest**
+   trust among them, and `I-100`'s untrusted-derived tool-argument ceiling is evaluated against it.
+   A retrieval that returns a collapsed provenance satisfies rule 2 and defeats `I-100`.
+7. **Delegation ancestry is restored with the item** (`I-111`). Memory written by a delegated child
+   is **scope-owned and survives the child correctly** — but **survival is not authority.** A
+   broader ancestor retrieving it must not treat it as more authoritative than the authority and
+   trust state under which it was created (`I-107` ancestry, `I-27` strictest-source). The memory is
+   **not invalid**, and no separate authority hierarchy for memory is created.
+8. **A revoked creating authority is surfaced.** An item created under an authority later revoked is
+   **retained** under the lifecycle rules above and its revocation state is **exposed at
+   retrieval**. Nothing is automatically deleted, downgraded, invalidated, promoted, or
+   reclassified — `DATA_LIFECYCLE.md` §4's rule against silent resolution applies: revocation
+   happens for many reasons and only some impeach what was learned. The **consuming authority**
+   decides, and where fresh authorization is required the existing rules control.
+
 ---
 
 ## 4.1 Low-Trust Memory: Quarantine and Revalidation
@@ -90,8 +110,8 @@ how memory becomes the hidden channel this model exists to prevent.
 *contained* by the `PREPARE` ceiling but never *removed* — it persists and keeps influencing
 every future retrieval.*
 
-**Quarantine.** Memory formed from `external.web`, `client.supplied`, or
-`integration.supplied` provenance at low trust is held in a quarantined state:
+**Quarantine.** Memory formed from `external.web`, `client.supplied`, `integration.supplied`, or
+**`model.generated`** ¹ provenance at low trust is held in a quarantined state:
 
 - retrievable and clearly labelled, never silently merged into general context,
 - unable to raise a plan above `PREPARE` without approval naming the source (`I-40`),
@@ -102,7 +122,23 @@ every future retrieval.*
 trust changes, or on an age horizon. Revalidation either promotes it (a verified source now
 supports it), leaves it quarantined, or marks it disputed. **Revalidation never deletes it** —
 provenance is immutable (`I-38`), and a false claim that was believed is itself a fact worth
-retaining.
+retaining. ²
+
+> ² ***Added by Section 09 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, **Accepted** 2026-08-15).* **"Re-fetched" is now a comparison, not just a retrieval.** Provenance
+> records a **source observation** — identifier, content digest, `retrieved_at`
+> ([`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §2.1) — so revalidation re-fetches the
+> identifier and compares digests:
+>
+> - **same digest** → the exact content relied upon still holds;
+> - **different digest** → the source changed; the new observation **supersedes** without
+>   overwriting (`I-43`), and the prior observation remains a true record of what was relied upon;
+> - **unreachable** → the check cannot be completed, so **§4.3 denies promotion** (`I-110`
+>   fails closed) and the item degrades by the ordinary confirmation horizon
+>   ([`PROVENANCE_AND_TRUST.md`](./PROVENANCE_AND_TRUST.md) §4) rather than being deleted or
+>   silently retained at its old status.
+>
+> This is what makes `I-110`(b) *identifiable* and (c) *reproducibly checkable* implementable.
 
 **Contradiction.** When quarantined memory conflicts with higher-trust memory, the higher
 trust stands and the conflict is recorded; it is never silently discarded
@@ -112,6 +148,24 @@ signal to lower that source's trust.
 **Residual risk, stated plainly:** quarantine contains injection persistence; it does not end
 it. A patient attacker supplying consistently plausible content that nothing contradicts is
 not detected by this mechanism (`T-10`).
+
+> ¹ ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), **Accepted** 2026-08-15).* **`model.generated` was absent from this set.** `I-99` covered it
+> partially — model output inherits its inputs' provenance, so output derived from web or client
+> content was already quarantined — but output derived from **purely internal** inputs was Low-trust
+> and **unquarantined**: silently mergeable into general context and eligible for derivation into
+> higher-trust items, both of which quarantine exists to prevent. **Trust alone does not do
+> quarantine's work.**
+>
+> **Model-generated memory is not safe because its inputs were internal, because it carries no
+> external provenance, because a trusted model produced it, or because it was generated inside
+> NOVA.** No new quarantine concept is created; the existing rules apply unchanged.
+>
+> **This makes §2's Semantic-memory rule enforceable rather than aspirational.** §2 already says
+> semantic memory is *"created by curation from verified sources"*; with this, model output cannot
+> become durable higher-trust knowledge except through §4.3's promotion. **The operational cost is
+> real and is accepted:** durable knowledge now arrives predominantly through curation, and the
+> convenient path — an agent's good summary quietly becoming knowledge — is closed.
 
 ---
 
@@ -142,6 +196,45 @@ stale authority is not assumed. `I-59`.
 
 Horizons are per-item-class and are not set here; the mechanism is fixed, the durations are
 Section 07's.
+
+---
+
+## 4.3 Trust Promotion
+
+***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+[ADR 0032](../decisions/0032-trust-promotion-authority.md) and
+[ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).*
+
+§4.1 says revalidation *"either **promotes** it… leaves it quarantined, or marks it disputed."*
+**Promotion had no owner.** `I-39` gates fact status on *provenance **and** trust*; provenance is
+immutable (`I-38`), classification-lowering is owned (`I-30`), approval and grants are James's
+(`I-09`, `I-10`), and a model check cannot promote epistemic status (`I-102`) — **trust was the one
+axis in that gate with no authority attached.** An unowned promotion converts contained untrusted
+content into apparent fact without violating any invariant.
+
+**`I-110` closes it.** Raising trust is an **explicitly authorized operation** — never automatic,
+never performed by an agent, never model-mediated, and never inferred from repetition, model
+confidence, consensus, internal origin, or the fact that NOVA produced it. It is a **C3** change,
+governed exactly as `I-30` governs downward reclassification.
+
+**Every promotion records seven things, or it does not happen:** the item · its immutable
+provenance · the evidence relied on · the authoritative source · the resulting trust · the
+responsible authority · the trace identity.
+
+**`system.verified` requires an authoritative source, and the term is defined** — external to the
+model's own output, identifiable, verification reproducible and auditable, and itself satisfying the
+applicable trust and data-policy requirements. **A model saying "I verified this" is never evidence
+of verification, and a model-generated summary of an authoritative source is not the authoritative
+source.**
+
+**Enforcement:** the memory write / revalidation path, **before** the item becomes eligible for
+downstream use. **On uncertainty, missing evidence, an unidentifiable source, or a failed check the
+promotion is denied** and the item keeps its existing trust — never retained provisionally, never
+pending review.
+
+**Provenance is untouched** (`I-38`): a promotion adds a verification record and a new trust value;
+it never rewrites where an item came from. **Lowering trust is deliberately not governed here** —
+restriction is not gated like elevation, the same asymmetry `I-93` and ADR 0030 apply.
 
 ---
 

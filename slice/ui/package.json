@@ -1,0 +1,13 @@
+{
+  "name": "nova-ui-slice",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Section 15 design-system demonstration. Dev-only: Playwright drives the render checks. Nothing here ships (ADR 0041).",
+  "type": "module",
+  "scripts": {
+    "verify": "node tests/render_check.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

@@ -29,6 +29,7 @@ flowchart LR
         T["Tool call"]
         C["Credential Broker"]
         D["Data access"]
+        M["Model egress"]
     end
     PDP["POLICY DECISION POINT<br/>single authority"]
     O --> PDP
@@ -36,19 +37,49 @@ flowchart LR
     T --> PDP
     C --> PDP
     D --> PDP
+    M --> PDP
     PDP --> R["allow · deny · approval required"]
     PDP --> AU["audit record"]
 
     style PDP fill:#7c2d12,color:#fff
+    style M fill:#1e3a5f,color:#fff
 ```
 
-**One place decides; five places enforce.** Scattering authorization logic across
+**One place decides; six places enforce.** Scattering authorization logic across
 orchestration and tool code is how isolation quietly rots — each site drifts, and no one
 can answer "what is actually enforced?" A single PDP is testable in isolation
 ([`TESTING_ARCHITECTURE.md`](./TESTING_ARCHITECTURE.md)).
 
 **Default deny.** Absence of a grant is a denial. Absence of an explicit *denial* is not a
 grant ([`../ai/AGENT_PRINCIPLES.md`](../ai/AGENT_PRINCIPLES.md) §3).
+
+**A token failing integrity detection is not a valid token at any of the five points.**
+*(Added 2026-08-13, N-6 — proposed through Section 04.)* Each enforcement point must be able to
+detect a Context Token modified after issuance or fabricated by anything other than the Context
+service, and must refuse it — no channel, no decision, no call, denied and recorded (`I-87`,
+`CT-1`–`CT-3`, [`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §6). This is a **detection**
+requirement on a mechanism that does not yet exist (`I-87` is `[PHYS]`); **forgery is not claimed
+to be impossible**, and it does nothing against a compromised Context service issuing genuine
+tokens (`T-23a`).
+
+**Model egress is the sixth enforcement point.** ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; this file is Active Section 02 material, so this paragraph and the
+`Model egress` node above are amendments proposed through
+[ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
+[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
+**Accepted** 2026-08-14.)* Every model call is an authorization decision evaluated per call against the
+Context Token, the classification of every item in the request, and the destination provider
+(`I-94`, [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) §2). Model egress is
+the point at which NOVA's data leaves NOVA's trust boundary to a third party; before Section 05 it
+was the only such path with no named enforcement point, which is why emergency stop (`I-19`) and
+revocation (`I-74`) — both defined as taking effect *at* enforcement points — did not reach it.
+**The gateway decides nothing** (`I-77`): like every enforcement point it can only deny.
+
+**All five original enforcement points remain in force after Section 04.** *(Noted 2026-08-12, H-1.)*
+Section 04 adds a structural storage isolation layer beneath the **Data access** PEP
+([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md),
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)). It is **additional**: the Data
+access PEP still asks the PDP for every access, and the isolation layer decides nothing about
+authorization. Neither replaces the other (`I-77`).
 
 ---
 
@@ -120,6 +151,56 @@ so that what NOVA may do autonomously is always inspectable.
 **An approval authorizes one action, in one context, at one time.** It never becomes a
 precedent, and it is never inferred from a previous approval.
 
+**What makes it the *same* action at execution time.** ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
+[ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* The sentence above fixes **how many times** an approval may be
+used. It did not fix **what it is an approval of** — so between approval and execution the agent
+definition, its tool set, its effective rights, its delegation chain or its budget could change and
+the approval would still appear to apply.
+
+**Nine properties are binding** (`I-109`): action · resource · scope · effective rights · risk
+class · tool set · argument envelope (`I-100`) · delegation ancestry · cost ceiling.
+
+**Explicitly not binding:** model, provider, capability profile, the **ephemeral agent instance
+identity**, wording, formatting, ordering, and other implementation metadata. Instances are
+ephemeral *by design*, so binding to one would make every approval stale on principle and train the
+reflexive re-approval [`KNOWN_RISKS.md`](./KNOWN_RISKS.md) records as a security failure. Model and
+provider are excluded because Section 05 already decides egress per call (`I-94`, `I-97`).
+
+> ***AMENDED BY SECTION 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **The model/provider
+> exclusion is scoped to model calls, where its stated rationale lives** — a tool call has no
+> per-call provider decision for `I-94`/`I-97` to make. For a **consequence-producing tool
+> action**, the approval **also binds the execution binding** — tool identity and version,
+> integration, credential binding — as a **tenth** property (`I-114`, `I-109` as amended). The
+> nine properties are unchanged; the deterministic-identity construction below extends over the
+> tenth unchanged. **This paragraph must not be read as saying provider identity is irrelevant to
+> tool authorization.**
+
+**The binding reuses `I-93`'s deterministic-identity construction — no cryptography is invented.**
+If it differs at execution the approval does not apply, execution does not proceed under it, and
+fresh approval is required where the risk class requires approval at all. **The property:** an
+approved action cannot silently become a materially different action because the agent executing it
+changed.
+
+**An envelope approval is not an action approval.** ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+[ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* `EXECUTION_ARCHITECTURE.md` §2.1 says *"James approves the plan"*
+while the rule above says an approval authorizes **one action** — two different objects, with no
+statement of how they relate.
+
+**Both are true and they are different things.** A **plan approval** authorizes an **envelope**
+(scope, risk ceiling, tool set, cost ceiling, composition) and is what
+[`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) §2.2 evaluates. **It never
+becomes blanket authorization for the actions inside it**: each action is still evaluated
+independently by the unmodified ten-step sequence, and an action outside the envelope is denied even
+where it would be permitted alone (`I-113`).
+
+**The one-action rule above is unchanged.** It governs action approvals, and an envelope approval
+does not substitute for one. **Re-planning produces a new plan and therefore a new envelope
+requiring fresh approval where the risk class requires it** — an approval is never inherited because
+the objective is unchanged.
+
 **Approval requests must be answerable.** A request stating what will change, in which
 scope, what it costs, and what happens if it is wrong is a decision James can make in
 seconds. A request saying "approve this workflow?" is not.
@@ -142,6 +223,9 @@ Point 5 is the design constraint that matters: the stop is enforced at the enfor
 points, not requested politely of the thing being stopped.
 
 Resumption after a stop is always an explicit human act.
+
+**Mechanics are specified in Section 04:** [`SECURITY_OPERATIONS.md`](./SECURITY_OPERATIONS.md)
+§2 (emergency stop), §1 (revocation timing), §3 (break-glass).
 
 ---
 

@@ -28,6 +28,7 @@ document; everything else elaborates one part of it.
 | [`CONTEXT_ARCHITECTURE.md`](./CONTEXT_ARCHITECTURE.md) | How NOVA knows *where* it is working |
 | [`MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`](./MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md) | Memory, knowledge, documents, live data |
 | [`AGENT_ARCHITECTURE.md`](./AGENT_ARCHITECTURE.md) | Internal agents; vs. external coding agents |
+| [`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) | How delegated authority is derived, bounded, budgeted and ended; agent governance classes; what an approval binds *(§6)* |
 | [`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) | The orchestrator; workflows |
 | [`EXECUTION_ARCHITECTURE.md`](./EXECUTION_ARCHITECTURE.md) | Coding agents; the KAIRO client model |
 | [`DATA_ARCHITECTURE.md`](./DATA_ARCHITECTURE.md) | Entities, relationships, invariants |
@@ -40,6 +41,9 @@ document; everything else elaborates one part of it.
 | [`CROSS_SCOPE_DATA_RULES.md`](./CROSS_SCOPE_DATA_RULES.md) | Aggregation, derived data, side channels, cross-domain *(§3)* |
 | [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) | Tools, integrations, credentials |
 | [`MODEL_ARCHITECTURE.md`](./MODEL_ARCHITECTURE.md) | Provider-neutral model access |
+| [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) | What may be sent to a model, where, and under whose authority *(§5)* |
+| [`MODEL_TRUST_AND_AUTHORITY.md`](./MODEL_TRUST_AND_AUTHORITY.md) | What model output may cause, and what it may never establish *(§5)* |
+| [`COMMUNICATION_ARCHITECTURE.md`](./COMMUNICATION_ARCHITECTURE.md) | What may be sent to a person, to whom, and what comes back — **Proposed** *(§13)* |
 | [`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) | Events, traces, audit |
 | [`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) | Failure, retry, partial completion |
 | [`USER_INTERFACE_ARCHITECTURE.md`](./USER_INTERFACE_ARCHITECTURE.md) | Information architecture; devices |
@@ -51,6 +55,12 @@ document; everything else elaborates one part of it.
 | Document | Answers |
 | --- | --- |
 | [`SECURITY_BOUNDARIES.md`](./SECURITY_BOUNDARIES.md) | Every boundary and what may cross it |
+| [`ISOLATION_ENFORCEMENT.md`](./ISOLATION_ENFORCEMENT.md) | **How `I-03` becomes structural** — enforcement below the query layer *(§4)* |
+| [`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) | Who proves what, and how sessions are bounded *(§4)* |
+| [`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) | Secrets-store requirements and the broker protocol *(§4)* |
+| [`ENCRYPTION_REQUIREMENTS.md`](./ENCRYPTION_REQUIREMENTS.md) | What must be encrypted; keys mirror the scope tree *(§4)* |
+| [`POLICY_ENGINE_REQUIREMENTS.md`](./POLICY_ENGINE_REQUIREMENTS.md) | What an authorization engine must satisfy *(§4)* |
+| [`SECURITY_OPERATIONS.md`](./SECURITY_OPERATIONS.md) | Revocation, emergency stop, break-glass, incident response *(§4)* |
 | [`INVARIANTS.md`](./INVARIANTS.md) | **The fifty testable properties every implementation must satisfy** *(§3)* |
 | [`THREAT_MODEL.md`](./THREAT_MODEL.md) | Threats, defenses, and residual risk *(§3)* |
 | [`KNOWN_RISKS.md`](./KNOWN_RISKS.md) | Where this architecture is weakest, and what to watch |

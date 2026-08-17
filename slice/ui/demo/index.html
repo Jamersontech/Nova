@@ -1,0 +1,74 @@
+<!doctype html>
+<!--
+  NOVA design-system demonstration screen.
+
+  This file exists to prove one thing: that a screen can be built entirely by
+  composing composites, declaring no visual value of its own. Scan it -- there
+  is no colour, no size, no spacing, no font and no <style> block anywhere
+  below. Every visual decision resolves through tokens.css.
+
+  It is NOT Section 16. It is not NOVA's application, not a screen design, and
+  not a command centre. The content is fixed sample text; nothing is wired to
+  anything, and no control performs an action.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NOVA Design System — demonstration</title>
+    <link rel="stylesheet" href="../tokens/tokens.css" />
+    <script type="module" src="../composites/nova-shell.js"></script>
+    <script type="module" src="../composites/nova-context-bar.js"></script>
+    <script type="module" src="../composites/nova-area-nav.js"></script>
+    <script type="module" src="../composites/nova-approval-card.js"></script>
+    <script type="module" src="../composites/nova-stop.js"></script>
+    <script type="module" src="../composites/nova-disclosure.js"></script>
+  </head>
+  <body>
+    <nova-shell>
+      <!-- Always visible, never behind navigation (UI ARCH section 5). -->
+      <nova-context-bar
+        slot="context"
+        area="business"
+        path="NOVA > BUSINESS > KAIRO > Client A > Website > Production"
+      ></nova-context-bar>
+
+      <nova-area-nav slot="side" active="business"></nova-area-nav>
+      <nova-stop slot="side"></nova-stop>
+
+      <!-- Contextual approval: EXECUTE, reversible. -->
+      <nova-approval-card
+        slot="main"
+        risk="EXECUTE"
+        area="business"
+        action="Send the drafted onboarding email to Client A's primary contact."
+        scope="BUSINESS / KAIRO / Client A / Website"
+        why="Sending leaves NOVA and reaches a person outside it. Drafting was autonomous; sending is not."
+        cost="One outbound email. No spend."
+        if-wrong="The recipient receives an email they did not expect. It cannot be unsent."
+        requested-by="Orchestrator, from a plan James stated"
+      ></nova-approval-card>
+
+      <!-- Explicit approval: IRREVERSIBLE. Deliberately styled apart. -->
+      <nova-approval-card
+        slot="main"
+        risk="IRREVERSIBLE"
+        area="wealth"
+        action="Transfer £4,000 from the reserve account to the operating account."
+        scope="WEALTH / Reserve"
+        why="Moving money cannot be undone. James must initiate this, not merely consent to it."
+        cost="£4,000, plus the transfer fee."
+        if-wrong="The funds are gone from the reserve and recovery depends on the receiving institution."
+        requested-by="Orchestrator, from a plan James stated"
+      ></nova-approval-card>
+
+      <!-- Depth is reached, not displayed (DESIGN PRINCIPLES section 4). -->
+      <nova-disclosure slot="main" summary="What NOVA did to prepare this" level="level 4">
+        <nova-disclosure summary="Plan, binding and budget" level="level 5">
+          <nova-disclosure summary="Agents, tools and permissions" level="level 5">
+          </nova-disclosure>
+        </nova-disclosure>
+      </nova-disclosure>
+    </nova-shell>
+  </body>
+</html>

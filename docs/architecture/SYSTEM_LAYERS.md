@@ -62,6 +62,19 @@ upward. **Does not own:** business meaning of the data it moves.
 Memory, knowledge, documents, records, and events — scope-partitioned. **Does not own:**
 interpretation. Storage does not decide what is true.
 
+**The Data-Access Boundary sits at the entrance to this layer.** ***Added by Section 04 — ACCEPTED
+by James 2026-08-13*** *(2026-08-13, N-3; authority
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md), **Accepted** 2026-08-13). This
+paragraph is an amendment to accepted Section 02 architecture made through ADR 0017.*
+
+It is a **trusted platform responsibility and boundary — not a standalone microservice, not a new
+speculative subsystem, and not separately deployable.** It establishes an execution's storage
+scope binding and opens the scope-bound channel. It owns **the binding**; it does not own **the
+decision** — enforcement point 5 below still consults the PDP for every access. Application and
+agent code may not open a channel, set a binding, widen one, or re-bind mid-execution
+(`I-78`, `I-86`). Full registration:
+[`ISOLATION_ENFORCEMENT.md`](./ISOLATION_ENFORCEMENT.md) §4.1.
+
 ### Platform
 Compute, storage, queues, sandboxes, networking, secret storage primitives.
 **Does not own:** anything NOVA-specific. This layer is the most replaceable by design.
@@ -118,6 +131,31 @@ future implementer knows exactly where enforcement is mandatory:
 3. Agent Runtime → Capability: tool call checked against token scope and risk class.
 4. Capability → Integration: credential request checked against token scope.
 5. Any layer → Knowledge & Data: read/write checked against token scope partition.
+6. **Any layer → Model Gateway → provider: every model call checked against token scope, the
+   classification of every item in the request, and the destination provider.** ¹
 
-A call that arrives at any of these five without a valid token is denied and recorded.
+A call that arrives at any of these without a valid token is denied and recorded.
 There is no "internal" call path that skips them.
+
+> ¹ ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
+> [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
+> **Accepted** 2026-08-14).* **This list is where a future implementer learns enforcement is mandatory,
+> and model egress was not on it** — the one path on which NOVA's data leaves its trust boundary
+> to a third party. Like point 5 it is **per call**, not per request or session, because the
+> request content and the destination provider do not exist at plan time (`I-94`). Emergency stop
+> (`I-19`) and revocation (`I-74`) are defined as taking effect *at* enforcement points, so before
+> this they did not reach model egress. The Identity & Policy spine in §4 is consulted here
+> accordingly. Full model:
+> [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md).
+
+**Point 5 is evaluated per data access, not per request or session** *(clarified in Section 04,
+F-1)*. An execution issuing ten reads is authorized ten times; there is no once-per-request or
+once-per-session variant of point 5. Beneath it, the **Data-Access Boundary** holds the scope
+binding against which the structural scope restriction of
+[ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md) is applied — **additional
+to** point 5, never a replacement for it (`I-77`).
+
+**A token failing integrity detection is not a valid token** at any of the five points above
+(`I-87`, `CT-2`). *(Added 2026-08-13, N-6 — proposed through Section 04, pending acceptance of
+[ADR 0018](../decisions/0018-authentication-model.md).)*

@@ -146,6 +146,37 @@ costs one question.
 | Technology decisions | C3 | James, on proposal with alternatives and lock-in analysis |
 | Agent permissions | C3 | James. No agent may alter its own or another's |
 | Adding a business/client/project | C1 | Configuration within approved architecture — NOVA may do this on James's instruction |
+| **Creating an agent** ¹ | **C3** | Creation necessarily sets Permissions, Allowed Context and Allowed Tools — mandatory fields — so it always sets agent authority |
+| **Registering or changing an agent definition** ¹ | **C2** | A new component, the direct analogue of a tool definition |
+| …where it sets or changes Permissions, Allowed Context, Allowed Tools, or risk ceiling ¹ | **C3** | Agent permissions are already C3 in the row above |
+| **Changing an agent's model / capability profile** ¹ | **C2** | Not an authority — egress is decided per call by Section 05 (`I-94`, `I-97`, `I-98`) |
+| **Activating an agent** ¹ | part of the governed registration/creation act | Separating them would create a window in which a definition is approved but its activation is not |
+| **Suspending or revoking an agent** ¹ | **C1** | Restriction. Gating removal like granting would make the safety operation slower than the dangerous one |
+| **Replacing an agent definition** ¹ | **C3** | A replacement is a new definition carrying authority-bearing fields |
+| **Instantiating an agent execution** ¹ | **not governance** | Execution, bounded at token issuance (`I-106`) |
+| **Raising an item's trust** ² | **C3** | Never automatic, never by an agent, never model-mediated. `system.verified` requires an authoritative non-model source. Governed exactly as *downward reclassification* is (`I-30`) — see below |
+
+> ² ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* **No new change class is created.** `I-39` gates fact status on
+> *provenance **and** trust*. Provenance is immutable (`I-38`), classification-lowering is owned
+> (`I-30`), approval and grants are James's — **trust was the one axis in that gate with no
+> authority attached**, so an unowned promotion could convert contained untrusted content into
+> apparent fact without violating any invariant. Raising trust is now explicitly authorized,
+> records seven fields, and **fails closed** (`I-110`,
+> [`MEMORY_MODEL.md`](./MEMORY_MODEL.md) §4.3). **Lowering trust is not governed here** —
+> restriction is not gated like elevation.
+
+> ¹ ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
+> [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* **No new change class is created and no existing class is
+> reinterpreted.** §4 already classes "New components… tool definitions" as C2 and "agent authority"
+> as C3, and the row above already classes *agent permissions* C3 — but **no agent lifecycle
+> operation was named anywhere**, so agent *creation*, the operation that fixes an agent's
+> authority in the first place, had no class and could be read as C1 configuration. That was the
+> shortest available path from model output to a privileged agent. **Registration and activation
+> are authorization; instantiation is execution; none of this is configuration.** Full model:
+> [`../architecture/AGENT_GOVERNANCE.md`](../architecture/AGENT_GOVERNANCE.md) §5.
 
 **On the roadmap specifically:** `ROADMAP.md` says sections are not strictly sequential and
 may be combined. That statement describes *James's* latitude, not an agent's. An agent

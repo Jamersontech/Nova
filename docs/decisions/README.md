@@ -113,8 +113,490 @@ Section 02 aggregation finding, and `0015` extends ADR 0002 without altering the
 resolved** — recorded in [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md)
 §3.2. Acceptance is not closure.
 
+### Section 04 — **Accepted by James 2026-08-13**
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0016](./0016-isolation-enforced-below-query-layer.md) | Isolation is enforced below the query layer | **Accepted** |
+| [0017](./0017-isolation-independent-of-pdp.md) | Isolation enforcement is independent of the PDP | **Accepted** |
+| [0018](./0018-authentication-model.md) | Multi-factor, phishing-resistant authentication with step-up | **Accepted** |
+| [0019](./0019-secrets-store-separation.md) | Secrets storage is separate, broker-only, per-scope isolated | **Accepted** |
+| [0020](./0020-keys-mirror-the-scope-tree.md) | Encryption keys mirror the scope tree | **Accepted** |
+| [0021](./0021-revocation-and-break-glass.md) | Revocation at next decision; break-glass is bounded | **Accepted** |
+| [0022](./0022-section-04-amendments-to-accepted-architecture.md) | Section 04 amendments to accepted architecture — authorizes the nine documented amendments | **Accepted** |
+| [0023](./0023-audit-record-writer-authority.md) | Audit record writer authority; control-plane audit partition; audit-write failure behaviour. **Also authorizes the `DATA_ARCHITECTURE.md` and `EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` amendments that ADR 0022 does not cover** | **Accepted** |
+
+### Amendment-authority audit — Section 04 edits to Active/Accepted documents
+
+*Built 2026-08-13 (R-3, R-8). The previous note was self-inconsistent — it named three documents
+while saying "both edits" — and it accounted for **five** amendments. A full enumeration of the
+working tree finds **thirteen** Active/Accepted documents modified by Section 04. All thirteen are
+audited here. **Nothing in this table is marked approved unless that approval exists in the
+repository.***
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+
+| # | Document | Section / status | What Section 04 changes | Authorizing ADR | Does that ADR explicitly authorize it? | James approval | Amendment status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | [`../architecture/MASTER_ARCHITECTURE.md`](../architecture/MASTER_ARCHITECTURE.md) §5 | 02 · Active | Data-Access Boundary row added; Observability row narrowed (`S4-P2`) | `0017` + **`0022`** §1 | **Yes** | **Given 2026-08-13** (to make the amendment; the ADR itself is not accepted) | **Proposed**, marked in place |
+| 2 | [`../architecture/SYSTEM_LAYERS.md`](../architecture/SYSTEM_LAYERS.md) | 02 · Active | Boundary paragraph at the Knowledge & Data entrance; per-data-access note on point 5 | `0017` + **`0022`** §2 | **Yes** | **Given 2026-08-13** | **Proposed**, marked in place |
+| 3 | [`../architecture/SECURITY_BOUNDARIES.md`](../architecture/SECURITY_BOUNDARIES.md) §4 | 02 · Active | Adds Context service + Data-Access Boundary to the TRUSTED zone | **`0022`** §3 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 4 | [`../ai/AI_TERMINOLOGY.md`](../ai/AI_TERMINOLOGY.md) | 01 · Active | Section 04 term block; independence qualification; Data-Access Boundary; Context Token Integrity; Scope Binding; Break-Glass correction | **`0022`** §4 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 5 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | Adds `I-60`–`I-88`; `[PHYS]` dependency rows; `I-61`/`I-78`/`I-83` amendments | **`0022`** §5 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 6 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-19` rewrite; `T-23a/b/c`; `T-20`–`T-22`; `T-24`, `T-25` | **`0022`** §6 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 7 | [`../architecture/AUTHORIZATION_MODEL.md`](../architecture/AUTHORIZATION_MODEL.md) §7 | 03 · Active | Independence qualification; Data Access PEP preservation | **`0022`** §7 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 8 | [`../architecture/PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) §2 | 02 · Active | Five-PEPs-remain note; token-integrity requirement at each point | **`0022`** §8 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 9 | [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) | 02 · Active | Retries carry no injected credentials (`I-81`) | **`0022`** §9 | **Yes** | Authorized via ADR 0022 *(Proposed)* | **Proposed** |
+| 9a | [`../architecture/DATA_ARCHITECTURE.md`](../architecture/DATA_ARCHITECTURE.md) §4 | 02 · Active | Audit Record row — three writer authorities replace "Written by executions" | **`0023`** | **Yes** | Authorized via ADR 0023 *(Proposed)* | **Proposed** |
+| 9b | [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1 | 03 · Active | Writer-authority mapping for the thirteen audit categories | **`0023`** | **Yes** | Authorized via ADR 0023 *(Proposed)* | **Proposed** |
+| 10 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) | 02 · Active | Section 04 risk rows; `[PHYS]` inventory; invariant count | — | **Not required** — the document's own header says "Extended in Sections 03 and 04"; extension is its stated purpose | n/a | Extension, not amendment |
+| 11 | [`../ROADMAP.md`](../ROADMAP.md) | 01 · Active | Section 04 status; invariant range; governance notes | — | **Not required** — recording section status is this document's purpose | n/a | Status record |
+| 12 | [`./DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md) | 01 · Active | M-7 correction; `D-33a`/`D-37`/`D-38`; criteria references | — | **Not required** — maintaining the register is its purpose | `D-33a`/`D-37`/`D-38` ownership **approved 2026-08-13** | Register update |
+| 13 | `README.md` *(this file)* | 01 · Active | Section 04 ADR index; this audit | — | **Not required** — indexing ADRs is its purpose | n/a | Index update |
+
+#### The authority gaps — closed by ADR 0022
+
+*Updated 2026-08-13. James decided `S4-P3`: **create a single ADR enumerating every affected
+document.*** [ADR 0022](./0022-section-04-amendments-to-accepted-architecture.md) now supplies the
+authority for rows 1–9 above, enumerating each individually with its reason, its relationship to
+`0016`–`0021`, and its removal condition.
+
+Two rules were deliberately **not** loosened in doing so:
+
+> [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md), line 10 — *"Any change to
+> this file is a C3 architectural change **requiring an ADR**."*
+> [ADR 0008](./0008-architectural-governance-model.md) — C3 changes are James's alone.
+
+**ADR 0022 satisfies both rather than amending either.** *(Status corrected 2026-08-14: this
+paragraph described ADR 0022 as Proposed, which was accurate when written on 2026-08-13 and stale
+from the moment James accepted `0016`–`0023` later that day.)* **ADR 0022 is Accepted**, so rows
+1–9 are accepted architecture and the removal condition below did not fire. The condition is
+retained as the record of what would have happened: had ADR 0022 been rejected, every amendment
+would have been removed and the accepted text restored verbatim. `0016`–`0021` could not have
+been accepted without also deciding `0022`, and were not.
+
+**`DATA_ARCHITECTURE.md` is now amended — under ADR 0023, not ADR 0022.** *(2026-08-13, `S4-P9`.)*
+Its Audit Record row was the accepted statement that audit records are "Written by executions", which
+the `S4-P8` inventory showed leaves 36 mandatory event classes unwritable.
+[ADR 0023](./0023-audit-record-writer-authority.md) supplies that authority **separately and
+visibly** rather than silently broadening ADR 0022's scope, which James had explicitly bounded.
+`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md` §5.1 is authorized the same way.
+
+**Its relational partitioning wording remains out of scope and unedited** — that is a separate matter
+from the writer question and no ADR authorizes it.
+
+Otherwise none reverses an accepted decision. `0016` resolves `D-33` as a **requirement without
+selecting a technology**; `0017` partially mitigates the `T-19` residual risk James accepted;
+`0018`–`0021` resolve the design halves of `D-09`, `D-10`, `D-34` and `D-35`, leaving every
+product choice deferred. **`D-02` was not touched.**
+
 **Changing an accepted decision requires a superseding ADR**, not an edit to the original.
 A superseded record keeps its text and is marked `Superseded` with a pointer forward.
+
+### Section 05 — **Accepted by James 2026-08-14**
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0024](./0024-model-gateway-is-an-enforcement-point.md) | Model egress is the **sixth** Policy Enforcement Point; one scope per request; data policy constrains the candidate provider set, including on fallback | **Accepted** |
+| [0025](./0025-model-output-is-an-untrusted-derivation.md) | Model output is a derivation carrying its inputs' provenance whether or not it is stored; **tool arguments are authorized, not merely validated**; risk classification is one-way with respect to models | **Accepted** |
+| [0026](./0026-model-verification-is-corroboration.md) | A model check never promotes epistemic status, satisfies an approval, or lowers a risk class; independence required above `PREPARE` | **Accepted** |
+| [0027](./0027-provider-credentials-are-control-plane-credentials.md) | Provider credentials sit outside the client scope tree, leaving `I-23` **unamended** rather than adding an exception to it | **Accepted** |
+| [0028](./0028-section-05-amendments-to-accepted-architecture.md) | Section 05 amendments to accepted architecture — authorizes all thirteen | **Accepted** |
+
+### Amendment-authority audit — Section 05 edits to Active/Accepted documents
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+Every row is authorized by [ADR 0028](./0028-section-05-amendments-to-accepted-architecture.md),
+which enumerates each individually with its reason. **All thirteen were accepted with ADRs
+`0024`–`0028` on 2026-08-14, and their in-place Proposed markings were cleared at acceptance** —
+the step Section 04's acceptance omitted, which is why eighteen stale markings still sit in
+Section 04 material (recorded as outstanding in [`../ROADMAP.md`](../ROADMAP.md)).
+
+| # | Document | Section / status | What Section 05 changes |
+| --- | --- | --- | --- |
+| 1 | [`../architecture/PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) §2 | 02 · Active | Sixth enforcement point added to the diagram and text |
+| 2 | [`../architecture/MASTER_ARCHITECTURE.md`](../architecture/MASTER_ARCHITECTURE.md) §4, §5 | 02 · Active | Policy arrow from the Model Gateway; gateway row gains egress enforcement and provider-credential custody (footnote ³) |
+| 3 | [`../architecture/MODEL_ARCHITECTURE.md`](../architecture/MODEL_ARCHITECTURE.md) §2–§4, §6 | 02 · Active | Where the permission decision is enforced; data policy as a constraint; verification limits; fallback bounded by the permitted set |
+| 4 | [`../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2, §5 | 02 · Active | `consequence-determining args` tool field; control-plane credential class |
+| 5 | [`../architecture/SECURITY_BOUNDARIES.md`](../architecture/SECURITY_BOUNDARIES.md) §2, §5 | 02 · Active | Model-provider boundary row; Model Gateway assumed-compromise row |
+| 6 | [`../architecture/PROVENANCE_AND_TRUST.md`](../architecture/PROVENANCE_AND_TRUST.md) §6 | 03 · Active | Requirement 2 extended to model output whether or not it is stored |
+| 7 | [`../architecture/CROSS_SCOPE_DATA_RULES.md`](../architecture/CROSS_SCOPE_DATA_RULES.md) §2 | 03 · Active | The model request named as a cross-scope join point |
+| 8 | [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) §4 | 02 · Active | Model-call retry semantics |
+| 9 | [`../architecture/SCALE_AND_COST_ARCHITECTURE.md`](../architecture/SCALE_AND_COST_ARCHITECTURE.md) §4 | 02 · Active | Cost ceilings terminate rather than degrade; fail closed above `PREPARE` |
+| 10 | [`../architecture/SYSTEM_LAYERS.md`](../architecture/SYSTEM_LAYERS.md) §5 | 02 · Active | Sixth boundary enforcement point |
+| 11 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | `I-94`–`I-105` added; `I-96` `[PHYS]` dependency row. **`I-01`–`I-93` unmodified** |
+| 12 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-28`–`T-32`; three rows added to §3. **No row added to §2** |
+| 13 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.5 | 03 · Active | Eight Section 05 residual risks; `[PHYS]` inventory updated |
+
+**Registers and status records, not amendments:** `ROADMAP.md` (Section 05 status),
+`DEFERRED_DECISIONS.md` (`D-08`, `D-20`, `D-39`, `D-40`), `architecture/README.md` and this file
+(indexes). Maintaining these is their purpose.
+
+**Two stale status markings were corrected, not rewritten** *(2026-08-14)*: `INVARIANTS.md`
+described `I-60`–`I-93` as PROPOSED pending ADRs `0016`–`0023`, and this file described ADR 0022
+as Proposed. Both were accurate on 2026-08-13 and stale once James accepted those ADRs later that
+day. **No Section 04 architecture was changed** — only the sentences describing its status.
+
+---
+
+### Section 06 — **Accepted by James 2026-08-14**
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0029](./0029-delegated-authority.md) | Delegated authority is verified at issuance by the sole issuer, structurally bounded (strict narrowing, no ancestry cycles, explicit re-delegation), budgeted per delegation tree, and cannot outlive its granting execution identity | **Accepted** |
+| [0030](./0030-agent-governance-and-approval-binding.md) | Agent lifecycle operations classified under the **existing** C1/C2/C3 model; an approval binds nine effective-authorization properties | **Accepted** |
+| [0031](./0031-section-06-amendments-to-accepted-architecture.md) | Section 06 amendments to accepted architecture — authorizes all thirteen | **Accepted** |
+
+### Amendment-authority audit — Section 06 edits to Active/Accepted documents
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+All thirteen are authorized by
+[ADR 0031](./0031-section-06-amendments-to-accepted-architecture.md) and were **accepted with ADRs
+`0029`–`0031` on 2026-08-14; their in-place Proposed markings were cleared at acceptance** — the
+step Section 04's acceptance omitted, which is why eighteen stale markings still sit in Section 04
+material (recorded as outstanding in [`../ROADMAP.md`](../ROADMAP.md)). **Three are corrections of accepted text that is wrong**, not additions — rows 1,
+3 and 10 — and are flagged as such because a correction deserves more scrutiny than an addition.
+
+| # | Document | Section / status | What Section 06 changes |
+| --- | --- | --- | --- |
+| 1 | [`../architecture/AGENT_ARCHITECTURE.md`](../architecture/AGENT_ARCHITECTURE.md) §2, §3 | 02 · Active | **CORRECTION** — "the runtime cannot *issue* a token" is impossible under `I-87`; the runtime requests, Context issues. Child lifetime; no suspended state |
+| 2 | [`../ai/AGENT_PRINCIPLES.md`](../ai/AGENT_PRINCIPLES.md) §4 | 01 · Active | The "enforced by design" claim qualified per prohibition; prohibition 6 recorded as unenforced |
+| 3 | [`../architecture/SCOPE_AND_IDENTITY_MODEL.md`](../architecture/SCOPE_AND_IDENTITY_MODEL.md) §5 | 03 · Active | **CORRECTION** — `may_redelegate` and `ancestry` added; §5's re-delegation rule tested a field the record lacked. Four bounding rules |
+| 4 | [`../architecture/IDENTITY_AND_AUTHORITY.md`](../architecture/IDENTITY_AND_AUTHORITY.md) §5 | 02 · Active | Agent lifecycle governance rows. **No new change class** |
+| 5 | [`../architecture/CONTEXT_ARCHITECTURE.md`](../architecture/CONTEXT_ARCHITECTURE.md) §2, §5 | 02 · Active | Issuance verification; conflict row |
+| 6 | [`../architecture/AUTHORIZATION_MODEL.md`](../architecture/AUTHORIZATION_MODEL.md) §3 | 03 · Active | Note on where `I-07` is enforced. **The ten steps are unchanged** |
+| 7 | [`../architecture/PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) §5 | 02 · Active | The nine-property approval binding |
+| 8 | [`../architecture/SCALE_AND_COST_ARCHITECTURE.md`](../architecture/SCALE_AND_COST_ARCHITECTURE.md) §4 | 02 · Active | Ceiling belongs to the root execution |
+| 9 | [`../architecture/MODEL_GATEWAY_ARCHITECTURE.md`](../architecture/MODEL_GATEWAY_ARCHITECTURE.md) §7 | **05 · Active** | `MG-18a` — same. Amends Section 05 material accepted the same day, because Section 05 shipped the gap |
+| 10 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | **CORRECTION** — `T-24`'s Agent-Runtime row was circular. `T-33`, `T-34` added |
+| 11 | [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1 | 03 · Active | Agent-definition lifecycle and delegation categories. **No new audit authority** |
+| 12 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | `I-106`–`I-109`. **`I-01`–`I-105` unmodified** |
+| 13 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.6 | 03 · Active | Six Section 06 residual risks |
+
+**Registers and status records, not amendments:** `ROADMAP.md`, `docs/README.md`,
+`DEFERRED_DECISIONS.md` (`D-25a`), `architecture/README.md` and this file.
+
+---
+
+### Section 07 — Proposed, awaiting James
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0032](./0032-trust-promotion-authority.md) | **Trust promotion authority** — raising trust is an explicitly authorized, recorded, C3 operation; never automatic, never by an agent, never model-mediated. `system.verified` requires an authoritative source, and the term is defined | Proposed |
+| [0033](./0033-section-07-amendments-to-accepted-architecture.md) | `model.generated` quarantined; delegate memory carries ancestry and survival is not authority; union provenance survives persistence; revoked creating authority surfaced at retrieval. Authorizes all eight amendments | Proposed |
+
+### Amendment-authority audit — Section 07 edits to Active/Accepted documents
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+All eight are authorized by
+[ADR 0033](./0033-section-07-amendments-to-accepted-architecture.md), are **Proposed**, and are
+marked in place.
+
+| # | Document | Section / status | What Section 07 changes |
+| --- | --- | --- | --- |
+| 1 | [`../architecture/MEMORY_MODEL.md`](../architecture/MEMORY_MODEL.md) §4, §4.1, §4.3 | 03 · Active | `model.generated` quarantined; new §4.3 trust promotion; three retrieval requirements |
+| 2 | [`../architecture/PROVENANCE_AND_TRUST.md`](../architecture/PROVENANCE_AND_TRUST.md) §2, §3 | 03 · Active | Trust-change authority; delegation ancestry and persistence in provenance |
+| 3 | [`../architecture/MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`](../architecture/MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md) §5, §7 | 02 · Active | Promotion in hygiene; taint restoration in retrieval discipline |
+| 4 | [`../architecture/IDENTITY_AND_AUTHORITY.md`](../architecture/IDENTITY_AND_AUTHORITY.md) §5 | 02 · Active | Trust-promotion row. **No new change class** |
+| 5 | [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1 | 03 · Active | Promotion granted and refused in the Memory category. **No new audit authority** |
+| 6 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | `I-110`–`I-111`. **`I-01`–`I-109` unmodified** |
+| 7 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-35`. `T-10`'s residual **not reduced** |
+| 8 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.7 | 03 · Active | Six Section 07 residual risks |
+
+**Deliberately not amended:** `CONTEXT_ARCHITECTURE.md` — Section 07 found **no context decision to
+make**; it already answers every context question raised. `DATA_LIFECYCLE.md` — a trust operation
+changes no lifecycle stage.
+
+**Registers and status records, not amendments:** `ROADMAP.md`, `docs/README.md`,
+`DEFERRED_DECISIONS.md` (`D-24a`) and this file.
+
+---
+
+### Section 08 — Proposed, awaiting James
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [0034](./0034-the-plan-is-a-security-object.md) | **The plan is a security object** with declared schema, deterministic identity and immutability after authorization; authorization is an **envelope plus a per-action check**; re-planning creates a new plan | Proposed |
+| [0035](./0035-section-08-amendments-to-accepted-architecture.md) | Section 08 amendments — authorizes all seven, and records why `PLANNING_ARCHITECTURE.md` was **not** created | Proposed |
+| [0036](./0036-tool-declarations-are-claims-not-facts.md) | **Tool declarations are claims, not facts** — the classification must be **total** over the input schema, and an absent or unparseable claim is read as **consequence-determining**. No new invariant | Proposed |
+| [0037](./0037-provider-outcomes-and-provider-initiated-paths.md) | **Provider outcomes are claims; provider-initiated paths carry no authority; and authorization binds the execution binding (`I-114`)** — unknown is distinct from failure, retry needs **provider-enforced** deduplication, an inbound webhook/callback/event has no identity, and a tool action is authorized against the integration/credential binding that produces the consequence, with `I-109` amended in place | Proposed |
+| [0038](./0038-automations-are-intent-not-authority.md) | **Automations are intent, not authority** — a stored definition plus its trigger carries no authorization; every firing is authorized freshly at fire time through the unmodified pipeline. No new invariant: a derivation from `I-10`, `I-14`, `I-17`, `I-112`, `I-113`, `S11-D3`, `V-2` | Proposed |
+| [0039](./0039-communication-is-classified-egress.md) | **Communication is classified egress** — the classification of the content leaving governs the send, enforced at PDP step 7 via the existing Tool call PEP. No new invariant, PEP or object; consent/opt-out deferred to Section 37 | Proposed |
+| [0040](./0040-voice-is-an-input-surface-not-an-authentication-factor.md) | **Voice is an input surface, not an authentication factor** — resolves the `USER_INTERFACE_ARCHITECTURE.md` §6–§7 / `AUTHENTICATION_MODEL.md` §4 contradiction by separating the action side from the session side; voice biometrics explicitly not adopted. No new invariant | Proposed |
+
+### Amendment-authority audit — Section 08 edits to Active/Accepted documents
+
+**No ADR is amended, added, or accepted by this audit. It records state; it grants nothing.**
+All seven are authorized by [ADR 0035](./0035-section-08-amendments-to-accepted-architecture.md),
+are **Proposed**, and are marked in place.
+
+| # | Document | Section / status | What Section 08 changes |
+| --- | --- | --- | --- |
+| 1 | [`../architecture/ORCHESTRATION_ARCHITECTURE.md`](../architecture/ORCHESTRATION_ARCHITECTURE.md) §1, §2, §2.1, §2.2, §4 | 02 · Active | Plan object schema, identity, immutability; envelope authorization and composition; re-plan loop; resumption re-check |
+| 2 | [`../architecture/PERMISSION_ARCHITECTURE.md`](../architecture/PERMISSION_ARCHITECTURE.md) §5 | 02 · Active | Envelope approval distinguished from action approval. **One-action rule unchanged** |
+| 3 | [`../architecture/AUTHORIZATION_MODEL.md`](../architecture/AUTHORIZATION_MODEL.md) §3 | 03 · Active | What the ten steps evaluate and what they do not. **Steps unchanged; PDP not a composition engine** |
+| 4 | [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) §3, §4 | 02 · Active | Resumption re-checks authorization; plan-level retry semantics |
+| 5 | [`../architecture/INVARIANTS.md`](../architecture/INVARIANTS.md) | 03 · Active | `I-112`–`I-113`. **`I-01`–`I-111` unmodified** |
+| 6 | [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-36`. `T-03`, `T-19`, `T-24` residuals **not reduced** |
+| 7 | [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.8 | 03 · Active | Six Section 08 residual risks |
+
+**Deliberately not amended:** `EXECUTION_ARCHITECTURE.md` — its *"James approves the plan"* becomes
+correct rather than ambiguous once `PERMISSION_ARCHITECTURE.md` §5 defines an envelope approval.
+
+**No new document.** `PLANNING_ARCHITECTURE.md` was considered and rejected — see ADR 0035.
+
+**Registers and status records, not amendments:** `ROADMAP.md`, `docs/README.md` and this file.
+
+---
+
+### Section 09 — Proposed, awaiting James
+
+**No new ADR and no new invariant.** Section 09's single decision — `S9-D1`, **source identity** —
+is folded into [ADR 0033](./0033-section-07-amendments-to-accepted-architecture.md) **§2a**, which
+already amends `PROVENANCE_AND_TRUST.md` §2 and owns the same decision family. It completes
+[ADR 0032](./0032-trust-promotion-authority.md)'s definition of an authoritative source: `I-110`
+required a source to be *identifiable* and *reproducibly checkable*, and nothing defined what
+identifies one. **`I-110` remains the governing security invariant** and is now implementable.
+
+| Document | Section / status | What Section 09 changes |
+| --- | --- | --- |
+| [`../architecture/PROVENANCE_AND_TRUST.md`](../architecture/PROVENANCE_AND_TRUST.md) §2.1 | 03 · Active | Defines a **source observation**: identifier · content digest · `retrieved_at` |
+| [`../architecture/MEMORY_MODEL.md`](../architecture/MEMORY_MODEL.md) §4.1 | 03 · Active | Revalidation becomes a digest comparison; unreachable source denies promotion |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.9 | 03 · Active | Three Section 09 residuals, two of them recorded rather than resolved |
+
+Both amendments are **Proposed** under ADR 0033 and marked in place.
+
+---
+
+### Section 10 — Proposed, awaiting James
+
+**One ADR, no new invariant, no new document.**
+[ADR 0036](./0036-tool-declarations-are-claims-not-facts.md) establishes that a tool definition's
+security-relevant fields are **claims made by the tool, not verified facts about it**, and that an
+absent, incomplete or unparseable claim is read at its most consequential. `I-100` already requires
+consequence-determining arguments to be checked and already refuses to register a tool that does not
+declare them; `MT-6` already refuses an incomplete definition. **What was undefined is what makes a
+declaration complete**, so the material is a definition and belongs in the document that specifies
+the field — the same reasoning that put Section 09's source identity in `PROVENANCE_AND_TRUST.md`.
+**`I-100` and `MT-6` remain the governing rules.**
+
+| Document | Section / status | What Section 10 changes |
+| --- | --- | --- |
+| [`../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2.1 | 02 · Active | Declaration **totality** over the input schema; default inverted to **consequence-determining**; claims-not-facts rule. Also corrects a stale Section 05 status label in §2 |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-37` under-declared tool. **`T-16`'s residual is not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.10 | 03 · Active | Four Section 10 residuals, one of them deferred to Section 11 |
+
+All are **Proposed** under ADR 0036 and marked in place. **`INVARIANTS.md` is deliberately not
+amended** — `I-01`–`I-113` are byte-identical to their accepted text.
+
+---
+
+### Section 11 — Proposed, awaiting James
+
+**One ADR, one new invariant (created on James's explicit 2026-08-15 approval), no new document.**
+[ADR 0037](./0037-provider-outcomes-and-provider-initiated-paths.md) resolves `S11-D1`–`S11-D3`.
+`S11-D2` and `S11-D3` are answered by invariants that already exist — `I-39`, `I-102` and `I-110`
+for what a provider's outcome claim is worth; `AUTHENTICATION_MODEL.md` §2 and `I-14` for what an
+inbound provider-initiated signal is worth — applied to paths those documents implied but never
+named. `S11-D1` required **`I-114`** and an in-place amendment to `I-109`.
+
+| Document | Section / status | What Section 11 changes |
+| --- | --- | --- |
+| [`../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](../architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §3, §3.1, §4.1, §4.2 | 02 · Active | Resolve-then-decide invocation ordering; outcome claims and the three outcomes; integration identity and no-substitution; provider-initiated inbound paths |
+| [`../architecture/RELIABILITY_ARCHITECTURE.md`](../architecture/RELIABILITY_ARCHITECTURE.md) §2, §4 | 02 · Active | **Unknown** as a distinct outcome; partial request execution; provider-enforced idempotency; per-attempt binding re-check, envelope-bounded failover |
+| [`../architecture/PROVENANCE_AND_TRUST.md`](../architecture/PROVENANCE_AND_TRUST.md) §5 | 03 · Active | A side-effect claim is not the *"fact about the external system"* a fetch is |
+| [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §2, §5.1 | 03 · Active | An integration-sourced event's `source` is an unauthenticated assertion; External transmission records the execution binding |
+| [`../architecture/SECURITY_BOUNDARIES.md`](../architecture/SECURITY_BOUNDARIES.md) §2 | 02 · Active | The external-service row covers provider-**initiated** inbound; the Tool row gains the binding-envelope check |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-38`, `T-39`. **`T-03`'s and `T-16`'s residuals not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.11 | 03 · Active | Section 11 residuals — `S11-D1`'s substitution half closed, its semantic half bounded |
+
+All are **Proposed** under ADR 0037 and marked in place, along with the `S11-D1` additions:
+`AUTHORIZATION_MODEL.md` §2–3 (execution binding as an element, resolved before the decision),
+`SECRETS_ARCHITECTURE.md` §3 (broker step 2a), `INVARIANTS.md` (**`I-114`** new; **`I-109`**
+amended in place), and `THREAT_MODEL.md` `T-39`.
+
+**`S11-D1` was stopped for James and approved on 2026-08-15.** Its resolution is folded into
+ADR 0037 (its own § "S11-D1") rather than minted as ADR 0038 — same decision family, same
+amendment surface. It adds **`I-114`** (authorization binds the execution binding: resolve before
+deciding · envelope-then-check at the tool PEP and broker step 2a · consequence-bearing binding
+identity, C3 · no substitution, no provider equivalence, no model selection) and **amends `I-109`
+in place**, scoping its exclusion list: model calls keep the per-call `I-94`/`I-97` exclusion; a
+consequence-producing tool action binds the execution binding as a tenth property. Both are
+Proposed and revert verbatim if ADR 0037 is rejected.
+
+
+---
+
+### Section 12 — Proposed, awaiting James
+
+**One ADR, no new invariant, no new document, no new security object.**
+[ADR 0038](./0038-automations-are-intent-not-authority.md) resolves `S12-D1`, the only Section 12
+decision — and it is a **derivation**, not new policy. Section 12 found **no missing mechanism**:
+the workflow engine, durable step state, pause/resume/cancel, partial completion, retry
+discipline, resumption re-checking and stop semantics all already existed. What was missing was a
+**definition** of what a stored workflow plus a trigger carries across time, where the industry
+default — authorize at save time, let the scheduler run it — is the largest available loophole
+around Sections 01–11.
+
+**An automation is intent, not authority.** Every firing is authorized freshly at fire time through
+the unmodified pipeline; nothing carries authorization forward. The unattended actor is the **NOVA
+system identity** (`IDENTITY_AND_AUTHORITY.md` §2, already defined for scheduled work); unattended
+work above the autonomous ceiling requires a **standing approval**, already recorded as a bounded
+revocable grant.
+
+| Document | Section / status | What Section 12 changes |
+| --- | --- | --- |
+| [`../architecture/ORCHESTRATION_ARCHITECTURE.md`](../architecture/ORCHESTRATION_ARCHITECTURE.md) §5 | 02 · Active | New section: the automation model — intent-not-authority, per-firing authorization, actor identity, trigger status, non-collapsed failure states |
+| [`../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](../architecture/EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §5.1 | 03 · Active | Automation-lifecycle audit row: trigger, definition version, plan identity, outcome |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-40`. **`T-16`'s and `T-36`'s residuals not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.12 | 03 · Active | Six Section 12 residuals, one deferred to Sections 29/33 |
+
+All are **Proposed** under ADR 0038 and marked in place. **`INVARIANTS.md` is deliberately not
+amended** — `I-01`–`I-114` are byte-identical to their current text.
+
+---
+
+### Section 13 — Proposed, awaiting James
+
+**One ADR, one new document, no new invariant, no new enforcement point, no new security object.**
+[ADR 0039](./0039-communication-is-classified-egress.md) resolves `S13-D1`, the only Section 13
+decision. Most of the communication surface was already governed — recipients and recipient-list
+size by `MT-5`/`I-100`, the sending account by `I-114`, inbound and receipts by ADR 0037, rate by
+PDP step 8, scheduled sends by Section 12's automation model, and thread continuation by
+`AUTHORIZATION_MODEL.md` §2's *"never a conversation"*.
+
+**The gap was an enforcement point nobody had named.** `DATA_CLASSIFICATION.md` §2's *"Transmitted
+externally"* row has been normative since Section 03; Section 05 gave the **model** egress path
+`I-94`/`I-96`, and the **communication** path was never composed. It needs no new machinery:
+`I-99` (a body is a derivation, stored or not) → `I-27` (strictest classification among sources) →
+§2 → **PDP step 7** at the **Tool call PEP**.
+
+| Document | Section / status | What Section 13 changes |
+| --- | --- | --- |
+| [`../architecture/COMMUNICATION_ARCHITECTURE.md`](../architecture/COMMUNICATION_ARCHITECTURE.md) | **new** · 13 · Proposed | The communication security surface in one place; adds no rule of its own |
+| [`../architecture/DATA_CLASSIFICATION.md`](../architecture/DATA_CLASSIFICATION.md) §2 | 03 · Active | Names the enforcement point for its own "Transmitted externally" row |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-41`. **`T-03`'s, `T-16`'s, `T-38`'s and `T-39`'s residuals not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.13 | 03 · Active | Six Section 13 residuals, one deferred to Section 37 |
+
+All are **Proposed** under ADR 0039 and marked in place. **`INVARIANTS.md` is deliberately not
+amended** — `I-01`–`I-114` are byte-identical.
+
+**Consent and opt-out are deferred to Section 37 with the reason stated.** The mechanism is not
+missing — a suppression set narrows the recipient envelope `MT-8` already fixes. The policy is, and
+consent is a property of a person while the authorization model is scope-shaped throughout.
+
+---
+
+### Section 14 — Proposed, awaiting James
+
+**One ADR, no new invariant, no new document, no new enforcement point, no new authentication
+factor.** [ADR 0040](./0040-voice-is-an-input-surface-not-an-authentication-factor.md) resolves
+`S14-D1`, the only Section 14 decision — **a genuine contradiction between two accepted
+documents**, not a gap.
+
+`USER_INTERFACE_ARCHITECTURE.md` §7 says *"a surface may vary in depth; it may never vary in
+authority"* and §6 makes approvals *"approvable… from any surface"*; `AUTHENTICATION_MODEL.md` §4
+says voice *"may not reach above `PREPARE` without step-up on another surface"*. **Both are
+correct and govern different sides** — the action side (what an action means and requires,
+identical everywhere) and the session side (what strength this session supplies). Voice therefore
+**carries** an approval interaction and cannot **complete** one above `PREPARE`.
+
+**Voice biometrics are explicitly rejected**, recorded as a decision: a voiceprint infers an
+authorization-relevant fact from a signal an adversary can synthesise or replay, and `A-2` already
+excludes weaker-but-similar factors.
+
+| Document | Section / status | What Section 14 changes |
+| --- | --- | --- |
+| [`../architecture/USER_INTERFACE_ARCHITECTURE.md`](../architecture/USER_INTERFACE_ARCHITECTURE.md) §6, §7 | 02 · Active | Approval reachability vs. authentication strength; confirmation-of-scope is disambiguation |
+| [`../architecture/AUTHENTICATION_MODEL.md`](../architecture/AUTHENTICATION_MODEL.md) §4 | 04 · Active | The voice cap governs the session side; voice biometrics not adopted |
+| [`../architecture/COMMUNICATION_ARCHITECTURE.md`](../architecture/COMMUNICATION_ARCHITECTURE.md) §8 | 13 · **Proposed** | The voice pipeline trust chain — **couples to ADR 0039** |
+| [`../architecture/THREAT_MODEL.md`](../architecture/THREAT_MODEL.md) | 03 · Active | `T-42`. **`T-03`'s, `T-20`'s and `T-39`'s residuals not reduced** |
+| [`../architecture/KNOWN_RISKS.md`](../architecture/KNOWN_RISKS.md) §3.14 | 03 · Active | Seven Section 14 residuals, two deferred to Section 37 |
+
+All are **Proposed** under ADR 0040 and marked in place. **`INVARIANTS.md` is deliberately not
+amended** — `I-01`–`I-114` are byte-identical. **`D-14` remains deferred**; no speech, telephony or
+audio technology is selected.
+
+## Section 15 — Design tokens (ADR `0041`, **Accepted** 2026-08-15)
+
+**The first section to deliver running, rendered software rather than documentation.** Its single
+decision (`0041`) resolves **half** of `D-13`: design tokens are **CSS custom properties**
+generated from `tokens.json`, a substrate every candidate framework consumes unchanged. **The UI
+application framework remains deferred** — Web Components are used for the demonstration layer and
+are a browser standard, not a framework selection, so Sections 16–18 keep their choice.
+
+**No new invariant, no new architecture document, no new enforcement point.** `INVARIANTS.md` is
+untouched and `I-01`–`I-114` are byte-identical. The implementation lives in
+[`../../slice/ui/`](../../slice/ui/README.md) and is **slice-local**, like the rest of `slice/`.
+Nothing in it depends on Proposed ADRs `0038`–`0040`.
+
+**The component inventory is not settled by this.** Four primitives and six composites exist
+because the demonstration needed them; two were implementation necessities found while building
+rather than planned at the gate. **Section 16 may add, replace or reorganise all of them** — only
+the token layer is inherited.
+
+## Section 16 — Navigation and Context Lock (ADR `0042`, **Accepted** 2026-08-15)
+
+**Section 16 owns UX and the concrete navigation model; the information architecture itself was
+decided in Section 02 and is Active.** This section implements
+[`../architecture/USER_INTERFACE_ARCHITECTURE.md`](../architecture/USER_INTERFACE_ARCHITECTURE.md)
+§3 rather than re-deciding it, and resolves the **UI half of `D-23a`** (Context Lock): how context
+is displayed, how switching is represented and confirmed, and how ambiguity is surfaced. **Section
+08 remains authoritative for the underlying policy semantics** — nothing here changes authority,
+identity, the PDP or approval.
+
+Its single decision (`0042`) adopts **WCAG 2.2 AA** as NOVA's accessibility baseline, binding
+Sections 17, 18 and 43. **No new invariant**: `I-01`–`I-114` are byte-identical. The implementation
+lives in [`../../slice/ui/section16/`](../../slice/ui/section16/README.md) and is **slice-local**.
+
+**Nothing depends on Proposed ADRs `0038`–`0040`** — the demonstration is built against the accepted
+text of `USER_INTERFACE_ARCHITECTURE.md` only, with a test asserting that ADR 0040's
+step-up and session-strength semantics have not leaked in. **`D-13`'s application-framework half
+remains deferred**, protected by a tested cap against a router or state layer arriving by accretion.
+
+## Section 17 — Responsive reflow (ADR `0043`, **Proposed**)
+
+**Responsive layout is computed by the browser from viewport-varying design tokens.** A `responsive`
+tier in `tokens.json` declares two breakpoints and, per band, overrides of semantic tokens that
+already exist; the generator emits them as `@media` blocks. **Components contain no media query, no
+breakpoint literal and no viewport logic**, and the demonstration screen is unedited between
+viewports.
+
+**The breakpoint values are a Section 17 implementation decision, not an inherited requirement** — no
+accepted document names a breakpoint, and WCAG 1.4.10 fixes a 320px test *condition* rather than a
+scale. Section 17 adds four tested accessibility criteria (1.4.10, 1.3.4, 1.4.4, 2.5.8); **no
+conformance is claimed.**
+
+**No new invariant**: `I-01`–`I-114` byte-identical. **`D-13`, `D-12` and `D-14` remain deferred** —
+no framework, no new tooling, no voice — and Sections 18, 29, 30 and 43 are unconstrained. The
+implementation lives in [`../../slice/ui/section17/`](../../slice/ui/section17/README.md) and is
+**slice-local**. Nothing depends on Proposed ADRs `0038`–`0040`.
+
+
+
+## The substrate — ADRs `0044`, `0045` (**Accepted** 2026-08-16) and `0046` (**Proposed**)
+
+**`0044` — Runtime, persistence and hosting.** Server-rendered Python over managed PostgreSQL with
+Row-Level Security, one provider in one region. Resolves `D-01`, `D-02`, `D-04` and part of
+`D-33a`. RLS satisfies `C-1`, `C-5` and `C-6` and **fails `C-2`** — which is precisely why the
+Data-Access Boundary exists. `C-8` and `C-9` are recorded unresolved. **Accepted for the runtime
+and persistence halves, which are evidenced against real PostgreSQL; the hosting half is a stated
+posture with no provider selected and nothing deployed.**
+
+**`0045` — The Data Access PEP decision sequence for reads.** The ten steps with the tool-specific
+ones inapplicable *by their own wording*, implemented as one method on the existing PDP rather than
+a second decision engine. **Corrected 2026-08-16** before acceptance: steps 6 and 7 had been merged
+into one row, and the risk-ceiling check in the code was unsatisfiable — a branch that could never
+be taken, reading as a control. Both are fixed; no behaviour changed.
+
+**`0046` — Authentication is WebAuthn passkeys.** Resolves the remaining half of `D-09`. The
+primary factor resists replay *by construction*: an assertion produced at an attacker's origin does
+not verify. Session strength is read out of the verified signature, so the client cannot assert its
+own. The browser holds one opaque reference; the database stores only its hash. **No invariant
+changed and the authorization system was not redesigned around authentication** — it terminates at
+an authenticated server identity and everything below is untouched.
+
+---
 
 Decisions that were consciously postponed are tracked separately in
 [`DEFERRED_DECISIONS.md`](./DEFERRED_DECISIONS.md).

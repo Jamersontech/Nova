@@ -41,6 +41,20 @@ allow.
 Consumers must be idempotent; a workflow resumed twice by a duplicate event must not
 perform its step twice.
 
+**An integration-sourced event's `source` is an unauthenticated assertion.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+[ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* The source list above includes
+**integrations**, and the consumer list includes **workflows waiting on a condition** — so an
+external party can place a signal NOVA is waiting on. **An external system never authenticates into
+NOVA** ([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §2, unchanged), so such an event
+carries no execution identity, no Context Token and no grant, and by `I-14` authorizes nothing. It
+may satisfy a wait condition; it may never widen what the waiting work may do, because resumption
+re-checks authorization rather than inheriting it
+([`RELIABILITY_ARCHITECTURE.md`](./RELIABILITY_ARCHITECTURE.md) §3). **Scope is unchanged and still
+binding** — §1's rule that every event belongs to exactly one scope applies to integration events
+exactly as to internal ones, so an inbound signal cannot introduce a cross-scope path. Full model:
+[`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.2; residual
+`T-38`.
+
 ## 3. Retention
 
 Events are retained by class: operational events for a working window, security and audit
@@ -101,15 +115,79 @@ references and identifiers — never content, never secrets.
 | **Denial** | Every denied decision, with the failing step |
 | **Grants** | Creation, modification, expiry, revocation |
 | **Approvals** | What was approved, by whom, when, for which single action |
-| **Memory** | Creation, correction, supersession, deletion, and **elevation** to a parent scope |
+| **Memory** | Creation, correction, supersession, deletion, **elevation** to a parent scope, and **trust promotion — granted and refused alike** ³ |
 | **Derivation** | Every derived item with its complete source lineage |
 | **Deletion** | The tombstone: identity, scope, classification, time, authorization |
 | **Credentials** | Requests, issuance, use, rotation, revocation — by **reference only** |
 | **Agent execution** | Instantiation, tokens held, tools called, escalations, outcome |
 | **Work Orders** | Issuance, limits, termination, results, approval |
-| **External transmission** | What left NOVA, to which service, under which scope |
+| **External transmission** | What left NOVA, to which service, under which scope, and **through which execution binding — tool identity and version, integration, credential binding — with the authorized envelope it was checked against** ⁴ |
 | **Model interactions** | Profile, provider, scope, cost, outcome — not prompt content by default |
 | **Administrative changes** | Policy, classification changes, scope creation, reclassification |
+| **Agent definition lifecycle** ² | Registration, change, activation, suspension, revocation, replacement — and every failure of these |
+| **Delegation** ² | Delegation issued, refused, expired; re-delegation refused; token-issuance refusal (`I-106`); budget-exhaustion denial |
+| **Automation lifecycle** ⁵ | Definition created, changed, enabled, suspended, deleted — by whom; and per firing: the **trigger** that fired it, the **definition version** that produced the request, the resulting **plan identity**, the authorization outcome, and the terminal state |
+
+> ² ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
+> [ADR 0029](../decisions/0029-delegated-authority.md),
+> [ADR 0030](../decisions/0030-agent-governance-and-approval-binding.md) and
+> [ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), all **Accepted** 2026-08-14).* **No new audit authority is created** — ADR 0023's
+> three cover every event here. Delegation appeared in `I-92`'s control-plane list but not in this
+> canonical category list, and agent-definition lifecycle appeared in neither.
+>
+> ⁵ ***PROPOSED — added by Section 12, not yet accepted*** *(2026-08-15; authority
+> [ADR 0038](../decisions/0038-automations-are-intent-not-authority.md), Proposed; removed and the
+> accepted list restored verbatim if rejected).* **No new audit authority and no new record type.**
+> A firing is an ordinary execution, so its authorization decision is `W-2` and its execution
+> record `W-1`, in the firing's scope partition, exactly as ADR 0023 provides; definition lifecycle
+> concerns no client scope and is `W-3` control-plane, the same treatment agent-definition
+> lifecycle already receives. **What this row adds is the join**: without the trigger, the
+> definition version and the plan identity recorded together, §4's question *"why did it happen?"*
+> is unanswerable for unattended work — an auditor sees a plan with no visible cause. **The
+> definition version matters even though a definition carries no authority** (`ORCHESTRATION_ARCHITECTURE.md`
+> §5.1): it is what makes *"which stored intent produced this request?"* answerable after the
+> definition has since been edited.
+>
+> ⁴ ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **No new audit authority and no new
+> category** — this is `W-1`, the execution's own authorization, in the executing scope's partition,
+> exactly as ADR 0023 already provides. *"To which service"* named the destination loosely while
+> **Model interactions** already recorded `provider`; the tool path recorded no equivalent, so
+> `I-114`'s binding check was **unreconstructable after the fact** — an auditor could not tell which
+> integration actually produced a side effect, which is precisely what a binding-substitution
+> attack would exploit. Recorded **by reference**, never secrets: a credential *binding* identifier
+> is not credential material (`I-48`, unchanged).
+>
+> ³ ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* **No new audit authority is created** — a trust promotion
+> concerns a client scope, so the decision is **`W-2`** and the resulting write **`W-1`**, in that
+> scope's partition, exactly as ADR 0023 already provides. **Refusals are recorded too**: a denied
+> promotion is the more interesting signal, and `I-110` fails closed, so refusal is the expected
+> outcome of an unsupported request rather than an error.
+
+> **Authority:** agent-definition lifecycle and delegation issuance/expiry are **`W-3`**
+> (control-plane — they concern no client scope, ADR 0023's `HIGH-1` rule applied unchanged);
+> issuance refusals, delegation refusals and budget denials are **`W-2`** (the decision is the
+> authority for the record of itself); agent **execution** remains **`W-1`** as above. Approval and
+> approval-binding mismatch (`I-109`) are `W-3`, where `S4-P9` D3 already places approvals.
+
+**Writer authority for each category.** ***PROPOSED — added by Section 04, not yet accepted***
+*(2026-08-13, `S4-P9`; authorized by
+[ADR 0023](../decisions/0023-audit-record-writer-authority.md), which is Proposed. Removed if that
+ADR is rejected.)* Every category above resolves to exactly one of three authorities:
+
+| Category | Authority | Partition |
+| --- | --- | --- |
+| Access · Memory · Derivation · Deletion · Agent execution · Work Orders · External transmission · Model interactions | **`W-1`** — the execution's own authorization (`I-88`) | The execution's bound scope |
+| **Denial** | **`W-2`** — the decision itself (`I-91`) | The scope the decision concerned; a cross-scope denial records in the **actor's** scope, never naming the actor in the target's |
+| **Grants · Approvals · Administrative changes** · the lifecycle half of **Credentials** (rotation, revocation) | **`W-3`** — the control-plane operation's own authorization (`I-92`) | **Control-plane audit partition** — outside the client scope tree |
+| The in-execution half of **Credentials** (request, issuance, use) | **`W-1`** | The execution's bound scope |
+
+**Approvals are control-plane events**, not execution events: an approval is an authorization act
+performed *before* the execution it permits. The later execution record remains execution-scoped in
+the client partition, and the two are linkable by reference **without granting the control plane any
+access to client data** (`I-48`).
 
 **Reclassification downward is audited with particular care** — it is the most dangerous
 routine operation in the model ([`DATA_CLASSIFICATION.md`](./DATA_CLASSIFICATION.md) §3).

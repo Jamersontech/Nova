@@ -184,6 +184,7 @@ flowchart TB
     CON --> EXT
     ORC -.model calls.-> MGW
     ART -.model calls.-> MGW
+    MGW -.every model call.-> POL
     CAP --> SBX
     SBX --> XAG
     CRB --> CON
@@ -241,11 +242,52 @@ interfaces, each independently replaceable:
 | **Orchestration** | Interpreting, planning, dispatching, verifying | Domain logic; credentials |
 | **Agent Runtime** | Agent lifecycle, isolation, resource limits | Choosing what work to do |
 | **Capability Registry** | Tool definitions, schemas, risk classes | Business meaning of a tool |
-| **Model Gateway** | Provider-neutral model access and routing | Prompt content |
+| **Model Gateway** ³ | Provider-neutral model access and routing; **enforcing the egress authorization decision**; **custody of provider credentials** | Prompt content; **deciding authorization** |
 | **Memory** | Scope-partitioned retention | Truth about the outside world |
 | **Event Bus** | Distribution of things that happened | Interpreting them |
 | **Approval** | Human-in-the-loop gating | Deciding risk (Policy does) |
-| **Observability** | Logs, traces, audit records | Enforcement |
+| **Observability** ² | Logs, traces; **collection and routing of audit events** | Enforcement; **owning or reading the audit corpus** |
+| **Data-Access Boundary** ¹ | Establishing and holding the storage scope binding for an execution; opening scope-bound channels | Deciding authorization; interpreting data |
+
+> ¹ ***Added by Section 04 — ACCEPTED by James 2026-08-13*** *(2026-08-13, N-3; authority
+> [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md), **Accepted** 2026-08-13.)* Every
+> other row in this table was accepted by James on 2026-08-12 with ADRs `0001`–`0008`. This row is
+> an **amendment to accepted Section 02 architecture made through Section 04**, and stands or falls
+> with ADR 0017 — which is Accepted, so the row is approved architecture.
+>
+> **It is a trusted platform responsibility and boundary — not a standalone microservice, not a
+> new speculative subsystem, and not separately deployable.** It is listed here because Section
+> 04 requires a *named owner* for the storage scope binding (`I-61`, `I-78`, `C-11`), and an
+> unowned responsibility is how that binding quietly becomes application code's to set. Unlike
+> the rows above it, "independently replaceable" describes the mechanism beneath it, not a
+> service boundary. Full registration:
+> [`ISOLATION_ENFORCEMENT.md`](./ISOLATION_ENFORCEMENT.md) §4.1.
+
+> ² **AMENDED BY SECTION 04 — PROPOSED, not yet accepted.** *(2026-08-13, `S4-P2`.)*
+> **As accepted on 2026-08-12 this row read:** *Observability | Logs, traces, audit records |
+> Enforcement.* James decided `S4-P2` on 2026-08-13 (Option D): **James reads audit partitions
+> directly and per scope; no centralized audit reader exists, and Observability does not own or
+> read the audit corpus.** It may collect and route audit events, and may append only under write
+> capability acquired per execution for that execution's scope (`E-12`, `I-88`, `I-89`, `I-90`,
+> [`ENCRYPTION_REQUIREMENTS.md`](./ENCRYPTION_REQUIREMENTS.md) §3.2).
+>
+> **Authority:** this amendment is authorized through
+> [ADR 0022](../decisions/0022-section-04-amendments-to-accepted-architecture.md), which is
+> **Proposed**. Until James accepts it, **the amended text above is not accepted architecture**,
+> and it is **removed — restoring the original row verbatim — if ADR 0022 is rejected.**
+
+> ³ **AMENDED BY SECTION 05 — ACCEPTED by James 2026-08-14.** *(2026-08-14.)* **As accepted on
+> 2026-08-12 this row read:** *Model Gateway | Provider-neutral model access and routing | Prompt
+> content.* Section 05 makes model egress the **sixth Policy Enforcement Point**: the gateway asks
+> the PDP per model call and can only deny (`I-94`, `I-77`). It also holds provider credentials,
+> which are **control-plane credentials** — never bound to a client scope, never brokered
+> (`I-103`). The `every model call` arrow in §4 is part of the same amendment.
+>
+> **Authority:** [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md),
+> [ADR 0027](../decisions/0027-provider-credentials-are-control-plane-credentials.md) and
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), all
+> **Accepted** 2026-08-14.
+> Full model: [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md).
 
 **Why this decomposition.** The failure mode being avoided is a Core that becomes a
 monolith where "everything talks to everything." Each service above answers exactly one

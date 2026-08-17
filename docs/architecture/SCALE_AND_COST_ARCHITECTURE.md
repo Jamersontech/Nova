@@ -89,6 +89,34 @@ answer than always using the strongest model. This is accepted for low-risk work
 **not** accepted for high-risk work, where the risk class overrides the cost preference —
 a cheap wrong deployment costs more than an expensive right one.
 
+**On the model path, cost is also a safety property.** ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority
+[ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
+[ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both **Accepted**
+2026-08-14).* Unbounded model consumption is a denial of service reachable by **injected
+content**: text that induces long reasoning, large retrieval, or recursive delegation consumes
+budget without ever crossing an authorization boundary. So every execution carries a **model cost
+and token ceiling**, and reaching it **terminates and escalates** — never a silent fall back to a
+cheaper model, a shorter context, or a truncated result, which is the failure the sentence above
+already refuses in the routing case. **Above `PREPARE` it fails closed**: a high-risk action does
+not complete on a degraded basis to stay within budget. Ceilings are attributable per execution,
+workflow and scope, which is what makes abnormal consumption a **signal** rather than only an
+invoice. **Ceiling values are deferred** to Section 34 (`D-40`); what is fixed is that they exist,
+that they terminate rather than degrade, and that they fail closed above `PREPARE` (`I-105`,
+[`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md) §7).
+
+**The ceiling belongs to the root execution, not to each execution.** ***PROPOSED — added by
+Section 06, not yet accepted*** *(2026-08-14; authority
+[ADR 0029](../decisions/0029-delegated-authority.md) and
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* **Section 05 wrote the ceiling per execution and thereby left the
+vector it had just named open**: a delegation tree of N executions received N ceilings, so a child
+could manufacture capacity its parent never held. **Every descendant now consumes from the root
+execution's single budget** (`I-108`). A child cannot mint capacity, receive a fresh budget, raise
+the root ceiling, or move capacity into an independent budget. A parent **may** carve a smaller
+child ceiling — optional and itself narrowing; it is not mandatory, because requiring it would
+force an allocation policy the architecture does not decide. Exhaustion behaves exactly as above.
+**Accepted cost:** one runaway child can starve its siblings — preferable to a child that cannot be
+starved because it mints its own budget.
+
 ---
 
 ## 5. Not Decided Here

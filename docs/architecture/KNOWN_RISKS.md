@@ -1,6 +1,6 @@
 # Known Risks and Architectural Weaknesses
 
-**Status:** **Active** — Section 02, approved by James 2026-08-12. Extended in Section 03.
+**Status:** **Active** — Section 02, approved by James 2026-08-12. Extended in Sections 03 and 04.
 **Purpose:** An honest register of where this architecture is weakest, what it deliberately
 trades away, and what a future section must watch. Recorded so that later sessions inherit
 the concerns rather than rediscovering them.
@@ -82,7 +82,7 @@ detail even when the elevation seems reasonable.
 
 | Risk | Concern | Owner |
 | --- | --- | --- |
-| **Physical isolation not yet chosen** | Logical isolation is fully specified; whether it is enforced by row-level rules, schema separation, or database-per-client is unresolved (`D-33`). The weakest choice would leave isolation dependent on query correctness | **04 / 29** |
+| **Physical isolation not yet chosen** | Logical isolation is fully specified; the mechanism family — engine-enforced record restriction, per-scope namespace separation, or per-scope physical separation — is unresolved (`D-33a`). The weakest choice would leave isolation dependent on query correctness. *(Wording aligned 2026-08-13, R-9: previously "row-level rules, schema separation, or database-per-client", which used relational and product-shaped terms. The three families are named as [`ISOLATION_ENFORCEMENT.md`](./ISOLATION_ENFORCEMENT.md) §3.1 states them. **No mechanism is selected.**)* | **04 / 29** |
 | **Memory quality degrades with volume** | Retrieval quality falls as memory grows. Curation and decay are specified but unimplemented; retrofitting them onto a large corpus is far harder | 07 |
 | **Risk classification may be drawn wrongly** | The seven classes are a first attempt. A boundary drawn wrongly produces either approval fatigue or unapproved consequences | 26 / 39 |
 | **Approval fatigue is a security failure** | If James approves reflexively, the entire human-control model is decorative. This is a product-design problem, not a technical one | 26 |
@@ -126,12 +126,199 @@ so no future session mistakes acceptance for absence.
 | **Deletion is bounded** | The cascade reaches recorded lineage within NOVA-controlled storage only. Delivered exports, data sent to external systems, model-provider retention, and unrecorded derivations are **beyond reach** |
 | **Injection persistence is contained, not removed** | Quarantine and revalidation limit influence; a patient attacker supplying plausible uncontradicted content is not detected (T-10) |
 | **Aggregation disclosure is bounded by policy, not arithmetic** | Small-N aggregates leak; max/min/ranking disclose individual values. Prohibitions are rules to enforce, not mathematical impossibilities. `D-36` is unset, so client-facing cross-client aggregates are barred entirely for now |
-| **`[PHYS]` invariants are unsatisfied until implementation** | `I-03`, `I-21`, `I-33`, `I-45`, `I-47`, `I-55` depend on physical choices not yet made |
-| **All 59 invariants are unverified** | Every one is a REQUIREMENT, none is a VERIFIED IMPLEMENTATION PROPERTY, until Section 31 |
+| **`[PHYS]` invariants are unsatisfied until implementation** | *(Inventory refreshed 2026-08-13, N-13 — this row listed only the six Section 03 markings and predated Section 04's.)* The full current set is `I-03`, `I-21`, `I-33`, `I-45`, `I-47`, `I-55`, `I-60`–`I-63`, `I-66`, `I-68`, `I-69`, `I-71`, `I-72`, `I-80`, `I-86`, `I-87`, `I-88`, `I-90`, and **`I-96`** *(Section 05, Accepted 2026-08-14)* — each with a named dependency in [`INVARIANTS.md`](./INVARIANTS.md). All depend on physical choices not yet made |
+| **All 93 invariants are unverified** | Every one is a REQUIREMENT, none is a VERIFIED IMPLEMENTATION PROPERTY, until Section 31. *(Count corrected 2026-08-13, N-13: the row said 59, then 88, 89, 90; the current count is 93. `I-60`–`I-93` are additionally **Proposed**, not accepted.)* |
 | **Administrator error is unmitigable** | An over-broad grant or an unread approval by James is authorized breadth, not escalation |
 
 **This acceptance does not close any of these.** Each remains open, owned by the sections
 named in [`THREAT_MODEL.md`](./THREAT_MODEL.md) §4, and must be revisited there.
+
+---
+
+## 3.3 Risks Identified in Section 04
+
+*Proposed — Section 04. Full analysis in [`THREAT_MODEL.md`](./THREAT_MODEL.md) `T-19`–`T-22`.*
+
+| Risk | Concern | Owner |
+| --- | --- | --- |
+| **Authentication recovery is a structural weakness** | Recovery exists because James can lose his device; any usable recovery path is an alternative way in. Strength parity (`I-67`) bounds it, does not eliminate it | 04, on `D-09` |
+| **Break-glass is a deliberate *availability* bypass, confined to the control plane** | *(Title corrected 2026-08-13, R-4 class sweep — "a deliberate bypass" unqualified contradicts `I-75`, which says break-glass never bypasses the authorization path and never reaches client data.)* It bypasses normal **availability** controls only. Bounded and loud, but an attacker with break-glass credentials gets control-plane recovery access — and its loudness depends on a notification path that may be degraded during the very incident it exists for | 04 / 25 |
+| **Step-up does not protect an active session** | An attacker on a device James is actively using can do anything below the step-up line without challenge | 04 |
+| **Secrets store availability gates all outbound work** | The broker fails closed (`S-8`), so store unavailability stops every external call. Correct for security, a real availability dependency | 04 / 35 |
+| **Key custody is now load-bearing** | Per-scope keys mean key loss is data loss (`E-10`). A key-recovery path weaker than the encryption is the encryption's real strength | 36 |
+| **`T-19` is reduced, not resolved** | ADR 0017 removes cross-client access from a PDP-only compromise, **once `D-33` is implemented**. Independent decision verification was considered and explicitly declined as disproportionate | 04 / 38 |
+| **Isolation enforcement is specified but unbuilt** | `I-60`–`I-63` are `[PHYS]` requirements on a mechanism not yet chosen (`D-02` deferred). Until then `I-03` remains dependent on query correctness | 29 / 31 |
+| **Two enforcement models to reason about** | ADR 0017's independence is a benefit that costs conceptual load: isolation cannot be adjusted through policy, only through infrastructure | 29 |
+
+---
+
+## 3.4 Risks Surfaced by the Section 04 Adversarial Review
+
+*Proposed — Section 04 amendment pass, 2026-08-12. Section 04 remains under review.*
+
+| Risk | Concern | Owner |
+| --- | --- | --- |
+| **Context service compromise defeats both isolation mechanisms** | ADR 0017's independence is from the **PDP**, not general. Both the PDP and the scope binding derive from the Context Token, so compromising the Context service defeats both from one point. The Context service is now a critical trusted component of the same standing as the PDP, and **nothing mitigates its compromise** (`T-23a`) | 04 / 38 |
+| **PDP audit evidence is not independent** | Authorization audit records are emitted by the PDP itself, so a compromised PDP can emit false or omitted records. **No independent audit path is required or designed** (`I-85`). PDP compromise may be detectable from effects, not from the authorization trail | 27 / 38 |
+| **Provisioning correctness is unverifiable today** | `I-80` requires isolation verification before client activation, but the verification cannot run until an isolation mechanism exists (`D-33a`, `D-02`) and the tests are Section 31's. Until then, a new client scope's isolation is asserted, not demonstrated | 29 / 31 |
+| **Credential ingress via unstructured responses** | Generic pass-through tools have no meaningful response schema; `I-84` restricts raw pass-through and mandates scanning, but detection is heuristic and a novel format will pass. **Ingress remains possible** | 04 / 31 |
+| **Break-glass reaches the control plane** | Now confined to control-plane recovery and barred from client data (`I-75`), but control-plane recovery includes repairing policy infrastructure — so break-glass credentials still confer the ability to alter the thing that authorizes. Accepted, bounded, loud | 04 |
+| **Break-glass rotation cannot depend on NOVA** | `B-7` requires out-of-band rotation because break-glass is used when NOVA is degraded. The mechanism is deferred (`D-38`); until it exists, a used credential may remain valid longer than intended | 29 |
+| **Token integrity is required but unbuilt, and adds a trusted component** | `I-87` requires a recipient to *detect* a modified or fabricated Context Token. It is `[PHYS]`: no mechanism is chosen (`D-09`, `D-33`), so the property does not hold today (`T-23b`). When it does exist, whatever provides it becomes a trusted component whose own compromise defeats it (`T-23c`). Trust is moved, not removed — and none of this touches compromise of the Context service itself (`T-23a`) | 04 / 31 |
+| **The control-plane audit partition is a new concentration** | [ADR 0023](../decisions/0023-audit-record-writer-authority.md) routes provisioning, grants, revocations, incidents, break-glass and approvals to one partition outside the client scope tree. That is what makes `S4-P1` hold by construction — no component gains client-scope capability — but it concentrates the records establishing whether a scope was correctly isolated before activation. Compromise yields control-plane records, permanently under `I-47`, and **no client partition** (`T-27`) | 04 / 31 |
+| **Full client history is now a two-partition read** | Under ADR 0023 a client's own partition holds its execution and decision records; provisioning, grant and revocation records concerning it sit in the control plane. Reviewing one client completely means both — James, per scope, with step-up where it spans scopes (`I-67`, `I-89`) | 04 |
+| **Concurrent execution-scoped audit capabilities** | Under `S4-P5` (C+D) a shared service serving N executions holds N execution-scoped write capabilities, each bounded to one scope. **This is not blanket cross-scope capability** — it cannot reach a scope it is not serving — but compromise exposes the union of scopes currently served. The `I-86` prohibition on joining across simultaneously-held scope-bound channels applies equally here | 04 / 31 |
+| **The audit bootstrap window — retired, not mitigated** | `S4-P6` (Option A) removed the capability-release decision, so the window `E-12d` described no longer exists: there is no release that can succeed while its record fails. Recorded because the risk was previously registered and a reader must be able to see why it is gone. **The architecture still does not establish that the audit trail is complete** — suppression by omission is unchanged (`T-26`) | 04 / 31 |
+| **Cross-scope audit review depends on step-up** | `H-1` Option 3: single-scope audit reading is at normal session strength, so a compromised session exposes that scope's audit (`T-20a`). The cross-client corpus sits behind step-up — an attacker who *can* step up reaches what James reaches | 04 |
+| **Audit key custody is load-bearing on both paths** | `E-11` partitions audit keys for reading and `E-12`/`I-88` require write capability to be per scope and **not** read capability, so no audit writer — the PDP included — holds a global audit key. **James declined to accept centralized audit-key custody as residual risk**; this is a requirement on a mechanism that does not exist (`I-88` is `[PHYS]`, `D-35`/`D-02`). Until it does, the separation is asserted, not demonstrated. A component that both writes and legitimately reads one scope's audit still holds both for that scope | 04 / 31 |
+| **Ancestor key access is a new authorization surface** | `I-82` makes ancestor-scope key access per-resource and grant-bound rather than ambient. This is stronger, but it adds a release path that must itself be correct — a new place for a mistake | 04 / 38 |
+
+## 3.5 Risks Identified in Section 05 — the model path
+
+> ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority ADRs
+> [0024](../decisions/0024-model-gateway-is-an-enforcement-point.md)–[0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md),
+> all **Accepted** 2026-08-14).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **Taint labelling is now load-bearing, and a labelling bug is an authorization bug** | `I-99` propagates provenance and trust through model output so that `I-40`, `I-58` and `I-100`'s untrusted-derived case can be evaluated at all. Everything those rules protect therefore rests on labelling being **correct and pervasive** — and a missing label produces an action that looks fully authorized, with no failure to observe. This is the least visible failure mode Section 05 introduces | 05 / 31 |
+| **An over-wide envelope silently restores the attack it exists to stop** | `I-100` checks a consequence-determining argument against the envelope the authorization fixed. An envelope written wide enough to be convenient admits the injected value and looks identical to a correct one at every point. Envelopes are harder to author than allow-lists, and nothing detects a bad one | 05 / 31 |
+| **`I-96` is exactly as strong as the gateway enforcing it** | Redaction removes what NOVA can *identify*, and it cannot remove what NOVA has not classified. A compromised gateway reporting successful redaction is indistinguishable from a working one (`T-29`) — the same class of exposure `I-85` records for the PDP | 05 / 31 |
+| **Correlated verifier failure is accepted, not solved** | `I-102` requires a different instance above `PREPARE` but only *prefers* a different provider, because requiring it would make verification unavailable wherever one permitted provider exists (`I-97`). Same provider, same injected content, both wrong is a live outcome (`T-32`) | 05 |
+| **Provider-side correlation across scopes is unmitigated** | One provider credential serves many scopes (`I-103`), so the provider observes the client boundary from outside it (`T-30`). Per-scope accounts would not remove it. Whether anything closes it is `D-39` | 05 / 37 / 38 |
+| **A second credential class is a thing to misapply** | `I-103` creates control-plane credentials to avoid weakening `I-23`. The obvious misuse is filing an integration credential as "control-plane" to escape per-scope binding. The class is closed and adding a member is C3 — a governance control, not a mechanical one | 05 / 22 |
+| **Per-call PDP evaluation on the model path is unproven** | `I-94` puts a decision on a hot path and produces an `I-18` record per decision. `SCALE_AND_COST_ARCHITECTURE.md` §2 already names audit volume as a pressure point. If this proves unworkable the fix is a cheaper way to obtain the decision, **not** a return to unenforced egress | 05 / 33 |
+| **`D-08` remains open, so the data-policy set has no members yet** | `I-97` constrains routing to a permitted provider set. No provider is selected (`Q-06`, `Q-03`), so the constraint is currently a constraint over an empty configuration. `PR-2`, `PR-3` and `PR-5` are assurances NOVA cannot verify (`D-39`) | 05 / 37 / 38 |
+
+## 3.6 Risks Identified in Section 06 — delegated authority
+
+> ***Added by Section 06 — ACCEPTED by James 2026-08-14*** *(2026-08-14; authority ADRs
+> [0029](../decisions/0029-delegated-authority.md)–[0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md),
+> all **Accepted** 2026-08-14).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **The Context service gains a new dependency and remains the single root** | `I-106` requires Context to read the agent registry to verify issuance. That is a new trust dependency in the most critical trusted component, and **`AG-3` is a check Context performs on itself** — a compromised Context service issues genuine tokens naming anything and would pass its own check. `T-23a` is **unchanged and not improved** by Section 06 | 06 / 31 / 38 |
+| **A shared root budget lets one child starve its siblings** | `I-108` deliberately prefers starvation to capacity-minting. A single greedy descendant can consume the tree's budget and stall legitimate siblings, and nothing arbitrates between them | 06 / 34 |
+| **The approval-binding boundary is a per-field judgment** | `I-109` binds effective authorization and excludes implementation metadata. **A field wrongly classed as metadata reopens `T-34` while looking correct**, and nothing detects a misclassification. Binding more would produce approval fatigue, which this document already records as a security failure | 06 / 31 |
+| **Prohibition 6 is unenforced and now says so** | *"Present inference as verified fact"* has no enforcement point and NOVA has no component that could inspect agent output for epistemic honesty. `AGENT_PRINCIPLES.md` §4's blanket enforcement claim is corrected rather than defended. It is a review and evaluation criterion only | 06 / 41 |
+| **Strict narrowing will stop legitimate chains** | `I-107` bounds depth by descending a finite lattice. A legitimate long delegation chain hits the floor and stops. This is intended behaviour, not a defect — but it will be met as friction and the temptation will be to widen a dimension to keep going | 06 |
+| **Agent creation is now always C3 in practice** | Every new agent needs James. `AGENT_PRINCIPLES.md` §1's "when in doubt, do not create the agent" becomes operationally enforced. The failure mode to watch is the opposite one: creating **fewer, broader** general-purpose agents to avoid repeat approval, which trades approval friction for over-broad authority | 06 / 21 |
+
+## 3.7 Risks Identified in Section 07 — context and memory
+
+> ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority ADRs
+> [0032](../decisions/0032-trust-promotion-authority.md)–[0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md),
+> both **Accepted** 2026-08-15).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **`I-110` makes trust increases attributable, not correct** | The four authoritative-source properties are mechanical; **whether a named source is authoritative for a given claim is a human judgment made per promotion**. A source wrongly judged authoritative yields a high-trust wrong item and nothing detects it afterwards (`T-35`) | 07 / 40 / 41 |
+| **Promotion is a new approval-fatigue surface** | If promotions are frequent they train exactly the reflexive approval this document already records as a security failure. The mitigation is behavioural, not architectural: durable knowledge should arrive through curation from sources verified at first recording, not through later promotion | 07 / 26 |
+| **Quarantining all model-generated memory slows learning** | `MEMORY_MODEL.md` §2's "curation from verified sources" becomes enforced, so the convenient path — an agent's good summary quietly becoming durable knowledge — is closed. Accepted deliberately; it will be felt as friction and the temptation will be to un-quarantine | 07 |
+| **Union provenance grows with derivation depth** | `I-111` forbids collapsing provenance, so a much-derived item carries a long ancestry. Storage, retrieval and prompt-assembly cost grow with it, and `SCALE_AND_COST_ARCHITECTURE.md` §2 does not currently model this pressure point | 07 / 33 |
+| **Revocation labelling surfaces often and decides nothing** | `S7-D5` exposes revoked creating authority at retrieval and deliberately does not re-weight. That is correct — revocation happens for many reasons and only some impeach what was learned — but it puts a judgment in front of the consumer on every affected retrieval | 07 |
+| **Quarantine still contains rather than ends injection persistence** | Unchanged from Section 03. A patient attacker supplying consistently plausible content that nothing contradicts is not detected (`T-10`), and Section 07 does not claim otherwise | 07 / 40 |
+
+## 3.8 Risks Identified in Section 08 — planning and orchestration
+
+> ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority ADRs
+> [0034](../decisions/0034-the-plan-is-a-security-object.md)–[0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md),
+> both **Accepted** 2026-08-15).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **An over-wide plan envelope silently restores every attack it exists to stop** | `I-113` bounds composition against the **declared** envelope. An envelope written wide enough to be convenient admits the dangerous sequence and looks identical to a correct one at every enforcement point. This is the third instance of the same failure mode — over-wide argument envelopes (ADR 0025) and over-wide agent envelopes (ADR 0029) preceded it — and nothing detects any of them | 08 / 31 |
+| **Composition is governable, not solved** | NOVA cannot enumerate every dangerous composition in advance. `I-113` makes the collection evaluable; it does not make the evaluation complete | 08 / 39 |
+| **Every re-plan costs a full authorization cycle** | Verifier-driven re-planning is normal, not exceptional, so this is latency and PDP load on a common path. The pressure will be to make re-planning inherit authorization "when the objective is unchanged" — which is precisely what `I-113` forbids, because "unchanged" would be judged by the Planner | 08 / 33 |
+| **Plan declaration quality is now load-bearing** | Composition checking, taint carriage and envelope enforcement all read what the plan declares. An under-declared plan defeats them while satisfying the schema | 08 / 31 / 41 |
+| **A compromised orchestrator still authors plans** | `I-112`/`I-113` bound what an authorized plan may reach; they do not prevent a compromised orchestrator constructing one. `T-19`, `T-24` and `T-36` are unchanged in that respect | 08 / 31 / 38 |
+| **Planner and Verifier may be correlated** | `I-102` requires a different instance above `PREPARE` and only *prefers* a different provider. A verifier that shares the Planner's poisoned inputs can drive re-planning loops that are budget-bounded but not judgment-bounded (`T-32`) | 08 / 41 |
+
+## 3.9 Risks Identified in Section 09 — knowledge and research
+
+> ***Added by Section 09 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+> [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md) §2a, **Accepted** 2026-08-15).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **Volatile sources produce an observation per retrieval** | A dynamic page or an API returning fresh content each call yields a distinct digest every time, so each retrieval is a separate observation. That is honest — each one *is* different content — but it grows provenance and storage on exactly the sources research touches most, and compounds the memory-volume pressure already recorded above | 09 / 07 / 33 |
+| **An aggregate of individually public sources can be sensitive** | `I-27` gives a derived item the **strictest source** classification; if every source is PUBLIC the conclusion is PUBLIC however sensitive it is. `I-57` covers only *cross-client* aggregates. **Recorded, not resolved — this belongs to Section 37 (Privacy & Data Governance)** and Section 09 deliberately does not decide it | 37 |
+| **Promoting a synthesis promotes every claim in it** | `I-110` operates on an *item*; ADR 0032's authority judgment is *per claim*. A synthesis stored as one item is promoted as one item, so a single unsupported claim inside it rides along at the elevated trust. The promotable unit is already defined repository-wide, so this is a residual rather than an open decision | 09 / 41 |
+
+## 3.10 Risks Identified in Section 10 — tools and capabilities
+
+> ***Added by Section 10 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0036](../decisions/0036-tool-declarations-are-claims-not-facts.md), **Accepted** 2026-08-15).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **A wrong declaration is undetectable** | Section 10 closes the *silent* under-declaration; it cannot close the *wrong* one. Validating a declaration against behaviour needs semantic understanding of the tool, the only available source is a model, and `I-101`/`I-102`/`I-110` bar exactly that. A tool declaring `body` expressive while its implementation parses `body` for recipients passes every enforcement point | 10 / 11 / 31 |
+| **Totality moves cost to tool authoring, and the cheap answer widens envelopes** | Every schema argument now needs a justified classification. The predictable response is classifying everything consequence-determining, which makes envelopes wide and pushes work toward approval — the same pressure ADR 0030 records for agent creation, and the same over-wide-envelope family ADRs 0025, 0029 and 0034 already record | 10 / 31 |
+| **Existing declarations written under the opt-in reading become incomplete** | Any tool defined before this rule is now unregistrable until reclassified. That is correct and is a real migration cost | 10 / 30 |
+| **Consequence is partly a property of the binding, not the definition** | One `send_email` reaches a different provider per scope (`TOOL_AND_INTEGRATION_ARCHITECTURE.md` §1), and provider behaviour is not in the tool definition. **Recorded, not resolved — this belongs to Section 11** | 11 |
+
+## 3.11 Risks Identified in Section 11 — execution, providers and integration behaviour
+
+> ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **`S11-D1` is resolved (`I-114`), and its residual half is semantic, not structural** | *(Updated 2026-08-15 on James's approval of `S11-D1`; the chain this row originally recorded is preserved in `T-39`.)* `I-114` closes the **substitution** half: the consequence is now produced by the binding James authorized, checked before the decision, at the tool PEP, at the broker (step 2a), and on every attempt. **The semantic half is bounded, not closed**: the authorized binding's provider can still interpret an argument differently than the declaration assumes — `I-114` guarantees *which* substrate acts, not *what the substrate does*. That is `T-16` authorized breadth attached to bindings, and `T-39` records it | 11 / 38 |
+| **Integration declaration quality is load-bearing, in a third place** | The binding check reads the integration's recorded provider / tenant / endpoint / API version. Recorded inaccurately, the check passes on wrong information — ADR 0036's claims-not-facts limit, now for bindings | 11 / 31 |
+| **A convincing provider lie is undetected** | Recording an outcome as a claim bounds what NOVA concludes; it does not make the claim true. Where a side effect is not independently observable there is nothing to check it against, and no verifier can be built that does not rest on a model's judgement (`I-102`, `I-110`) | 11 / 41 |
+| **Unknown outcomes are operationally expensive, and the cheap answer is the dangerous one** | An unresolvable ambiguous result escalates to James, and on a flaky integration that is frequent. The standing pressure is to treat ambiguity as failure and retry — precisely the duplicating path | 11 / 33 |
+| **Provider-side asynchronous work outlives its authorizer** | `I-107` bounds delegations; a provider job is not a delegation. A stop or revocation reaches NOVA's enforcement points, never the provider's queue. **NOVA cannot recall it** — what it controls is that the result re-enters as an untrusted claim | 11 / 21 |
+| **A forged or replayed inbound signal can still mistime an authorized step** | It cannot widen authority — no identity, no token, no grant, and resumption re-checks. But it can assert a condition a waiting workflow acts upon, so the bound is on authority rather than on timing or premise | 11 / 21 |
+| **Provider behaviour can change without any NOVA-visible change** | A contract *shape* change fails closed (`RELIABILITY_ARCHITECTURE.md` §2). A **behavioural** change at constant shape — a new default, a changed interpretation, a silent API version roll — changes the consequence while tool identity, schema, declaration **and binding identity** all stay identical. `I-114`(c) makes consequence-bearing reconfiguration a different binding **when NOVA makes the change**; nothing binds the provider's side, and nothing detects it (`T-39` residual) | 11 / 39 |
+| **Downstream subprocessors are not represented** | A provider may perform effects through parties NOVA has no model of. **Recorded, not resolved — this belongs to Section 37 (Privacy & Data Governance)** | 37 |
+
+## 3.12 Risks Identified in Section 12 — automation and the workflow engine
+
+> ***PROPOSED — added by Section 12, not yet accepted*** *(2026-08-15; authority
+> [ADR 0038](../decisions/0038-automations-are-intent-not-authority.md), Proposed; removed if
+> rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **Per-firing authorization is expensive, and the cheap answer rebuilds the loophole** | Every firing runs Interpretation through Permission Evaluation. On a high-frequency schedule that multiplies PDP load, and the standing pressure is to cache allows across firings — which is save-time authorization under another name. `I-17` bounds caching to one context's lifetime; the prohibition is worth what its implementation is worth | 12 / 33 |
+| **A standing approval is authorized breadth** | A definition mutated so its new behaviour still fits an existing standing approval's scope, risk ceiling and rate bounds runs without re-approval. James approved those bounds — `T-16`'s family, **not reduced**. The control is the quality of the bounds, and nothing measures that | 12 / 26 |
+| **Approval-gated automations drive approval fatigue** | A recurring workflow above the autonomous ceiling pauses at Approval **every firing**, by design. §2's register already records reflexive approval as a security failure, and automation is the most reliable way to generate it. The mitigation is a properly bounded standing approval, never a wider ceiling | 26 / 12 |
+| **Trigger-driven mistiming is bounded in authority, not in timing** | A forged, replayed or duplicated trigger cannot widen what a firing may do — no identity, no token, no grant. It can still cause authorized work to run at a moment of an attacker's choosing, or twice. `T-38`'s residual, now reachable through schedules and internal events as well as provider callbacks | 12 / 38 |
+| **Concurrency between firings is bounded by scope and authorization, not by resource** | Two firings touching the same resource are each authorized independently and each isolated by scope, so neither gains authority from the other. **Nothing serialises them.** Lost updates and interleaving are correctness problems the architecture does not address — **recorded, not resolved; this belongs to Sections 29 and 33** | 29 / 33 |
+| **An automation is only as safe as the capability that creates it** | Creating an automation is configuration; what bounds it is that automation-creation must be a tool on an agent's closed list, granted C3. **A permissive grant of that capability is the sharp edge** — not because the definition carries authority, but because it lets an agent schedule requests indefinitely within its own ceiling | 12 / 06 |
+
+## 3.13 Risks Identified in Section 13 — the communication system
+
+> ***PROPOSED — added by Section 13, not yet accepted*** *(2026-08-15; authority
+> [ADR 0039](../decisions/0039-communication-is-classified-egress.md), Proposed; removed if
+> rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **NOVA has no consent or opt-out check** | *Unsubscribe*, *opt-out* and *consent* appear **nowhere in the repository**. The **mechanism** is not missing — a suppression set narrows the recipient envelope `MT-8` already fixes, checked at the Tool PEP like any other membership. The **policy** is: what constitutes consent, how it is evidenced, how long it persists, per channel or per person, and which jurisdictions attach. Consent is a property of **a person** while the authorization model is scope-shaped throughout. **Recorded, not mitigated — this belongs to Section 37 (Privacy & Data Governance)** | 37 |
+| **Recipient expansion is bounded, not closed** | `I-100` checks the recipient *identifier*; it cannot check the *audience*. A distribution list, alias, shared inbox, auto-forward or provider merge tag passes the envelope check while reaching more people, sometimes outside the scope. Detecting it needs provider knowledge NOVA does not hold; the only component that could judge is a model (`I-101`, `I-102`, `I-110`). **`T-39`'s residual in its sharpest form, not reduced.** Its one real bound: `DATA_CLASSIFICATION.md` §2 still refuses the payload | 13 / 38 |
+| **Classification-union accuracy is load-bearing on the send path** | Step 7 now gates transmission on the body's inherited classification. A retrieval that fails to carry its classification into the composed body makes the gate pass on wrong information — the claims-not-facts limit in a fourth place, after tool declarations, provider outcomes and integration fields | 13 / 31 |
+| **The strictest-source rule is blunt, and its correct denials invite overrides** | One CLIENT-CONFIDENTIAL item retrieved into an otherwise-public newsletter blocks the whole send. That is the correct direction and it will feel wrong often. The pressure is a per-send override — which is **downward reclassification**, already `I-30`-governed, never automatic and never agent-performed. The pressure is the risk, not the rule | 13 / 26 |
+| **Individually authorized messages aggregate into spam** | Rate is a PDP step-8 condition and standing approvals carry rate limits, so frequency is governable. **Nothing judges appropriateness.** A sequence of individually reasonable, individually authorized messages is still what a recipient experiences as spam, and no enforcement point evaluates the sequence as a whole | 13 / 26 |
+| **A message delivered cannot be recalled** | Communication egress is irreversible in a way model egress is not. `T-38` already establishes NOVA cannot recall a submitted side effect; for communication the recipient is a person, and stop, revocation and compensation all arrive too late by construction | 13 / 35 |
+
+## 3.14 Risks Identified in Section 14 — voice and the conversational interface
+
+> ***PROPOSED — added by Section 14, not yet accepted*** *(2026-08-15; authority
+> [ADR 0040](../decisions/0040-voice-is-an-input-surface-not-an-authentication-factor.md),
+> Proposed; removed if rejected).*
+
+| Risk | Detail | Owner |
+| --- | --- | --- |
+| **A voice clone is undetectable, and bounded only by the ceiling** | Voice establishes no identity, so a cloned or replayed voice cannot approve or exceed `PREPARE`. It **can** drive every `READ`–`PREPARE` operation, make NOVA read aloud whatever those surface, and consume budget. **NOVA claims no ability to detect impersonation** — the cap bounds blast radius, nothing bounds attempts | 14 / 38 |
+| **The `PREPARE` cap is a permanent usability cost, and relaxing it is the failure** | Hands-free is exactly when another surface is least available — driving, cooking, walking. The pressure to allow spoken approval will be constant and will sound reasonable. It will also push toward batching approvals, which §2 already records as producing reflexive approval | 14 / 26 |
+| **Transcription errors are undetectable by NOVA** | A dropped negation, an altered amount or a mis-heard recipient produces a **well-formed** request. The only bound is that consequence-determining values are still envelope-checked (`I-100`), so a wrong recipient outside the envelope denies and one inside it proceeds. `T-39`'s semantic-divergence family through a different provider — **not reduced** | 14 / 38 |
+| **Caller ID is unauthenticated metadata** | It is a claim carried by an inbound signal, which carries no identity, token or grant (`S11-D3`). It may route; it may never identify. Nothing in NOVA validates it, and telephony providers do not guarantee it | 14 |
+| **A malicious speaker can halt work but cannot resume it** | Deliberate asymmetry: stop is reachable from every surface without navigation (`X-5`) because a stop that authenticates is not an emergency stop; lifting needs full-strength authentication (`X-6`). **The availability cost is accepted, not mitigated** | 14 |
+| **Audio, transcripts and voiceprints have no retention policy** | They are conversational and biometric data of the most sensitive kind. `I-27` gives derived transcripts the strictest classification of their sources and §2 governs their egress — but **how long raw audio is kept, whether a provider retains it beyond NOVA's control, and whether a voiceprint may be stored at all are undecided.** **Recorded, not resolved — this belongs to Section 37 (Privacy & Data Governance)** | 37 |
+| **Recording disclosure and consent are undecided** | Whether a party must be told a call is recorded or transcribed is a legal and policy question with jurisdictional answers, adjacent to the consent gap §3.13 already records. **Section 37's**, and Section 14 does not invent it | 37 |
 
 ---
 

@@ -1,0 +1,10 @@
+# Slice-local runtime dependencies. Not a project build system, not deployment
+# tooling: these are what the substrate suites need to run against real
+# PostgreSQL and a real WebAuthn verifier.
+#
+# psycopg2  -- the PostgreSQL driver. ADR 0044.
+# webauthn  -- py_webauthn. Verifies registrations and assertions: signatures,
+#              COSE keys, RP-ID hashes, flags and counters. ADR 0046 selects it
+#              precisely so that none of that is written here.
+psycopg2-binary
+webauthn>=2.5,<3

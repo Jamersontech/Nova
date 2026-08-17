@@ -1,0 +1,150 @@
+/* GENERATED FILE -- do not edit.
+ * Source: slice/ui/tokens/tokens.json
+ * Regenerate: python3 -m slice.ui.tokens.build_tokens
+ *
+ * Custom properties are inherited, and inheritance crosses Shadow DOM
+ * boundaries. That is why a change here reaches every component without
+ * the components being rebuilt or re-registered (ADR 0041).
+ */
+:root {
+  /* ---- primitive tier: raw values ---- */
+  --nova-primitive-border-hair: 1px;
+  --nova-primitive-border-thick: 2px;
+  --nova-primitive-color-accent-base: #4f8cff;
+  --nova-primitive-color-accent-soft: #1a2740;
+  --nova-primitive-color-accent-strong: #2f6ce0;
+  --nova-primitive-color-amber-base: #e0a340;
+  --nova-primitive-color-amber-soft: #2c2213;
+  --nova-primitive-color-green-base: #3fb87f;
+  --nova-primitive-color-green-soft: #12281f;
+  --nova-primitive-color-red-base: #e05a5a;
+  --nova-primitive-color-red-soft: #2e1618;
+  --nova-primitive-color-slate-050: #f4f7fb;
+  --nova-primitive-color-slate-100: #dde3ec;
+  --nova-primitive-color-slate-300: #9aa5b6;
+  --nova-primitive-color-slate-500: #5b6779;
+  --nova-primitive-color-slate-700: #2b3444;
+  --nova-primitive-color-slate-800: #1e2532;
+  --nova-primitive-color-slate-850: #161b25;
+  --nova-primitive-color-slate-900: #10141c;
+  --nova-primitive-color-slate-950: #080a0f;
+  --nova-primitive-color-violet-base: #9a7bff;
+  --nova-primitive-color-violet-soft: #211a33;
+  --nova-primitive-elevation-high: 0 8px 28px rgba(0,0,0,0.5);
+  --nova-primitive-elevation-low: 0 1px 2px rgba(0,0,0,0.4);
+  --nova-primitive-elevation-none: none;
+  --nova-primitive-layout-split: 1fr 3fr;
+  --nova-primitive-layout-stack: 1fr;
+  --nova-primitive-motion-duration-fast: 120ms;
+  --nova-primitive-motion-duration-instant: 0ms;
+  --nova-primitive-motion-duration-normal: 220ms;
+  --nova-primitive-motion-ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+  --nova-primitive-radius-full: 999px;
+  --nova-primitive-radius-lg: 14px;
+  --nova-primitive-radius-md: 8px;
+  --nova-primitive-radius-none: 0;
+  --nova-primitive-radius-sm: 4px;
+  --nova-primitive-size-target-comfortable: 44px;
+  --nova-primitive-size-target-min: 24px;
+  --nova-primitive-space-0: 0;
+  --nova-primitive-space-1: 0.25rem;
+  --nova-primitive-space-2: 0.5rem;
+  --nova-primitive-space-3: 0.75rem;
+  --nova-primitive-space-4: 1rem;
+  --nova-primitive-space-5: 1.5rem;
+  --nova-primitive-space-6: 2rem;
+  --nova-primitive-space-8: 3rem;
+  --nova-primitive-type-family-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --nova-primitive-type-family-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --nova-primitive-type-leading-normal: 1.5;
+  --nova-primitive-type-leading-relaxed: 1.7;
+  --nova-primitive-type-leading-tight: 1.2;
+  --nova-primitive-type-size-lg: 1.125rem;
+  --nova-primitive-type-size-md: 0.9375rem;
+  --nova-primitive-type-size-sm: 0.8125rem;
+  --nova-primitive-type-size-xl: 1.5rem;
+  --nova-primitive-type-size-xs: 0.6875rem;
+  --nova-primitive-type-tracking-normal: 0;
+  --nova-primitive-type-tracking-wide: 0.08em;
+  --nova-primitive-type-weight-medium: 500;
+  --nova-primitive-type-weight-regular: 400;
+  --nova-primitive-type-weight-semibold: 600;
+
+  /* ---- semantic tier: what components consume ---- */
+  --nova-border-emphasis: 2px;
+  --nova-border-width: 1px;
+  --nova-color-accent-base: #4f8cff;
+  --nova-color-accent-soft: #1a2740;
+  --nova-color-accent-strong: #2f6ce0;
+  --nova-color-area-business: #4f8cff;
+  --nova-color-area-life: #3fb87f;
+  --nova-color-area-wealth: #9a7bff;
+  --nova-color-border-accent: #4f8cff;
+  --nova-color-border-strong: #2b3444;
+  --nova-color-border-subtle: #1e2532;
+  --nova-color-risk-autonomous: #3fb87f;
+  --nova-color-risk-autonomous-soft: #12281f;
+  --nova-color-risk-contextual: #e0a340;
+  --nova-color-risk-contextual-soft: #2c2213;
+  --nova-color-risk-explicit: #e05a5a;
+  --nova-color-risk-explicit-soft: #2e1618;
+  --nova-color-stop-base: #e05a5a;
+  --nova-color-stop-soft: #2e1618;
+  --nova-color-surface-base: #080a0f;
+  --nova-color-surface-hover: #1e2532;
+  --nova-color-surface-inset: #161b25;
+  --nova-color-surface-raised: #10141c;
+  --nova-color-text-muted: #5b6779;
+  --nova-color-text-oncolor: #080a0f;
+  --nova-color-text-primary: #f4f7fb;
+  --nova-color-text-secondary: #9aa5b6;
+  --nova-control-target: 24px;
+  --nova-elevation-flat: none;
+  --nova-elevation-modal: 0 8px 28px rgba(0,0,0,0.5);
+  --nova-elevation-panel: 0 1px 2px rgba(0,0,0,0.4);
+  --nova-layout-columns: 1fr 3fr;
+  --nova-motion-duration: 120ms;
+  --nova-motion-ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --nova-radius-card: 14px;
+  --nova-radius-control: 4px;
+  --nova-radius-panel: 8px;
+  --nova-radius-pill: 999px;
+  --nova-space-gutter: 1rem;
+  --nova-space-roomy: 1.5rem;
+  --nova-space-section: 2rem;
+  --nova-space-snug: 0.75rem;
+  --nova-space-tight: 0.5rem;
+  --nova-type-family-code: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --nova-type-family-ui: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --nova-type-leading-normal: 1.5;
+  --nova-type-leading-tight: 1.2;
+  --nova-type-size-body: 0.8125rem;
+  --nova-type-size-caption: 0.6875rem;
+  --nova-type-size-display: 1.5rem;
+  --nova-type-size-lead: 0.9375rem;
+  --nova-type-size-title: 1.125rem;
+  --nova-type-tracking-label: 0.08em;
+  --nova-type-tracking-normal: 0;
+  --nova-type-weight-medium: 500;
+  --nova-type-weight-normal: 400;
+  --nova-type-weight-strong: 600;
+}
+
+/* ---- responsive band: mid (<= 1023px) ---- */
+@media (max-width: 1023px) {
+  :root {
+    --nova-layout-columns: 1fr;
+    --nova-space-section: 1.5rem;
+  }
+}
+
+/* ---- responsive band: narrow (<= 599px) ---- */
+@media (max-width: 599px) {
+  :root {
+    --nova-layout-columns: 1fr;
+    --nova-space-roomy: 1rem;
+    --nova-space-section: 1rem;
+    --nova-type-size-display: 1.125rem;
+    --nova-type-size-title: 0.9375rem;
+  }
+}

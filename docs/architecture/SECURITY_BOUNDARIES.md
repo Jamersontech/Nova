@@ -45,9 +45,52 @@ flowchart TB
 | **Project** | Projects within a client | Client-level context downward | Grant at client scope |
 | **Environment** | Staging from production, and both from other clients' | Project context downward | Grant at project scope; production carries a higher risk class |
 | **Agent** | Agent instances | Results returned via the runtime | Runtime mediation. No direct agent-to-agent channel |
-| **Tool** | Intent from operation | Structured calls with a valid token | Token covering scope; tool in the agent's closed list |
+| **Tool** | Intent from operation | Structured calls with a valid token | Token covering scope; tool in the agent's closed list; **the resolved execution binding within the authorized envelope** ³ |
 | **Credential** | NOVA from external secrets | **Secrets never cross inward to agents** | Broker injects at the call boundary only |
-| **External service** | NOVA from the outside world | Scoped requests out; data in, marked untrusted | Credential scoped to that service in that scope |
+| **External service** ² | NOVA from the outside world | Scoped requests out; data in, marked untrusted — **including data NOVA did not ask for** | Credential scoped to that service in that scope. **Nothing inbound carries authorization** |
+| **Model provider** ¹ | NOVA from a model provider | Content from **one** scope out, redacted and classification-filtered; generated text in, **untrusted, never instruction** | **Per-call PDP decision at the Model Gateway** covering token, every item's classification, and the destination provider |
+
+> ¹ ***Added by Section 05 — ACCEPTED by James 2026-08-14*** *(2026-08-14; this file is Active
+> Section 02 material, so this row and the Model Gateway row in §5 are amendments proposed through
+> [ADR 0024](../decisions/0024-model-gateway-is-an-enforcement-point.md) and
+> [ADR 0028](../decisions/0028-section-05-amendments-to-accepted-architecture.md), both
+> **Accepted** 2026-08-14).* **This document claims to enumerate *every* boundary, and model egress was
+> absent** — the one path on which NOVA's data leaves its trust boundary to a third party had no
+> row here and no enforcement point in
+> [`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §2.
+>
+> ² ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **The row as accepted is written
+> from the perspective of NOVA asking** — requests out, responses in. **A provider-initiated
+> signal is data in that nobody asked for**: a webhook, a callback, an asynchronous job
+> notification, or an integration-sourced event
+> ([`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md) §2). This
+> table claims to enumerate every boundary, and that direction was undistinguished — **the same
+> defect Section 05 found when model egress was absent, in the opposite direction.**
+>
+> **Nothing changes about what may cross; what is stated is that inbound carries no identity.** An
+> external system *"never authenticates into NOVA"*
+> ([`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) §2, unchanged), so such a signal has no
+> execution identity, no Context Token and no grant, and authorizes nothing (`I-14`). Transport
+> signature verification is an **integrity** control, never an authorization mechanism. Full model:
+> [`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §4.2.
+>
+> ³ ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; same authority as ²).*
+> **The Tool row named a scope check and a tool-list check, and neither sees the binding.** A tool
+> is defined once at root while its integration and credential are per scope, so a token covering
+> the scope and a tool on the agent's list are satisfied identically whichever integration the call
+> is actually resolved to. `I-114` adds the third column entry: the **resolved** execution binding
+> must fall within the envelope the authorization fixed, checked at the tool enforcement point and
+> again at the Credential Broker
+> ([`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) §3 step 2a). **No new boundary is
+> created** — this row's existing boundary gains the check that makes it mean what it says.
+
+> **One scope per request** (`I-95`): the model prompt is a join point of the same kind as a
+> storage channel, and cross-scope work reaching a model is N single-scope calls aggregated above
+> them, never one call holding both. **SECURITY-CRITICAL never crosses** and no grant, approval or
+> profile permits it; **SENSITIVE-PERSONAL** crosses only on explicit approval; redaction that
+> cannot be confirmed is a **denial**, not a degradation (`I-96`). Full model:
+> [`MODEL_GATEWAY_ARCHITECTURE.md`](./MODEL_GATEWAY_ARCHITECTURE.md).
 
 ---
 
@@ -88,10 +131,26 @@ never an autonomous execution.
 
 ```text
 TRUSTED          James · NOVA Core · Policy · Credential Broker
+                 · Context service · Data-Access Boundary        ← named in Section 04
 GOVERNED         NOVA agents — inside the boundary, still least-privileged
 UNTRUSTED        External coding agents · sandboxes · all external services
 HOSTILE-ASSUMED  All content originating outside NOVA
 ```
+
+**The two Section 04 additions are namings, not new grants.** ***Added by Section 04 — ACCEPTED by
+James 2026-08-13*** *(2026-08-13, N-13; this file is Active Section 02 material, so the line above
+is an amendment made through [ADR 0017](../decisions/0017-isolation-independent-of-pdp.md),
+**Accepted** 2026-08-13).* Both were already inside NOVA Core and therefore
+already trusted; Section 04 names them because it makes specific claims about each that a reader
+must be able to locate:
+
+- **Context service** — the authoritative source of execution scope identity. Section 04
+  establishes that it is a critical trusted component **of the same standing as the PDP**, and
+  that **nothing in Section 04 mitigates its compromise** (`T-23a`). Naming it here prevents the
+  mistake of treating it as ordinary infrastructure.
+- **Data-Access Boundary** — a trusted platform responsibility, not a microservice, that holds
+  the storage scope binding (`I-61`, `I-78`). It must never be the agent runtime, a sandbox, or
+  application code.
 
 **External coding agents are in the untrusted zone despite doing NOVA's work.** They are
 capable contractors in a sealed room ([`EXECUTION_ARCHITECTURE.md`](./EXECUTION_ARCHITECTURE.md)).
@@ -111,6 +170,7 @@ reach?*
 | One integration credential | One external service in one scope | Any other service or scope |
 | The orchestrator | Planning and dispatch | Credentials; Policy decisions; enforcement points still deny |
 | A model provider | Prompt content routed to it | Credentials; scopes; enforcement |
+| **The Model Gateway** ¹ | Content of every model call it handles, and the provider credentials it holds | Client scopes — a provider credential authorizes **no scope** (`I-103`); it decides no authorization and can only deny (`I-77`); it cannot widen the permitted provider set, since the PDP decides it |
 
 The row that justifies the whole design is the last-but-one: **compromising the
 orchestrator — the most central component — still does not yield credentials or bypass

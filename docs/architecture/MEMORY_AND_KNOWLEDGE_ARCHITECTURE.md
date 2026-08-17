@@ -121,6 +121,12 @@ Memory that is never curated becomes both a liability and a source of stale asse
   Constitution §13 requires it.
 - **Review.** Memory is inspectable by James in plain language. Memory James cannot see is
   memory he cannot correct.
+- **Trust promotion.** ***Added by Section 07 — ACCEPTED by James 2026-08-15*** *(2026-08-14;
+  authority [ADR 0032](../decisions/0032-trust-promotion-authority.md) and
+  [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* Raising an item's trust is an **explicitly authorized, recorded,
+  C3 operation** — never automatic, never by an agent, never model-mediated (`I-110`,
+  [`MEMORY_MODEL.md`](./MEMORY_MODEL.md) §4.3). Curation is how durable knowledge is *created*
+  (§6); promotion is how an already-stored item's trust is *raised*, and it fails closed.
 
 ---
 
@@ -146,7 +152,17 @@ When assembling context for a model call, the retrieval path must:
 2. label each retrieved item with its kind, source, and age,
 3. prefer live data over memory for anything volatile,
 4. never silently merge kinds into undifferentiated "context",
-5. record what was retrieved, so that a later audit can reconstruct what NOVA believed.
+5. record what was retrieved, so that a later audit can reconstruct what NOVA believed,
+6. **restore the union provenance, lowest trust, delegation ancestry, and revoked-authority state
+   carried by each item** ***(Added by Section 07 — ACCEPTED by James 2026-08-15; authority
+   [ADR 0033](../decisions/0033-section-07-amendments-to-accepted-architecture.md), **Accepted**
+   2026-08-15)***.
 
 Point 5 is what makes the observability requirement "what did NOVA believe at the time?"
 answerable ([`EVENT_AND_OBSERVABILITY_ARCHITECTURE.md`](./EVENT_AND_OBSERVABILITY_ARCHITECTURE.md)).
+
+**Point 6 is what makes `I-100` enforceable.** This list is what a model-call assembler works
+from, and rules 1–5 can all be satisfied while collapsing an item's provenance to a single value.
+`I-99`'s union and `I-100`'s untrusted-derived argument ceiling are evaluated against the full
+labelling, so a retrieval that returns less defeats them without failing any rule above (`I-111`,
+[`MEMORY_MODEL.md`](./MEMORY_MODEL.md) §4).

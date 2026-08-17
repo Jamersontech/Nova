@@ -1,0 +1,91 @@
+{
+  "$comment": [
+    "NOVA information architecture -- the navigable structure, Section 16.",
+    "",
+    "This file does NOT decide the IA. USER_INTERFACE_ARCHITECTURE.md (Section 02, Active)",
+    "already did that, and test_navigation.py parses that document's section 3 table and",
+    "fails if this file and the document disagree. This is a machine-readable projection of",
+    "an accepted decision, not a second source of truth.",
+    "",
+    "'navigable: false' is load-bearing. Agents, tools, integrations, memory and workflows",
+    "are deliberately absent from navigation (section 3), and the tests assert that no",
+    "location can be constructed for them."
+  ],
+
+  "areas": ["life", "business", "wealth"],
+
+  "capabilities": {
+    "Conversation":   { "navigable": true,  "kind": "persistent",     "reached": "primary-surface" },
+    "Tasks":          { "navigable": true,  "kind": "cross-cutting",  "reached": "in-scope-and-aggregated" },
+    "Projects":       { "navigable": true,  "kind": "in-scope",       "reached": "inside-client" },
+    "Businesses":     { "navigable": true,  "kind": "in-scope",       "reached": "inside-business-area" },
+    "Clients":        { "navigable": true,  "kind": "in-scope",       "reached": "inside-business" },
+    "Wealth":         { "navigable": true,  "kind": "in-scope",       "reached": "inside-wealth-area" },
+    "Notifications":  { "navigable": true,  "kind": "persistent",     "reached": "indicator-not-a-section" },
+    "Approvals":      { "navigable": true,  "kind": "cross-cutting",  "reached": "in-place-and-aggregated" },
+    "Activity":       { "navigable": true,  "kind": "cross-cutting",  "reached": "chronological-scope-filtered" },
+    "Settings":       { "navigable": true,  "kind": "deliberate",     "reached": "reached-not-displayed" },
+    "Agents, tools, integrations, memory, workflows": {
+      "navigable": false,
+      "kind": "not-user-facing",
+      "reached": "activity-or-section-43",
+      "note": "No location exists for these. Section 43 owns the admin surface."
+    }
+  },
+
+  "persistent": {
+    "$comment": "Present in every reachable state. Their absence anywhere is a test failure.",
+    "context_indicator": "USER_INTERFACE_ARCHITECTURE.md section 5",
+    "approvals": "section 6 -- never buried",
+    "emergency_stop": "section 6 -- reachable without navigation, from every surface",
+    "conversation": "section 2 -- the interface, not a section"
+  },
+
+  "disclosure": {
+    "$comment": "section 4. Default is the shallowest level; depth is available, never imposed.",
+    "default_level": 2,
+    "levels": {
+      "1": "Ask NOVA. Get an answer.",
+      "2": "See the three areas and current state.",
+      "3": "Drill into a business, client, project, or life area.",
+      "4": "Inspect what NOVA did -- activity, traces, decisions.",
+      "5": "Administer -- agents, tools, permissions, memory. (Section 43)"
+    },
+    "max_navigable_level": 4,
+    "level_5_owner": "Section 43"
+  },
+
+  "scopes": {
+    "$comment": [
+      "A sample tree, not NOVA's real scope data. Enough shape to exercise descent,",
+      "ascent, sibling refusal and material ambiguity.",
+      "'material: true' marks a node whose confusion with a sibling changes consequences",
+      "-- CONTEXT_ARCHITECTURE.md section 101's staging-versus-production case."
+    ],
+    "life": { "label": "LIFE", "children": { "health": { "label": "Health" }, "home": { "label": "Home" } } },
+    "business": {
+      "label": "BUSINESS",
+      "children": {
+        "kairo": {
+          "label": "KAIRO",
+          "children": {
+            "client-a": {
+              "label": "Client A",
+              "children": {
+                "website": {
+                  "label": "Website",
+                  "children": {
+                    "production": { "label": "Production", "material": true },
+                    "staging":    { "label": "Staging",    "material": true }
+                  }
+                }
+              }
+            },
+            "client-b": { "label": "Client B", "children": { "website": { "label": "Website" } } }
+          }
+        }
+      }
+    },
+    "wealth": { "label": "WEALTH", "children": { "reserve": { "label": "Reserve" }, "operating": { "label": "Operating" } } }
+  }
+}

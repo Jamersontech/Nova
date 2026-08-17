@@ -32,7 +32,18 @@ purpose; dropping *"in this context"* produces the confused deputy.
 | **Denial** | An explicit refusal | The absence of a grant (that is *default deny*) |
 | **Approval** | A human authorization for one action, once | A standing state |
 | **Credential binding** | A resolvable reference to an external secret | The secret |
+| **Execution binding** ² | The concrete substrate a tool action will use: tool identity **and version**, integration, credential binding, resolved in one scope | The tool definition, which is scope-independent |
 | **Execution context** | The runtime envelope: identity, token, limits, trace | Ambient state |
+
+> ² ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; authority
+> [ADR 0037](../decisions/0037-provider-outcomes-and-provider-initiated-paths.md), **Accepted** 2026-08-15).* **`Action` above is *"the
+> operation, carrying a risk class"* and explicitly *"never a tool name"* — but the operation's
+> actual consequence is produced by the integration and credential bound in the current scope**
+> ([`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §1), which no
+> element named. The same tool, the same schema-valid and envelope-covered arguments, reaches a
+> different external system with different semantics depending on where it is bound. `I-114` makes
+> that substrate an element the decision sees; **no new permission model is introduced** — it is an
+> input to the sequence below, not a parallel one.
 
 **Grant vs denial matters:** an explicit denial **overrides any grant** and cannot be
 outvoted by a broader permission. Default deny handles absence; explicit denial handles
@@ -64,6 +75,55 @@ configured.
 
 **Every outcome is recorded** — allow, deny, and approval-required alike. Denials are the
 more interesting signal.
+
+**The execution binding is resolved before step 1, not after step 10.** ***Added by Section 11 — ACCEPTED by James 2026-08-15*** *(2026-08-15; same authority as ² above).* **The ten steps are
+unchanged, unreordered, and none is added** — what changes is that for a consequence-producing tool
+action the **execution binding is resolved first and is an input** to steps 5 through 8, so the
+question at step 5 is *"a grant for this subject, action, resource type and scope — reached through
+this integration and credential binding"* rather than a binding-agnostic one.
+
+**The ordering matters and was wrong in the invocation sequence.**
+[`TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./TOOL_AND_INTEGRATION_ARCHITECTURE.md) §3 asks Policy
+*"may this token call this tool at this risk?"* and **then** resolves the credential — so the
+decision was made before the substrate producing the consequence existed. **Resolve, then decide**
+(`I-114`(a)). An unresolvable binding is a **denial**, never a default or a last-known binding.
+
+**The PDP is not made a routing engine.** It does not choose the binding — it receives the resolved
+one and decides. Selection remains where it already lives: the integration is bound at a scope node
+(§1 of that document), and the enforcement point checks what was selected against what was
+authorized (`I-114`(b)). This preserves `P-7` and `P-11` exactly as `I-113` does for composition.
+
+**Where `I-07`'s intersection is enforced.** ***Added by Section 06 — ACCEPTED by James 2026-08-14***
+*(2026-08-14; authority [ADR 0029](../decisions/0029-delegated-authority.md) and
+[ADR 0031](../decisions/0031-section-06-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-14).* **The ten steps above are unchanged.** This note exists because a
+reader checking where `I-07` is enforced finds nothing here and would reasonably conclude nothing
+enforces it.
+
+Two of `I-07`'s four inputs are enforced by this sequence: **grants** at step 5 — and only James
+creates grants (`I-10`) — and the **token's** scope and risk ceiling at steps 3 and 6, integrity-
+bound to the Context service (`I-87`, `P-12`). The **agent definition** is not an input to this
+sequence and never becomes one. It is verified **at token issuance** by the Context service, which
+refuses to issue beyond it (`I-106`,
+[`AGENT_GOVERNANCE.md`](./AGENT_GOVERNANCE.md) §2). **The PDP is deliberately not made an
+agent-definition intersection engine:** that would put a registry read on the hot path against
+`P-7` and give one component two jobs. Issuance is also the only point where all four inputs exist
+together — after issuance the token is already integrity-bound and every enforcement point is
+obliged to honour it.
+
+**What this sequence evaluates, and what it does not.** ***Added by Section 08 — ACCEPTED by James 2026-08-15*** *(2026-08-14; authority
+[ADR 0034](../decisions/0034-the-plan-is-a-security-object.md) and
+[ADR 0035](../decisions/0035-section-08-amendments-to-accepted-architecture.md), both **Accepted** 2026-08-15).* **The ten steps above are unchanged.** They evaluate **one action
+against one resource**, exactly as §1 and §2 state.
+
+[`ORCHESTRATION_ARCHITECTURE.md`](./ORCHESTRATION_ARCHITECTURE.md) §2 also says *"the full plan is
+authorized as a unit"*. **Both are true, and they are different decisions.** Plan authorization is a
+separate **envelope** decision fixing scope, risk ceiling, tool set, cost ceiling and composition
+(§2.2 there, `I-113`); the sequence above then runs **per action** inside that envelope. **Neither
+substitutes for the other:** an envelope never authorizes an action, and an action's allow never
+permits exceeding the envelope.
+
+**The PDP is not made a plan-composition engine.** Composition is checked against the declared
+envelope at the enforcement points, not by adding steps here — `P-7` and `P-11` stand.
 
 ---
 
@@ -186,5 +246,26 @@ of the components being stopped — an unhealthy orchestrator is exactly when it
 ## 7. What Section 3 Does Not Decide
 
 The engine, policy language, storage, evaluation performance, and caching implementation
-are deferred (`D-09`, `D-10`, `D-34`). Section 3 fixes *what must be evaluated and in what
-order*; Section 04 builds it.
+were deferred by Section 03. **Section 04 fixed the requirements** —
+[`POLICY_ENGINE_REQUIREMENTS.md`](./POLICY_ENGINE_REQUIREMENTS.md) for the engine,
+[`AUTHENTICATION_MODEL.md`](./AUTHENTICATION_MODEL.md) for identity, and
+[`SECRETS_ARCHITECTURE.md`](./SECRETS_ARCHITECTURE.md) for the broker — while leaving every
+product choice deferred (`D-09`, `D-10`, `D-34`).
+
+**Scope containment (step 3) is *additionally* enforced beneath the query layer**, independently
+of this PDP ([ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md),
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)). A compromised PDP that returns
+`ALLOW` for another client's resource still yields no data.
+
+**Independent of the PDP — not independent of the Context service.** *(Qualified 2026-08-13,
+N-10.)* Both this PDP and the storage scope binding take their input from the same Context Token,
+so compromise of the Context service or of token issuance defeats both together (`T-23a`,
+`I-62`). No general two-of-two independence is claimed.
+
+**This does not remove or replace the Data Access enforcement point.** The Data Access PEP in
+[`PERMISSION_ARCHITECTURE.md`](./PERMISSION_ARCHITECTURE.md) §2 remains one of the five PEPs and
+still asks the PDP for every data access, still running steps 1–10 above in full. Structural
+isolation is a **second restriction on reachability, independent of this PDP** — it decides
+nothing about authorization and can only deny. Implementing connection-scope binding *instead of* the Data
+Access PEP would silently remove grants, risk ceilings, classification and conditions from the
+read path, and is prohibited (`I-77`).

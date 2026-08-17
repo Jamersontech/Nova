@@ -53,7 +53,8 @@ unnecessary duplication.
 ## Current Status
 
 Sections 01 (Constitution & Project Foundation), 02 (System Architecture & Master
-Blueprint), and 03 (Data, Scope, Identity & Memory Architecture) are complete. NOVA contains documentation only — no application code,
+Blueprint), 03 (Data, Scope, Identity & Memory Architecture) and 04 (Security, Identity &
+Permissions) are complete. NOVA contains documentation only — no application code,
 dependencies, infrastructure, or technology commitments.
 
 The Section 02 architecture is **Active** — ADRs `0001`–`0008` were accepted by James on
@@ -63,4 +64,39 @@ Work Orders).
 The Section 03 model is **Active** — ADRs `0009`–`0015` were accepted by James on 2026-08-12
 as amended, with the documented residual risks explicitly accepted rather than resolved.
 
-Next: **Section 04 — Security, Identity & Permissions** (not started).
+The Section 04 model is **Active** — ADRs `0016`–`0023` were accepted by James on 2026-08-13.
+*(Status corrected 2026-08-14: this line still read "Proposed, pending James's approval of ADRs
+`0016`–`0021`" — accurate before the acceptance and false after it, and it also predated ADRs
+`0022`–`0023`.)*
+
+The Section 05 model is **Active** — ADRs `0024`–`0028` were accepted by James on 2026-08-14.
+
+The Section 06 model is **Active** — ADRs `0029`–`0031` were accepted by James on 2026-08-14.
+
+The Section 07 model is **Proposed** — ADRs `0032`–`0033` await James's approval.
+
+The Section 08 model is **Proposed** — ADRs `0034`–`0035` await James's approval.
+
+The Section 09 model is **Proposed** — its single decision (`S9-D1`, source identity) is folded into ADR `0033`.
+
+The Section 10 model is **Proposed** — ADR `0036` awaits James's approval. **No new invariant and no
+new architecture document**: the decision defines what makes a tool declaration complete, inside
+[`architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md`](./architecture/TOOL_AND_INTEGRATION_ARCHITECTURE.md) §2.1.
+
+The Section 11 model is **Proposed** — ADR `0037` awaits James's approval. `S11-D1`
+(binding-dependent consequence) was stopped for James and approved on 2026-08-15; its resolution is
+folded into ADR `0037`, adding `I-114` and amending `I-109` in place.
+
+The Section 12 model is **Proposed** — ADR `0038` awaits James's approval. **No new invariant**:
+its single decision (`S12-D1`, automations are intent not authority) is a derivation from
+`I-10`, `I-14`, `I-17`, `I-40`, `I-98`–`I-114`, `V-2` and `X-1`–`X-7`.
+
+The Section 13 model is **Proposed** — ADR `0039` awaits James's approval. **No new invariant**:
+its single decision (`S13-D1`, communication is classified egress) composes `I-99`, `I-27`,
+`DATA_CLASSIFICATION.md` §2 and PDP step 7 at the existing Tool call PEP.
+
+The Section 14 model is **Proposed** — ADR `0040` awaits James's approval. **No new invariant**:
+its single decision (`S14-D1`, voice is an input surface not an authentication factor) reconciles
+`USER_INTERFACE_ARCHITECTURE.md` §6–§7 with `AUTHENTICATION_MODEL.md` §4 without overruling either.
+
+Next: **Section 15 — NOVA Design System**.

@@ -182,6 +182,93 @@ A property every implementation must satisfy, written to be testable.
 
 ---
 
+## Terms Added in Section 04
+
+> **PROPOSED — not yet accepted.** *(Marked 2026-08-13, N-9.)* This file is **Active Section 01**
+> material, so every change to it is a C3 amendment. **James approved making this amendment
+> through Section 04 on 2026-08-13**; he has **not** accepted ADRs `0016`–`0021`. Every term in
+> this section stands or falls with them, and is removed rather than retained if they are
+> rejected. Terms in the Core, Section 02, and Section 03 blocks above are accepted and unchanged.
+
+Defined in full in [`../architecture/`](../architecture/README.md).
+
+### Enforcement Layer
+The layer beneath query construction that applies scope restriction, deriving it from an
+execution's bound scope identity and **not** from the Policy Decision Point. Distinct from the
+PDP: the PDP decides *whether*, the enforcement layer makes out-of-scope data *unreachable*.
+It is **additional to** the Data Access PEP, never a replacement — every data access still
+asks the PDP (`I-77`).
+
+**On "independent":** the enforcement layer is independent **of the PDP**, and that is the whole
+of the claim. Both it and the PDP take their input from the same Context Token, so they are
+**not** independent of the Context service; compromising it defeats both together (`T-23a`).
+**General two-of-two independence is not claimed** (`I-62`). *(Qualified 2026-08-13, N-9 — the
+earlier entry read "Deliberately independent" without this bound, which is the claim H-2
+withdrew.)*
+→ [ADR 0016](../decisions/0016-isolation-enforced-below-query-layer.md),
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)
+
+### Data-Access Boundary
+The **trusted platform responsibility**, at the entrance to the Knowledge & Data layer, that
+establishes an execution's storage scope binding and opens the scope-bound channel. It derives
+the binding solely from the Context Token's scope path, inside the TRUSTED zone. **Not a
+standalone microservice, not a new subsystem, and not separately deployable.** It owns *the
+binding*, never *the decision*: it never consults the PDP, creates no authorization authority,
+and cannot permit an access — it can only refuse to open a channel. Application and agent code
+cannot open, set, widen, re-bind, or reuse a binding (`I-61`, `I-78`, `I-86`).
+→ [`../architecture/ISOLATION_ENFORCEMENT.md`](../architecture/ISOLATION_ENFORCEMENT.md) §4.1,
+[ADR 0017](../decisions/0017-isolation-independent-of-pdp.md)
+
+### Context Token Integrity
+The property that lets a component **receiving** a Context Token detect that it was modified
+after issuance or fabricated by something other than the Context service, and refuse it if that
+cannot be established. Required at every consuming point — the PDP, all five enforcement points,
+and the Data-Access Boundary. **It is a detection property, not unforgeability**: NOVA selects no
+mechanism, claims no impossibility of forgery, and gains nothing from it against a compromised
+Context service, which issues genuine tokens (`T-23a`). `I-87` is `[PHYS]` — a requirement on a
+mechanism that does not yet exist.
+→ [`../architecture/AUTHENTICATION_MODEL.md`](../architecture/AUTHENTICATION_MODEL.md) §6
+
+### Scope Binding
+The association between an execution and the scope its storage access is restricted to,
+established by the **Data-Access Boundary** when the access **channel** is established, derived
+solely from the Context Token's scope path, and immutable for that execution's lifetime. No
+channel is bound to more than one scope (`I-86`). *(Updated 2026-08-13, N-9: "channel" is
+deliberately abstract per `R-2`/L-2 — a connection, a session, a signed request context, or any
+equivalent. The earlier wording said "connection or session establishment", which implied a
+connection-oriented store.)*
+
+### Step-Up
+Requiring **fresh** authentication — not merely a valid session — before an action of higher
+consequence. Distinct from re-authentication after expiry: step-up is triggered by what is
+about to happen, not by elapsed time.
+
+### Credential Broker Protocol
+The seven-step sequence by which a tool obtains use of a credential without ever receiving it:
+present binding and token, policy check, binding-state check, operation check, inject, discard,
+record. → [`../architecture/SECRETS_ARCHITECTURE.md`](../architecture/SECRETS_ARCHITECTURE.md) §3
+
+### Break-Glass
+A bounded, human-only, time-boxed, loudly recorded path **confined to restoring NOVA's
+control-plane service** when authentication or policy is **unavailable**. It may restore the
+ability to authenticate, repair or restart policy infrastructure, recover control-plane services,
+and lift an emergency stop.
+
+**It NEVER authorizes client-data access, provides any path to client data, or bypasses the
+normal authorization path** — not for data James could authorize, and not for data he could not.
+If policy is unavailable, break-glass may restore NOVA's ability to *perform* authorization; it
+never replaces it. Protected data remains fail-closed throughout (`I-75`, `B-1`, `B-5`).
+*(Corrected 2026-08-13, R-4. The earlier entry said "restore service" without the control-plane
+bound, and said break-glass "never grants access James could not otherwise authorize" — which
+implied it could grant access he could. Both contradicted `I-75`, which is absolute.)*
+→ [ADR 0021](../decisions/0021-revocation-and-break-glass.md)
+
+### Incident
+A confirmed or suspected violation of an invariant. Incidents are contained before they are
+investigated, always reach James, and are never silently resolved.
+
+---
+
 ## Distinctions That Are Frequently Confused
 
 | Do not conflate | With | Because |
@@ -206,6 +293,12 @@ A property every implementation must satisfy, written to be testable.
 | **Classification** | **Scope** | *What may be done* with an item versus *where* it lives. Both are required. |
 | **Grant absent** | **Explicit denial** | Absence is default deny; an explicit denial additionally overrides any grant. |
 | **Session identity** | **Execution identity** | Continuity versus the identity authorization evaluates. |
+| **PDP** | **Enforcement layer** | The PDP decides *whether*; the enforcement layer makes out-of-scope data *unreachable*. Independent **of the PDP** — not of the Context service, on which both depend (`T-23a`). |
+| **Data-Access Boundary** | **Data Access PEP** | The boundary holds the scope *binding*; the PEP asks the PDP for the *decision*, on every access. Neither replaces the other (`I-77`). |
+| **Token integrity** | **Unforgeability** | Detecting a modified or fabricated token versus preventing one. NOVA requires the first and claims nothing about the second. |
+| **Authentication** | **Step-up** | Proving identity versus proving it *again, freshly*, because of what is about to happen. |
+| **Break-glass** | **Authorization bypass** | Break-glass restores **control-plane service**; it never authorizes client-data access at all, and never bypasses the authorization path (`I-75`). |
+| **Revocation** | **Reversal** | Revocation stops future use; it does not undo past use. |
 
 ---
 

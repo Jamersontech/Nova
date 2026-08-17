@@ -32,3 +32,12 @@ Thumbs.db
 *.log
 tmp/
 .cache/
+
+# Vertical slice (Python)
+__pycache__/
+*.pyc
+
+# Section 15 design-system slice (Node, dev-only -- see ADR 0041).
+# Playwright drives the render checks; nothing here ships.
+node_modules/
+package-lock.json
