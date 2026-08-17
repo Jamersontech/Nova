@@ -41,7 +41,7 @@ from typing import Any, Optional
 from ..core.broker import CredentialBroker
 from ..core.policy import PolicyDecisionPoint
 from ..core.types import (Approval, ArgumentEnvelope, ContextToken, Denied,
-                          ExecutionBinding, Outcome, Plan, PlanStep, Risk, Taint)
+                          ExecutionBinding, Outcome, Plan, PlanStep, Risk, Taint)  # noqa: F401 (Denied used by add_scope guard)
 from ..tools.pep import ToolPEP
 from ..tools.registry import ToolRegistry, ToolDefinition, CONSEQUENCE, EXPRESSIVE
 from .boundary import DataAccessBoundary
@@ -50,6 +50,13 @@ TOOL = "write_item"
 TOOL_VERSION = "1.0.0"
 ADD_TASK = "add_task"
 COMPLETE_TASK = "complete_task"
+ADD_SCOPE = "add_scope"
+
+# One lowercase path segment. The conversation marker enforces this before a
+# proposal exists; the transport enforces it AGAIN because the tool can be
+# driven without the conversation, and "the marker was strict" is not a
+# property of this layer.
+_SCOPE_NAME = __import__("re").compile(r"[a-z0-9][a-z0-9_.-]{0,63}$")
 
 
 def write_item_tool() -> ToolDefinition:
@@ -120,7 +127,46 @@ def complete_task_tool() -> ToolDefinition:
     )
 
 
-ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool)
+def add_scope_tool() -> ToolDefinition:
+    """Create one child scope under the scope the plan names.
+
+    The PARENT is the plan's scope_path -- the same slot every other tool
+    uses -- so the approval binds it through I-109/I-112 like any other
+    resource, and the channel the write lands through is bound to it. The
+    child is parent + "/" + scope_name, computed in the transport from the
+    CHANNEL's scope, never from a payload-supplied path: WITH CHECK on the
+    `scope` table is what refuses a child anywhere the binding does not
+    cover, proven against the engine before this tool was written.
+
+    NO GRANT IS CREATED OR TOUCHED. James's existing grant at an ancestor
+    covers the new descendant by containment (find_grant/contains), verified
+    empirically. I-10 is untouched: this tool has no path to the `grant`
+    table at all.
+    """
+    return ToolDefinition(
+        name=ADD_SCOPE, version=TOOL_VERSION,
+        purpose="Create one empty child scope under this scope",
+        input_schema={"scope_name": "str", "kind": "str"},
+        output_schema={"status": "str"},
+        required_rights=frozenset({"write"}),
+        auth_requirements="datastore",
+        risk_class=Risk.EXECUTE,
+        context_requirements=frozenset({"client"}),
+        error_behaviour="typed", audit_behaviour="reference-only",
+        # UNIQUE (scope_path) + ON CONFLICT DO NOTHING: the provider enforces
+        # that a retry is one scope, which is what idempotent=True claims.
+        idempotent=True, cost_profile=1,
+        consequence_determining={
+            # BOTH are consequence-determining: the name addresses what will
+            # exist, and the kind is recorded structure. The envelope pins
+            # each to the exact approved value (I-100).
+            "scope_name": CONSEQUENCE,
+            "kind": CONSEQUENCE,
+        },
+    )
+
+
+ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool, add_scope_tool)
 
 
 class ApprovalStore:
@@ -151,6 +197,11 @@ class PostgresItemIntegration:
     def __init__(self, boundary: DataAccessBoundary):
         self._boundary = boundary
         self.side_effects = 0
+        # Post-commit hook for ADD_SCOPE only: the composition root uses it to
+        # teach the in-process tree about the new scope and register its
+        # datastore credential binding. NOT a general hot-reload system, and
+        # None everywhere that does not need it.
+        self.on_scope_created = None
 
     def transport_for(self, token: ContextToken, tool_name: str = TOOL):
         """The transport for one tool. Every branch below writes through the
@@ -170,6 +221,23 @@ class PostgresItemIntegration:
                         (ref, ch.scope_path, token.actor, payload["title"],
                          payload.get("due_on", "")))
                     detail, said = f"task_ref={ref}", f"added task {ref}"
+                elif tool_name == ADD_SCOPE:
+                    ref = payload["scope_name"]
+                    kind = payload.get("kind", "place")
+                    if not _SCOPE_NAME.fullmatch(ref):
+                        raise Denied("tool.add_scope",
+                                     "scope name is not one lowercase path segment",
+                                     "I-100", True)
+                    # The child hangs off the CHANNEL's scope. A payload cannot
+                    # name a parent, and WITH CHECK refuses anything the
+                    # binding does not cover -- the engine is the authority.
+                    new_path = f"{ch.scope_path}/{ref}"
+                    ch.execute(
+                        "INSERT INTO scope (scope_path, kind, parent_path)"
+                        " VALUES (%s,%s,%s)"
+                        " ON CONFLICT (scope_path) DO NOTHING",
+                        (new_path, kind, ch.scope_path))
+                    detail, said = f"scope={new_path}", f"created {new_path}"
                 elif tool_name == COMPLETE_TASK:
                     ref = payload["task_ref"]
                     # Conditional on done_at IS NULL: a retry is a no-op at the
@@ -201,6 +269,10 @@ class PostgresItemIntegration:
                     (event_identity, ch.scope_path, token.trace_id, token.actor,
                      f"{tool_name} {detail}"),
                 )
+            # The `with` block above has committed. Only now -- with the row
+            # durable -- does the composition root learn about a new scope.
+            if tool_name == ADD_SCOPE and self.on_scope_created is not None:
+                self.on_scope_created(new_path, kind)
             self.side_effects += 1
             return Outcome("success_claimed", said, Taint.of("integration.supplied"))
         return transport

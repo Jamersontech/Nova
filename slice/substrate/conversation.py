@@ -58,7 +58,7 @@ from ..core.gateway import CapabilityProfile, ModelGateway, ModelRequestItem
 from ..core.types import Classification, ContextToken, Denied, Risk, Taint
 from .approval_flow import ApprovalService
 from .boundary import DataAccessBoundary
-from .write_path import ADD_TASK, COMPLETE_TASK, TOOL
+from .write_path import ADD_SCOPE, ADD_TASK, COMPLETE_TASK, TOOL
 
 # ---------------------------------------------------------------------------
 # D-08, resolved for Conversation (ADR 0047). This block is the application's
@@ -88,6 +88,11 @@ _MARKERS = (
     (ADD_TASK, re.compile(r'\[\[PROPOSE_TASK ref="' + _REF +
                           r'" title="([^"\n]{1,300})" due="(\d{4}-\d{2}-\d{2}|)"\]\]')),
     (COMPLETE_TASK, re.compile(r'\[\[COMPLETE_TASK ref="' + _REF + r'"\]\]')),
+    # The name class is DELIBERATELY narrower than _REF: one lowercase path
+    # segment, because it becomes part of a scope path. The kind is a closed
+    # set -- anything else is prose.
+    (ADD_SCOPE, re.compile(r'\[\[PROPOSE_SCOPE name="([a-z0-9][a-z0-9_.-]{0,63})"'
+                           r' kind="(area|business|client|account|place)"\]\]')),
 )
 _ANY_MARKER = re.compile(r'\[\[[A-Z_]+[^\]]*\]\]')
 
@@ -102,6 +107,11 @@ changed, reply normally and then emit EXACTLY one final line, one of:
 [[PROPOSE_NOTE ref="short-ref" body="the note text"]]
 [[PROPOSE_TASK ref="short-ref" title="what needs doing" due="YYYY-MM-DD"]]
 [[COMPLETE_TASK ref="the-existing-task-ref"]]
+[[PROPOSE_SCOPE name="lowercase-name" kind="client"]]
+Use PROPOSE_SCOPE when James mentions a NEW client, business, life area or \
+account that needs a place of its own inside this scope -- a scope is where \
+its notes and tasks will live. kind must be one of: area, business, client, \
+account, place. The name must be lowercase, no spaces (use hyphens).
 Use PROPOSE_TASK when something needs to be DONE, with a due date if James \
 gave one (otherwise due=""). Use COMPLETE_TASK only with a task ref that \
 appears in the data below. That line is a request for James's approval, not \
@@ -267,6 +277,16 @@ class ConversationService:
                     action_text=(f"Add task \u201c{title}\u201d"
                                  + (f", due {due}." if due else ", with no due date.")),
                     if_wrong_text="A task you did not want appears in this scope.")
+            elif tool_name == ADD_SCOPE:
+                name, kind = ref, match.group(2)
+                approval_id = self._approvals.propose_action(
+                    execute_token, scope_path, ADD_SCOPE,
+                    {"scope_name": name, "kind": kind},
+                    action_text=f"Create \u201c{name}\u201d as a new place in this scope.",
+                    why_text=("Creating a place changes NOVA's structure. "
+                              "Nothing may grow the tree without your approval."),
+                    cost_text="One empty scope created. Nothing else changes.",
+                    if_wrong_text="An empty place exists that you can simply ignore.")
             elif tool_name == COMPLETE_TASK:
                 approval_id = self._approvals.propose_action(
                     execute_token, scope_path, COMPLETE_TASK, {"task_ref": ref},

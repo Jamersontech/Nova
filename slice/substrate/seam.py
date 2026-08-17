@@ -182,9 +182,16 @@ class Seam:
 
         if status == "denied":
             return 200, _page("Denied", "<p>Nothing was done. The action was declined.</p>")
-        return 200, _page("Approved",
-                          f"<p>{html.escape(outcome.detail)} in "
-                          f"<code>{html.escape(scope_path)}</code></p>")
+        body = (f"<p>{html.escape(outcome.detail)} in "
+                f"<code>{html.escape(scope_path)}</code></p>")
+        # A scope that now exists deserves a door. The path comes from the
+        # SERVER's execution outcome, never from model text.
+        if outcome.detail.startswith("created /"):
+            new_path = outcome.detail[len("created "):]
+            body += (f"<div class=\"actions\"><a href=\"/scope{html.escape(new_path)}\">"
+                     f"<button class=\"primary\" type=\"button\">"
+                     f"Open {html.escape(_label(new_path))}</button></a></div>")
+        return 200, _page("Approved", body)
 
     # -- the product: where James actually starts --------------------------
 

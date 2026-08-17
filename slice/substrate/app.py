@@ -109,8 +109,26 @@ def wire(data_dir: str, rp_id: str, origin: str) -> Seam:
     for tool in ALL_TOOLS:
         registry.register(tool())
     pep = ToolPEP(registry, broker, context, audit)
+    integration = PostgresItemIntegration(boundary)
+
+    def on_scope_created(path: str, kind: str) -> None:
+        """Post-commit, ADD_SCOPE only. Two things a new scope needs to be
+        immediately usable, done with the EXISTING mechanisms: the shared
+        in-process tree learns the path (the Context service, PDP, seam and
+        attention all hold this same object), and the broker gets the
+        per-scope datastore binding every other scope got at startup.
+        NO grant is created -- James's ancestor grant covers the descendant
+        by containment, verified by test. Not a hot-reload system."""
+        tree.add_scope(path, kind)
+        broker.register(
+            CredentialBinding(binding_id=f"db-item-write{path}", scope_path=path,
+                              permitted_operations=frozenset(
+                                  t().name for t in ALL_TOOLS)),
+            secret="datastore-" + os.urandom(8).hex())
+
+    integration.on_scope_created = on_scope_created
     writes = ScopedWritePath(pdp, registry, pep, broker,
-                             PostgresItemIntegration(boundary), "unused-see-subclass")
+                             integration, "unused-see-subclass")
     approvals = ApprovalService(boundary, writes)
 
     budget = BudgetLedger()
