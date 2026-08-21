@@ -145,7 +145,15 @@ ALTER TABLE approval
     -- could do. `tool_name` defaults to the original tool so existing rows
     -- reconstruct exactly as before.
     ADD COLUMN IF NOT EXISTS tool_name      text NOT NULL DEFAULT 'write_item',
-    ADD COLUMN IF NOT EXISTS arguments      jsonb;
+    ADD COLUMN IF NOT EXISTS arguments      jsonb,
+    -- SINGLE USE (I-09). An approval is James's act for ONE execution, not a
+    -- durable permission. NULL means unspent; once set it is never cleared,
+    -- and no path re-offers the row. The column is the DURABLE half of the
+    -- rule; `WHERE ... AND consumed_at IS NULL` in an UPDATE ... RETURNING is
+    -- what makes claiming it atomic, so two concurrent decisions cannot both
+    -- observe it unspent. Additive: existing rows default to NULL, i.e.
+    -- unspent, which is what they were.
+    ADD COLUMN IF NOT EXISTS consumed_at    timestamptz;
 
 -- ---------------------------------------------------------------------------
 -- Authentication (D-09) -- ABOVE the scope tree

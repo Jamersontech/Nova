@@ -170,20 +170,66 @@ ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool, add_scope_tool)
 
 
 class ApprovalStore:
-    """Approvals by plan identity. I-09: only James's act creates one."""
+    """Approvals by plan identity. I-09: only James's act creates one.
+
+    SINGLE USE. An approval authorizes ONE execution. Once it has been spent
+    -- `consume()` -- `for_plan` refuses it forever, so a later plan that
+    happens to hash the same cannot ride it.
+
+    Why this exists in memory at all when the `approval` table is durable: a
+    plan identity is deterministic over (scope, tool, arguments), so the SAME
+    identity is re-derived every time the same action is requested. Without
+    the spent-set, an approval recorded here stayed valid for the life of the
+    process, and any path reaching `execute_action` with matching arguments --
+    including the direct write route in `seam.py` -- found it and satisfied
+    step 9 with no new human act. The durable `approval.consumed_at` column is
+    the authority; this is the same rule enforced at the object the PDP
+    actually reads, so the two cannot disagree within a process.
+
+    What this is NOT: a ban on ever approving the same action twice. James may
+    legitimately decide to write the same item again next week. That arrives as
+    a NEW approval row, atomically claimed against `consumed_at`, and
+    re-arms the identity here. The distinction between a new decision and a
+    replay is the durable row, not the identity -- which is exactly why the
+    database is the authority and this is only its in-process shadow.
+    """
 
     def __init__(self) -> None:
         self._by_plan: dict[str, Approval] = {}
 
     def james_approves(self, plan_identity: str) -> Approval:
         """James's approval of ONE plan -- not standing, names no source.
-        Capture surface is Section 26's scope; this records the act."""
+        Capture surface is Section 26's scope; this records the act.
+
+        Re-arms an identity previously spent: a fresh decision is a fresh
+        approval. Nothing here is automatic -- reaching this method at all
+        required a human act (I-09).
+        """
         a = Approval(approval_id=f"appr-{plan_identity[:12]}", standing=False)
         self._by_plan[plan_identity] = a
         return a
 
     def for_plan(self, plan_identity: str) -> Optional[Approval]:
+        """Look WITHOUT spending. Not for the execution path -- reading and
+        then spending is two steps, and concurrent callers can both pass the
+        read before either reaches the spend. Use `take`."""
         return self._by_plan.get(plan_identity)
+
+    def take(self, plan_identity: str) -> Optional[Approval]:
+        """Spend the approval and return it, in ONE indivisible step.
+
+        `dict.pop` is atomic, so of N concurrent callers exactly one receives
+        the approval and the rest receive None -- and None is denied by step 9.
+        This is the whole of the in-process single-use rule: a separate
+        look-then-spend pair was measurably racy, returning four executions
+        from one approval when the window between the two was widened.
+
+        Spent by USE, not by completion. A failed execution leaves the
+        approval spent and requires a fresh decision: the fail-closed
+        direction (I-09), and why this needs none of Phase 2's recovery
+        machinery.
+        """
+        return self._by_plan.pop(plan_identity, None)
 
 
 class PostgresItemIntegration:
@@ -349,7 +395,12 @@ class WritePath:
             },
             magnitude_ceilings={},
         )
-        approval = self.approvals.for_plan(plan.identity())
+        # Taken, not read: the approval is spent in the same indivisible step
+        # that obtains it, so no second caller -- concurrent or later -- can
+        # obtain the same one. A replay of the identical plan gets None and is
+        # denied by step 9 below, through the ordinary machinery with no
+        # special case for it.
+        approval = self.approvals.take(plan.identity())
 
         # The full ten steps. Step 9 denies EXECUTE with no approval (I-09).
         authorization = self._pdp.authorize_plan(

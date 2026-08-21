@@ -28,6 +28,18 @@ stored request cannot be edited into authorizing something else.
 Approvals live in the `approval` table, which carries RLS like every other
 scoped table -- so an approval is reachable only from a channel bound to its
 own scope. That is free isolation, inherited rather than designed.
+
+SINGLE USE (I-09)
+-----------------
+An approval is James's act for ONE execution. It is spent when it authorizes
+one, and `approval.consumed_at` records that durably. The claim is a single
+`UPDATE ... WHERE consumed_at IS NULL ... RETURNING`, so concurrency is
+PostgreSQL's problem rather than ours: exactly one caller updates a row, and
+a loser updates none and is denied before anything executes.
+
+Spending happens at USE, not at completion. A failed execution therefore
+leaves the approval spent and requires a fresh decision -- the fail-closed
+direction, and the reason this needs none of Phase 2's recovery machinery.
 """
 
 from __future__ import annotations
@@ -176,10 +188,22 @@ class ApprovalService:
             raise Denied("approval.decide",
                          "plan identity differs from the approved plan", "I-112", True)
 
+        # SINGLE USE (I-09), claimed atomically. The decision and the spending
+        # of it are ONE statement: `consumed_at IS NULL` in the predicate means
+        # PostgreSQL admits exactly one winner, so two concurrent decisions on
+        # the same approval cannot both proceed to execute. RETURNING is how we
+        # learn whether we were the winner -- a second caller updates zero rows
+        # and is denied here, before anything executes.
         with self._boundary.open(token) as ch:
-            ch.execute(
-                "UPDATE approval SET status=%s, decided_at=now(), decided_by=%s"
-                " WHERE approval_id=%s", (APPROVED, decided_by, approval_id))
+            claimed = ch.fetch(
+                "UPDATE approval SET status=%s, decided_at=now(), decided_by=%s,"
+                " consumed_at=now()"
+                " WHERE approval_id=%s AND status=%s AND consumed_at IS NULL"
+                " RETURNING approval_id",
+                (APPROVED, decided_by, approval_id, PENDING))
+        if not claimed:
+            raise Denied("approval.decide",
+                         "approval already spent", "I-09", True)
 
         # I-09's act, recorded. The PDP still decides: this is an INPUT to
         # step 9, and execute() re-runs the full ten steps below it.
