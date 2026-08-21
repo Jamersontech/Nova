@@ -245,11 +245,17 @@ class Test08StaleAuthorization(SliceTest):
     def test_expired_token_denied_at_next_enforcement_point(self):
         """ATTACK: token expires between authorization and execution.
         EXPECT: deny. INVARIANT: I-13. ENFORCEMENT: PEP re-verifies context."""
-        tok = self.token(ttl=0.05)
+        # The TTL must outlast `authorize` and expire before `execute`. At the
+        # original 50ms the first half was not reliable: under full-suite load
+        # the token expired at authorize instead, and the test failed claiming
+        # an I-13 denial one step too early. 0.5s gives authorize an order of
+        # magnitude more headroom without changing what is being tested; the
+        # sleep moves with it, since it is the same mechanism's other half.
+        tok = self.token(ttl=0.5)
         plan = self.plan()
         auth = self.authorize(tok, plan)
         import time as _t
-        _t.sleep(0.08)
+        _t.sleep(0.6)
         with self.assertRaises(Denied) as ctx:
             self.rt.execute(tok, plan, auth, TOOL_VERSION, self.integration.transport)
         self.assertEqual(ctx.exception.step, "context.verify")

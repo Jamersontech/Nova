@@ -193,7 +193,9 @@ class WritePathTest(unittest.TestCase):
             self.assertEqual([], self.rows())
         finally:
             self.pdp.available = True
-        # And with it restored, the identical write succeeds.
+        # And with it restored, the identical write succeeds -- on a FRESH
+        # approval. The denied attempt spent the first one (I-09, single use).
+        self.approve()
         self.writes.execute(self.token(), A, "it-1", "hello")
         self.assertEqual([("it-1", "hello")], self.rows(A))
 
@@ -270,8 +272,12 @@ class WritePathTest(unittest.TestCase):
     # -- idempotent retry (S11-D2: provider-enforced dedup) ------------------
 
     def test_8_retry_is_deduplicated_by_the_provider(self):
+        # Two executions, so two approvals: an approval is single use (I-09).
+        # The subject here is the UPSERT, not the approval -- a retry that
+        # could ride the first approval would be testing the wrong thing.
         self.approve()
         self.writes.execute(self.token(), A, "it-1", "hello")
+        self.approve()
         self.writes.execute(self.token(), A, "it-1", "hello")
         self.assertEqual([("it-1", "hello")], self.rows(A), "the upsert duplicated")
 
