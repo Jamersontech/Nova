@@ -153,7 +153,17 @@ ALTER TABLE approval
     -- what makes claiming it atomic, so two concurrent decisions cannot both
     -- observe it unspent. Additive: existing rows default to NULL, i.e.
     -- unspent, which is what they were.
-    ADD COLUMN IF NOT EXISTS consumed_at    timestamptz;
+    ADD COLUMN IF NOT EXISTS consumed_at    timestamptz,
+    -- CRASH RECOVERY. The trace_id of the token that claimed this approval,
+    -- written in the SAME statement as the claim. `audit_record.event_identity`
+    -- for a data write is derived from that trace_id, and a trace_id is a
+    -- uuid4 living only in the token -- so without this column a recovering
+    -- process cannot rebuild the identity, and cannot tell an interrupted
+    -- execution that landed from one that never ran.
+    --
+    -- It is a LOOKUP KEY FOR EVIDENCE, never an input to a decision: nothing
+    -- reads it to authorize anything, and recovery has no execution path.
+    ADD COLUMN IF NOT EXISTS execution_trace_id text;
 
 -- ---------------------------------------------------------------------------
 -- Authentication (D-09) -- ABOVE the scope tree

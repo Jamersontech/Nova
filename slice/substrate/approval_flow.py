@@ -51,9 +51,16 @@ from typing import Any, Optional
 
 from ..core.types import ContextToken, Denied, Outcome, Risk
 from .boundary import DataAccessBoundary
-from .write_path import TOOL, WritePath
+from .write_path import (REF_ARGUMENT, TOOL, WritePath,
+                         execution_event_identity)
 
 PENDING, APPROVED, DENIED = "pending", "approved", "denied"
+# Execution lifecycle (Phase 2). `EXECUTING` is written by the claim itself,
+# not after it: a durable `approved` state between the claim and the start of
+# execution would be its own unrecoverable crash window, since nothing would
+# mark the row as an execution in flight. The DECISION is still recorded --
+# `decided_at` / `decided_by` -- and `decide()` still returns APPROVED.
+EXECUTING, EXECUTED, FAILED = "executing", "executed", "failed"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -194,13 +201,20 @@ class ApprovalService:
         # the same approval cannot both proceed to execute. RETURNING is how we
         # learn whether we were the winner -- a second caller updates zero rows
         # and is denied here, before anything executes.
+        # The claim also records WHICH execution this is: `execution_trace_id`
+        # is the token's trace, and the audit identity of the write about to
+        # happen is derived from it. Stored here, in the same statement, it is
+        # durable BEFORE anything executes -- so a crash at any point after
+        # this leaves a row that says both "in flight" and "look for evidence
+        # under this identity". Stored later, the crash window it exists to
+        # close would be open across the moment it matters.
         with self._boundary.open(token) as ch:
             claimed = ch.fetch(
                 "UPDATE approval SET status=%s, decided_at=now(), decided_by=%s,"
-                " consumed_at=now()"
+                " consumed_at=now(), execution_trace_id=%s"
                 " WHERE approval_id=%s AND status=%s AND consumed_at IS NULL"
                 " RETURNING approval_id",
-                (APPROVED, decided_by, approval_id, PENDING))
+                (EXECUTING, decided_by, token.trace_id, approval_id, PENDING))
         if not claimed:
             raise Denied("approval.decide",
                          "approval already spent", "I-09", True)
@@ -208,7 +222,100 @@ class ApprovalService:
         # I-09's act, recorded. The PDP still decides: this is an INPUT to
         # step 9, and execute() re-runs the full ten steps below it.
         self._writes.approvals.james_approves(plan.identity())
-        outcome = self._writes.execute_action(token, request.scope_path,
-                                              request.tool_name,
-                                              request.plan_arguments())
+        try:
+            outcome = self._writes.execute_action(token, request.scope_path,
+                                                  request.tool_name,
+                                                  request.plan_arguments())
+        except Exception:
+            # Terminal either way. The approval stays spent -- `consumed_at`
+            # is never cleared -- so a failure requires a fresh decision
+            # rather than becoming a retry.
+            self._settle(token, approval_id, FAILED)
+            raise
+        self._settle(token, approval_id, EXECUTED)
         return APPROVED, outcome
+
+    # -- recover ---------------------------------------------------------------
+
+    def recover(self, token: ContextToken) -> list[tuple[str, str]]:
+        """Reconcile approvals left in flight by a crash, IN THIS SCOPE ONLY.
+
+        Returns [(approval_id, outcome)], outcome being `executed`, `failed`,
+        or `unresolved`.
+
+        WHAT THIS IS NOT: it never executes anything, never retries anything,
+        and never makes a consumed approval usable again. It has no path to
+        the write path at all. Its entire job is to read evidence and write a
+        terminal status.
+
+        The evidence is `audit_record`, and it is authoritative because the
+        data write and its audit row commit in ONE transaction
+        (`write_path.transport`). The row exists if and only if the side
+        effect landed, so:
+
+            evidence present -> the action HAPPENED   -> executed
+            evidence absent  -> the action DID NOT    -> failed, decide again
+            evidence unreadable -> we do not know     -> unresolved, untouched
+
+        There is deliberately no fourth branch. "Probably ran" is not a state.
+
+        SCOPE (I-03, I-86). Everything below goes through the ONE scope-bound
+        channel this token opens: the approvals it can see, and the audit rows
+        it checks them against, are the ones RLS admits. Recovering /life
+        cannot observe /business, and there is no sweep across scopes -- a
+        global recovery worker would need a cross-scope read, which I-86
+        forbids, so recovery is demand-driven per scope instead.
+
+        PLAN IDENTITY (I-109, I-112). Each row's plan is reconstructed from
+        its stored arguments and its identity re-derived. A row that no longer
+        matches is left UNRESOLVED, never reconciled: if we cannot prove which
+        action it was, we cannot say what its evidence would look like.
+        """
+        settled: list[tuple[str, str]] = []
+        with self._boundary.open(token) as ch:
+            in_flight = ch.fetch(
+                f"SELECT {self._COLUMNS}, execution_trace_id FROM approval"
+                " WHERE status = %s ORDER BY created_at", (EXECUTING,))
+
+            for row in in_flight:
+                request, trace_id = self._row_to_request(row[:-1]), row[-1]
+
+                plan = self._writes.plan_for_action(
+                    request.scope_path, request.tool_name, request.plan_arguments())
+                if plan.identity() != request.plan_identity or not trace_id:
+                    # Tampered, or claimed before this column existed. Either
+                    # way the identity cannot be rebuilt honestly.
+                    settled.append((request.approval_id, "unresolved"))
+                    continue
+
+                ref = request.plan_arguments().get(
+                    REF_ARGUMENT.get(request.tool_name, ""), "")
+                evidence = ch.fetch(
+                    "SELECT 1 FROM audit_record WHERE event_identity = %s",
+                    (execution_event_identity(trace_id, request.scope_path,
+                                              request.tool_name, ref),))
+
+                # Atomic, and guarded on the state we read: a concurrent
+                # recovery or a late-settling execution updates zero rows and
+                # reports what the row already became.
+                outcome = EXECUTED if evidence else FAILED
+                won = ch.fetch("UPDATE approval SET status=%s"
+                               " WHERE approval_id=%s AND status=%s"
+                               " RETURNING status",
+                               (outcome, request.approval_id, EXECUTING))
+                settled.append((request.approval_id,
+                                outcome if won else "unresolved"))
+        return settled
+
+    def _settle(self, token: ContextToken, approval_id: str, status: str) -> None:
+        """Move one in-flight approval to a terminal state, atomically.
+
+        Guarded on `status=EXECUTING` so this and a concurrent recovery cannot
+        both settle the same row: PostgreSQL admits one, and the loser updates
+        nothing. Deliberately silent when it loses -- the row is already
+        terminal, which is the outcome either caller wanted.
+        """
+        with self._boundary.open(token) as ch:
+            ch.execute("UPDATE approval SET status=%s"
+                       " WHERE approval_id=%s AND status=%s",
+                       (status, approval_id, EXECUTING))

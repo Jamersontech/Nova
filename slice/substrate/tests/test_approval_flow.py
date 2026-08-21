@@ -29,7 +29,8 @@ import urllib.parse
 import urllib.request
 
 from .. import db
-from ..approval_flow import APPROVED, DENIED, PENDING, ApprovalService
+from ..approval_flow import (APPROVED, DENIED, EXECUTED, PENDING,
+                             ApprovalService)
 from ..boundary import DataAccessBoundary
 from ..seam import Seam, serve
 from . import authfixture
@@ -349,7 +350,8 @@ class ApprovalFlowTest(unittest.TestCase):
                          "more than the approved action ran")
 
         row = self.approval_row(approval_id)
-        self.assertEqual(APPROVED, row[0])
+        # EXECUTED: a completed execution is terminal (Phase 2 lifecycle).
+        self.assertEqual(EXECUTED, row[0])
         self.assertEqual("james", row[1])
         self.assertIsNotNone(row[2])
 
@@ -401,7 +403,7 @@ class ApprovalFlowTest(unittest.TestCase):
 
         status, decided_by, decided_at, scope_path, plan_identity = \
             self.approval_row(approval_id)
-        self.assertEqual((APPROVED, "james", A), (status, decided_by, scope_path))
+        self.assertEqual((EXECUTED, "james", A), (status, decided_by, scope_path))
         self.assertIsNotNone(decided_at)
         self.assertEqual(self.writes.plan_for(A, "it-1", "hello").identity(),
                          plan_identity, "the recorded plan is not the one executed")

@@ -168,6 +168,28 @@ def add_scope_tool() -> ToolDefinition:
 
 ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool, add_scope_tool)
 
+# Which argument addresses the record each tool writes. The transport reads it
+# to build the audit event identity; recovery reads it to REBUILD that identity
+# from the stored arguments. One table, so the two cannot drift -- if they did,
+# recovery would look for evidence under an identity nothing ever wrote and
+# would conclude "did not execute" about an action that did.
+REF_ARGUMENT = {TOOL: "item_ref", ADD_TASK: "task_ref",
+                COMPLETE_TASK: "task_ref", ADD_SCOPE: "scope_name"}
+
+
+def execution_event_identity(trace_id: str, scope_path: str,
+                             tool_name: str, ref: str) -> str:
+    """I-93's deterministic identity for one data write.
+
+    THE definition, called by both the writer and the reader. `trace_id` is a
+    uuid4 that exists only inside a ContextToken, which is why the approval
+    row persists it: after a restart this is otherwise unrecomputable, and an
+    identity that cannot be recomputed is evidence that cannot be found.
+    """
+    return hashlib.sha256(
+        f"data_write:{trace_id}:{scope_path}:{tool_name}:{ref}".encode()
+    ).hexdigest()[:32]
+
 
 class ApprovalStore:
     """Approvals by plan identity. I-09: only James's act creates one.
@@ -304,9 +326,12 @@ class PostgresItemIntegration:
                         (ref, ch.scope_path, payload["body"]))
                     detail, said = f"item_ref={ref}", f"wrote {ref}"
 
-                event_identity = hashlib.sha256(
-                    f"data_write:{token.trace_id}:{ch.scope_path}:{tool_name}:{ref}".encode()
-                ).hexdigest()[:32]
+                # The SAME derivation recovery uses. Written in this
+                # transaction, so the row exists if and only if the side
+                # effect above committed -- which is what makes an
+                # interrupted execution decidable rather than a guess.
+                event_identity = execution_event_identity(
+                    token.trace_id, ch.scope_path, tool_name, ref)
                 ch.execute(
                     "INSERT INTO audit_record"
                     " (event_identity, writer, category, scope_path, trace_id, actor_ref, detail)"
