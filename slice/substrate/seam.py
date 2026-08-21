@@ -143,6 +143,18 @@ class Seam:
             return refusal
         try:
             token = self._execute_token(session, scope_path)
+            # Crash recovery, demand-driven and bounded by this token's scope.
+            # Here rather than on the scope page because this is the narrowest
+            # correct point: reconciling an approval WRITES to it, and this
+            # route already holds a write-capable token from an EXECUTE-strength
+            # session (A-1). The scope page holds a READ token, so recovering
+            # there would be a write without a write right -- a new
+            # authorization path, not a smaller one.
+            #
+            # Reconciles only what RLS admits for this scope; there is no
+            # sweep. It executes and retries nothing, so a stranded approval
+            # becomes an accurate record and never a resumed action.
+            self._approvals.recover(token)
             requests = self._approvals.pending(token)
         except Denied:
             return 403, _page("Not available", "<p>This scope is not available to you.</p>")
