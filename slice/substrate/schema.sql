@@ -262,6 +262,76 @@ CREATE TABLE IF NOT EXISTS item (
     UNIQUE (scope_path, item_ref)
 );
 
+-- ---------------------------------------------------------------------------
+-- I-111 -- the security state that must survive persistence
+-- ---------------------------------------------------------------------------
+-- `I-111`: provenance, taint and delegation ancestry survive persistence and
+-- are RESTORED at retrieval. Persistence must not discard provenance, collapse
+-- multiple sources into one, raise trust, or replace `I-99`'s union with the
+-- latest writer alone. Each concept therefore gets its own column: packing them
+-- into one field would make the schema unable to say what it holds, and would
+-- reintroduce the delimiter encoding this design rejects.
+--
+-- EVERY COLUMN IS NULLABLE ON PURPOSE. NULL means "unknown / unestablishable",
+-- and it is the only thing that makes rows written before I-111 structurally
+-- distinguishable from rows whose security state was genuinely recorded. A
+-- NOT NULL DEFAULT would erase that distinction and make an assumption
+-- permanent and unauditable.
+--
+--   provenance          NULL = unknown; {} = established empty; else I-99 union
+--   trust               NULL = unknown; else Trust (0..3), the LOWEST contributor
+--   classification      NULL = unknown; else Classification (0..5), STRICTEST (I-27)
+--   delegation_ancestry NULL = unknown; {} = NO delegation; else the ordered chain
+--   creating_authority  NULL = unknown; else the execution identity that wrote it
+--
+-- `provenance` was previously an unused `text` column: zero readers, zero
+-- writers, zero tests, no data. A set-valued union cannot be represented in it,
+-- and NOT NULL cannot represent "unknown", so it is REPLACED rather than
+-- reinterpreted. The replacement is guarded on the column's current type, so
+-- re-applying this file never drops a populated text[] column -- an unguarded
+-- DROP+ADD here would silently destroy provenance on every startup.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'item' AND column_name = 'provenance'
+                 AND data_type = 'text') THEN
+        ALTER TABLE item DROP COLUMN provenance;
+    END IF;
+END
+$$;
+
+ALTER TABLE item
+    ADD COLUMN IF NOT EXISTS provenance          text[],
+    ADD COLUMN IF NOT EXISTS trust               smallint,
+    ADD COLUMN IF NOT EXISTS classification      smallint,
+    ADD COLUMN IF NOT EXISTS delegation_ancestry text[],
+    ADD COLUMN IF NOT EXISTS creating_authority  text;
+
+-- S7-D5 / I-111: retrieval must surface whether the authority that created an
+-- item was later REVOKED. A revocation set held in memory cannot do that -- it
+-- empties on restart, and every revoked authority would silently read as clean.
+--
+-- A NEGATIVE registry: presence means revoked. Absence means not-revoked ONLY
+-- when the lookup was complete and authorized for that identity; an
+-- unestablishable lookup is "unknown", and unknown fails closed. That
+-- distinction is the whole security property, and it is made in code, not here.
+--
+-- SCOPED like every other scoped table: an authority's revocation is visible
+-- from its own scope and its ancestors, never from a sibling. There is NO
+-- cross-scope exception -- if an ancestor's revocation state cannot be read
+-- from the authorized scope, the item fails closed instead.
+--
+-- Revocation is AUTHORITY state, not item lineage: it is deliberately outside
+-- ADR 0013's item cascade, because deleting the items an authority created
+-- must never make that authority read as un-revoked.
+CREATE TABLE IF NOT EXISTS authority_revocation (
+    id                 bigserial PRIMARY KEY,
+    execution_identity text NOT NULL UNIQUE,
+    scope_path         text NOT NULL,
+    revoked_at         timestamptz NOT NULL DEFAULT now(),
+    revoked_by         text NOT NULL
+);
+
 -- Ownership is explicit: nova_owner owns, nova_app never does. Left implicit,
 -- the tables would be owned by whichever role ran this file, and if that were
 -- ever the application role, RLS would be bypassable by ownership.
@@ -269,7 +339,8 @@ DO $$
 DECLARE t text;
 BEGIN
     FOREACH t IN ARRAY ARRAY['actor', 'scope', 'grant', 'approval', 'audit_record',
-                             'item', 'task', 'auth_credential', 'auth_session']
+                             'item', 'task', 'auth_credential', 'auth_session',
+                             'authority_revocation']
     LOOP
         EXECUTE format('ALTER TABLE %I OWNER TO nova_owner', t);
     END LOOP;
@@ -285,7 +356,8 @@ $$;
 DO $$
 DECLARE t text;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['scope', 'grant', 'approval', 'audit_record', 'item', 'task']
+    FOREACH t IN ARRAY ARRAY['scope', 'grant', 'approval', 'audit_record', 'item', 'task',
+                             'authority_revocation']
     LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
         EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
@@ -327,6 +399,19 @@ GRANT USAGE ON SCHEMA public, nova TO nova_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON
     actor, scope, "grant", approval, audit_record, item, task TO nova_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO nova_app;
+
+-- Revocation is APPEND-ONLY for the application role: SELECT and INSERT, never
+-- UPDATE, never DELETE. Enforced by PRIVILEGE rather than by the application
+-- declining to issue the statement, because "no code path does that today" is
+-- not a control -- a future path, or a compromised one, would face nothing.
+--
+-- Why it matters here specifically: this registry signals by PRESENCE. A
+-- deleted or edited revocation row would turn a revoked authority back into an
+-- apparently clean one, and every item it created would silently become usable
+-- in model context again. The absence of DELETE is what makes "absence means
+-- not revoked" safe to rely on.
+GRANT SELECT, INSERT ON authority_revocation TO nova_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON authority_revocation FROM nova_app;
 GRANT EXECUTE ON FUNCTION nova.current_scope(), nova.in_scope(text) TO nova_app;
 
 -- nova_auth reaches the two auth tables and NOTHING else. Deliberately no

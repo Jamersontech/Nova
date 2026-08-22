@@ -102,5 +102,6 @@ def reset_data() -> None:
     conn.autocommit = True
     with conn.cursor() as cur:
         cur.execute('TRUNCATE item, task, "grant", approval, audit_record, scope,'
-                    ' actor, auth_credential, auth_session RESTART IDENTITY')
+                    ' actor, auth_credential, auth_session,'
+                    ' authority_revocation RESTART IDENTITY')
     conn.close()
