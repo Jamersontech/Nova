@@ -32,7 +32,7 @@ never issues DELETE" is not the only thing standing in the way.
 
 from __future__ import annotations
 
-from ..core.types import ContextToken
+from ..core.types import ContextToken, Denied
 from .boundary import DataAccessBoundary
 
 
@@ -49,7 +49,35 @@ class RevocationRegistry:
 
     def revoke(self, token: ContextToken, execution_identity: str,
                revoked_by: str) -> None:
-        """Record that `execution_identity` is revoked, in the token's scope.
+        """Record that `execution_identity` is revoked, AT THE AUTHORITY'S OWN
+        SCOPE -- not at the revoker's.
+
+        THIS IS THE WHOLE CORRECTNESS OF THE REGISTRY, and getting it wrong is
+        silent. Containment runs downward only, so a record written at the
+        REVOKER's scope is invisible to any narrower scope. James standing in
+        `/life` revoking an authority that executed in `/life/fitness` would
+        file the record at `/life`; a read bound to `/life/fitness` would then
+        run a complete, authorized, successful query, find nothing, and
+        conclude "not revoked". Nothing fails, nothing logs, and the revoked
+        authority's content goes to the model. Measured, not theorised.
+
+        WHERE THE AUTHORITY'S SCOPE COMES FROM. A ContextToken carries exactly
+        one `scope_path`, and the Data-Access Boundary binds the channel to it,
+        so `item.scope_path` IS the scope of the token that wrote the row. One
+        execution identity can therefore only ever have written at one scope,
+        and `item.creating_authority` -- persisted by I-111 -- is the durable
+        record of which. This DERIVES the scope from evidence the system
+        already keeps; it does not ask the caller, because a caller-supplied
+        scope is exactly the mistake above with a parameter in front of it.
+
+        The derivation reads through the revoker's own bound channel, so RLS
+        decides what is derivable: an authority whose work lies outside the
+        revoker's reach is not revocable by them, which is the correct answer
+        rather than a limitation to work around.
+
+        FAILS CLOSED when the scope cannot be established: refusing to record
+        is safe, while recording at a guessed scope is the bug this exists to
+        prevent. An authority that wrote nothing has nothing to withhold.
 
         Idempotent: revoking twice is one row, and the FIRST revocation time is
         kept. Moving the timestamp forward on a re-revoke would let a later
@@ -57,12 +85,24 @@ class RevocationRegistry:
         revoked, which is a downgrade dressed as a no-op.
         """
         with self._boundary.open(token) as ch:
+            scopes = ch.fetch(
+                "SELECT DISTINCT scope_path FROM item WHERE creating_authority = %s",
+                (execution_identity,))
+            if len(scopes) != 1:
+                raise Denied(
+                    "revocation.scope",
+                    "cannot establish the scope this authority executed in",
+                    "I-111", True)
+            authority_scope = scopes[0][0]
+            # WITH CHECK independently refuses a row outside this channel's
+            # binding, so the derived scope cannot be used to write somewhere
+            # the revoker could not already reach (I-03).
             ch.execute(
                 "INSERT INTO authority_revocation"
                 " (execution_identity, scope_path, revoked_by)"
                 " VALUES (%s,%s,%s)"
                 " ON CONFLICT (execution_identity) DO NOTHING",
-                (execution_identity, ch.scope_path, revoked_by))
+                (execution_identity, authority_scope, revoked_by))
         if self._context is not None:
             self._context.revoke(execution_identity)
 

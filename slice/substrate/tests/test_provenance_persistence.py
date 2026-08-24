@@ -58,8 +58,10 @@ from ...tools.registry import ToolRegistry
 from . import authfixture
 
 LIFE = "/life"
+FITNESS = "/life/fitness"
 BUSINESS = "/business"
-SCOPES = [(LIFE, "domain", None), (BUSINESS, "domain", None)]
+SCOPES = [(LIFE, "domain", None), (FITNESS, "place", LIFE),
+          (BUSINESS, "domain", None)]
 GRANTS = [("james", p, r) for p, _, _ in SCOPES for r in ("read", "write")]
 CRED_REF = "control-plane/anthropic"
 
@@ -378,15 +380,65 @@ class ProvenancePersistenceTest(unittest.TestCase):
         self.assertEqual(Trust.HIGHEST, taint.trust)
         self.assertEqual(frozenset({"james.stated"}), taint.provenance)
 
-    def test_17_a_client_cannot_supply_authoritative_security_metadata(self):
-        """The write path takes the security state from the PLAN, which is what
-        authorization was decided against -- never from the payload."""
+    def test_17_forged_security_metadata_in_the_payload_is_ignored(self):
+        """A real injection attempt, not a walk down the happy path.
+
+        The previous version of this test ran the ordinary route and asserted
+        the ordinary result -- it would have passed even if the payload were
+        authoritative. This one FORGES every one of the five fields, with
+        values observably different from the legitimate ones, and pushes them
+        through the approval flow as tool arguments.
+
+        The write path takes the security state from the PLAN -- what the PDP
+        actually authorized -- and from the token. It reads none of these five
+        from the payload, so the forged values must not appear in the row."""
+        forged = {
+            "item_ref": "hostile", "body": "body",
+            # Every value below is chosen to be distinguishable from the real
+            # one: a provenance NOVA never assigns here, the highest trust, the
+            # weakest classification, a fake delegation chain, a fake author.
+            "provenance": ["system.verified"],
+            "trust": int(Trust.HIGHEST),
+            "classification": int(Classification.PUBLIC),
+            "delegation_ancestry": ["tr-forged-ancestor"],
+            "creating_authority": "tr-forged-author",
+        }
         token = self.token()
-        approval_id = self.approvals.propose(token, LIFE, "hostile", "body")
-        self.approvals.decide(token, approval_id, True, decided_by="james")
-        self.assertEqual([(["james.stated"], int(Trust.HIGHEST))],
-                         self.sql("SELECT provenance, trust FROM item"
-                                  " WHERE item_ref='hostile'"))
+
+        # LAYER ONE: through the approval flow. The forged keys become part of
+        # the plan's deterministic identity, so the plan reconstructed at
+        # execution no longer matches the one James saw -- I-112 refuses it
+        # before the write path is reached at all.
+        approval_id = self.approvals.propose_action(
+            token, LIFE, TOOL, forged,
+            action_text="write", if_wrong_text="nothing")
+        with self.assertRaises(Denied) as cm:
+            self.approvals.decide(token, approval_id, True, decided_by="james")
+        self.assertEqual("I-112", cm.exception.invariant)
+        self.assertEqual([], self.sql("SELECT 1 FROM item WHERE item_ref='hostile'"))
+
+        # LAYER TWO, and the one this test is really for: I-112 must not be the
+        # ONLY thing standing in the way. Drive the transport directly with the
+        # same forged payload -- past the approval flow entirely -- and the row
+        # must still carry the server-derived state.
+        plan = self.writes.plan_for(LIFE, "hostile", "body")
+        self.integration.transport_for(token, TOOL, taint=plan.taint)(
+            forged, "unused-secret")
+
+        row = self.sql("SELECT provenance, trust, classification,"
+                       " delegation_ancestry, creating_authority FROM item"
+                       " WHERE item_ref='hostile'")[0]
+        provenance, trust, classification, ancestry, author = row
+
+        self.assertEqual(["james.stated"], provenance, "forged provenance persisted")
+        self.assertEqual(int(Trust.HIGHEST), trust)
+        self.assertEqual(int(Classification.INTERNAL), classification,
+                         "forged classification persisted")
+        self.assertEqual([], ancestry, "forged delegation ancestry persisted")
+        self.assertNotEqual("tr-forged-author", author,
+                            "forged creating authority persisted")
+        self.assertEqual(token.trace_id, author,
+                         "the author is not the executing token")
 
     def test_18_scope_isolation_still_holds_for_the_new_columns(self):
         """The security state is on a scoped row, so RLS governs it like the
@@ -405,12 +457,22 @@ class ProvenancePersistenceTest(unittest.TestCase):
 
     def test_19_the_revocation_registry_is_scope_isolated(self):
         """No unrelated-authority enumeration: the registry is a scoped table
-        under the same policy, so a scope sees only its own revocations."""
-        self.revocations.revoke(
-            self.context.issue_root(identity="james", actor="james",
-                                    scope_path=BUSINESS, rights=frozenset({"write"}),
-                                    ceiling=Risk.EXECUTE, ttl=60),
-            "tr-business", revoked_by="james")
+        under the same policy, so a scope sees only its own revocations.
+
+        The authority must have actually written something -- an identity that
+        wrote nothing has no derivable scope and is refused, which test_24
+        covers."""
+        business_author = self.context.issue_root(
+            identity="james", actor="james", scope_path=BUSINESS,
+            rights=frozenset({"write"}), ceiling=Risk.EXECUTE, ttl=60)
+        self.seed_raw("b-note", "business body", scope=BUSINESS,
+                      provenance=["james.stated"], trust=int(Trust.HIGHEST),
+                      classification=int(Classification.INTERNAL),
+                      delegation_ancestry=[],
+                      creating_authority=business_author.trace_id)
+        self.revocations.revoke(business_author, business_author.trace_id,
+                                revoked_by="james")
+
         token = self.token(LIFE)
         with self.boundary.open(token) as ch:
             seen = ch.fetch("SELECT execution_identity FROM authority_revocation")
@@ -423,6 +485,138 @@ class ProvenancePersistenceTest(unittest.TestCase):
         status, page = self.seam.scope_page(self.sid, LIFE)
         self.assertEqual(200, status)
         self.assertIn(MARKER, page, "fail-closed leaked into the UI path")
+
+
+    # =======================================================================
+    # 21-25 -- C-1: the revocation record belongs to the AUTHORITY's scope
+    # =======================================================================
+
+    def authored_item(self, scope, ref, body):
+        """An item recorded exactly as the write path records one, by a real
+        token bound to `scope`. Returns that token.
+
+        `item.scope_path` IS the creating token's scope -- the boundary binds
+        the channel to it and the transport writes `ch.scope_path` -- so this
+        row is the durable evidence the registry derives the authority's scope
+        from. test_01 proves the real path produces this same shape."""
+        author = self.context.issue_root(identity="james", actor="james",
+                                         scope_path=scope,
+                                         rights=frozenset({"write"}),
+                                         ceiling=Risk.EXECUTE, ttl=60)
+        self.seed_raw(ref, body, scope=scope, provenance=["james.stated"],
+                      trust=int(Trust.HIGHEST),
+                      classification=int(Classification.INTERNAL),
+                      delegation_ancestry=[], creating_authority=author.trace_id)
+        return author
+
+    def test_21_revoking_from_an_ancestor_scope_still_withholds(self):
+        """TEST A -- the exploit that used to succeed.
+
+        The authority executed in /life/fitness. James revokes it while
+        standing in /life. Containment runs downward only, so if the record
+        were filed at the REVOKER's scope it would be invisible to a read
+        bound at /life/fitness -- a complete, authorized, successful lookup
+        returning nothing, read as "not revoked", and the content would go to
+        the model. Nothing would fail and nothing would log."""
+        author = self.authored_item(FITNESS, "fit-note", MARKER)
+
+        # Revoke from the ANCESTOR scope.
+        self.revocations.revoke(self.token(LIFE), author.trace_id,
+                                revoked_by="james")
+
+        self.assertEqual([(FITNESS,)],
+                         self.sql("SELECT scope_path FROM authority_revocation"
+                                  " WHERE execution_identity=%s", (author.trace_id,)),
+                         "the record was filed at the revoker's scope, not the"
+                         " authority's -- narrower scopes cannot see it")
+
+        prompt = self.prompt_after_a_turn(FITNESS)
+        self.assertNotIn(MARKER, prompt,
+                         "a revoked authority's item reached the model")
+
+    def test_22_a_sibling_scopes_revocation_is_not_visible(self):
+        """TEST B -- and the fix must not have widened the lookup to find it.
+        /business is unrelated to /life/fitness in both directions."""
+        business_author = self.authored_item(BUSINESS, "b-note", "business body")
+        self.revocations.revoke(business_author, business_author.trace_id,
+                                revoked_by="james")
+        life_author = self.authored_item(FITNESS, "fit-note", MARKER)
+
+        with self.boundary.open(self.token(FITNESS)) as ch:
+            seen = ch.fetch("SELECT execution_identity FROM authority_revocation")
+        self.assertEqual([], seen, "an unrelated scope's revocation was visible")
+
+        # And the /life/fitness item is unaffected by it.
+        self.assertIn(MARKER, self.prompt_after_a_turn(FITNESS))
+        self.assertIsNotNone(life_author)
+
+    def test_23_a_narrower_revoker_cannot_reach_a_broader_authority(self):
+        """TEST C -- the other direction. An authority that executed in /life
+        is not revocable from /life/fitness: the evidence it executed at all
+        is outside that channel's reach, so the scope cannot be established
+        and the attempt is refused rather than filed somewhere wrong."""
+        author = self.authored_item(LIFE, "life-note", "life body")
+        with self.assertRaises(Denied) as cm:
+            self.revocations.revoke(self.token(FITNESS), author.trace_id,
+                                    revoked_by="james")
+        self.assertEqual("I-111", cm.exception.invariant)
+        self.assertEqual([], self.sql("SELECT 1 FROM authority_revocation"),
+                         "a refused revocation still wrote a row")
+
+    def test_24_an_authority_that_wrote_nothing_cannot_be_revoked(self):
+        """Fails CLOSED. With no evidence of where it executed there is no
+        honest scope to file the record at -- and an authority that wrote
+        nothing has nothing to withhold."""
+        stranger = self.context.issue_root(identity="james", actor="james",
+                                           scope_path=LIFE,
+                                           rights=frozenset({"write"}),
+                                           ceiling=Risk.EXECUTE, ttl=60)
+        with self.assertRaises(Denied):
+            self.revocations.revoke(self.token(LIFE), stranger.trace_id,
+                                    revoked_by="james")
+        self.assertEqual([], self.sql("SELECT 1 FROM authority_revocation"))
+
+    def test_25_ancestor_scope_revocation_survives_restart(self):
+        """TEST D -- the corrected scope is durable, not an artefact of the
+        process that wrote it. A fresh ContextService has an empty in-memory
+        revoked set, exactly as after a restart."""
+        author = self.authored_item(FITNESS, "fit-note", MARKER)
+        self.revocations.revoke(self.token(LIFE), author.trace_id,
+                                revoked_by="james")
+
+        self.context = ContextService(self.tree, secret=b"i111-suite-key")
+        self.boundary = DataAccessBoundary(db.app_dsn(), self.context)
+        self.conversation = ConversationService(
+            self.gateway, self.pdp, self.boundary, self.approvals,
+            budget=self.budget)
+        self.assertEqual(set(), self.context._revoked,
+                         "the fixture did not actually simulate a restart")
+
+        self.assertEqual([(FITNESS,)],
+                         self.sql("SELECT scope_path FROM authority_revocation"
+                                  " WHERE execution_identity=%s", (author.trace_id,)))
+        self.assertNotIn(MARKER, self.prompt_after_a_turn(FITNESS))
+
+    def test_26_the_caller_cannot_choose_the_recorded_scope(self):
+        """TEST E -- the scope is DERIVED from durable evidence, not supplied.
+
+        `revoke` takes no scope argument at all, which is the structural half.
+        The behavioural half: revoking the same authority from two different
+        channels files it at the same place both times -- the authority's."""
+        import inspect
+        self.assertNotIn(
+            "scope", inspect.signature(RevocationRegistry.revoke).parameters,
+            "revoke accepts a scope, which a caller could get wrong")
+
+        author = self.authored_item(FITNESS, "fit-note", MARKER)
+        self.revocations.revoke(self.token(LIFE), author.trace_id,
+                                revoked_by="james")
+        # Again, from the authority's own scope. Idempotent, and unmoved.
+        self.revocations.revoke(self.token(FITNESS), author.trace_id,
+                                revoked_by="james")
+        self.assertEqual([(FITNESS,)],
+                         self.sql("SELECT scope_path FROM authority_revocation"
+                                  " WHERE execution_identity=%s", (author.trace_id,)))
 
 
 if __name__ == "__main__":
