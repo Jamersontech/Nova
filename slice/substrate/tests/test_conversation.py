@@ -148,8 +148,15 @@ class ConversationTest(unittest.TestCase):
         conn = psycopg2.connect(db.superuser_dsn())
         conn.autocommit = True
         with conn.cursor() as cur:
-            cur.execute("INSERT INTO item (item_ref, scope_path, body)"
-                        " VALUES (%s,%s,%s)", (ref, scope, body))
+            # I-111: seeded rows carry the security state a real write
+            # would have recorded. Without it they are legacy-shaped and
+            # are correctly WITHHELD from model context -- which would make
+            # this fixture prove the wrong thing.
+            cur.execute("INSERT INTO item (item_ref, scope_path, body,"
+                        " provenance, trust, classification,"
+                        " delegation_ancestry, creating_authority)"
+                        " VALUES (%s,%s,%s,'{james.stated}',3,2,'{}',%s)",
+                        (ref, scope, body, "seed-" + ref))
         conn.close()
 
     def sql(self, query, args=()):

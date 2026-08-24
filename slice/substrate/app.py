@@ -54,6 +54,7 @@ from .approval_flow import ApprovalService
 from .attention import AttentionService
 from .auth import AuthenticationService
 from .boundary import DataAccessBoundary
+from .revocation import RevocationRegistry
 from .conversation import (CONVERSATION_MODEL, PROVIDER, ConversationService)
 from .seam import Seam, serve
 from .write_path import (ALL_TOOLS, PostgresItemIntegration, WritePath, TOOL)
@@ -151,9 +152,15 @@ def wire(data_dir: str, rp_id: str, origin: str) -> Seam:
     conversation = ConversationService(gateway, pdp, boundary, approvals,
                                        budget=budget)
     attention = AttentionService(tree, context, pdp, boundary)
+    # S7-D5 / I-111. ONE registry, at the composition root, over the same
+    # boundary as everything else -- no privileged connection, no second
+    # authorization path. The read half of revocation does not go through it
+    # (see Seam), so this exists for the revoking surface, which does not yet
+    # exist. Composed rather than invented.
+    revocations = RevocationRegistry(boundary, context)
     return Seam(context, pdp, boundary, auth, write_path=writes,
                 approvals=approvals, tree=tree, conversation=conversation,
-                attention=attention)
+                attention=attention, revocations=revocations)
 
 
 def main() -> int:

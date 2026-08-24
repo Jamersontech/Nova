@@ -271,7 +271,28 @@ class PostgresItemIntegration:
         # None everywhere that does not need it.
         self.on_scope_created = None
 
-    def transport_for(self, token: ContextToken, tool_name: str = TOOL):
+    def _ancestry_of(self, token: ContextToken) -> tuple[str, ...]:
+        """I-111's delegation ancestry, from the SOLE ISSUER's own record.
+
+        The Context service holds authority facts the token does not carry
+        (AG-1/AG-2). A token issued by `delegate` has an ancestry entry; one
+        issued by `issue_root` has no entry at all -- and cannot be a delegate,
+        because only `delegate` produces child tokens. So an absent entry means
+        ROOT, i.e. ancestry `[]`, not "unknown".
+
+        The distinction matters: `[]` persists as "established, no delegation",
+        while `None` would persist as NULL and fail closed at retrieval.
+        """
+        context = getattr(self._boundary, "_context", None)
+        facts = getattr(context, "facts", None)
+        if facts is None:
+            # No issuer to ask. We cannot establish ancestry, and inventing
+            # `[]` here would assert "no delegation" on no evidence.
+            return None
+        return tuple(facts(token).get("ancestry", ()))
+
+    def transport_for(self, token: ContextToken, tool_name: str = TOOL,
+                      taint: Optional[Taint] = None):
         """The transport for one tool. Every branch below writes through the
         SAME scope-bound channel and names `ch.scope_path` -- never a scope
         from the payload -- so WITH CHECK refuses anything else regardless of
@@ -318,12 +339,31 @@ class PostgresItemIntegration:
                     ref = payload["item_ref"]
                     # The row's scope is the CHANNEL's scope -- the transport
                     # cannot name another one, and WITH CHECK would refuse it.
+                    # I-111: the security state is written WITH the row, from
+                    # the execution context -- never from the payload, which
+                    # is why none of these five values is read from `payload`.
+                    # The plan's taint is what authorization was decided
+                    # against; persisting anything else would record a
+                    # different security state than the one that was checked.
+                    ancestry = self._ancestry_of(token)
                     ch.execute(
-                        "INSERT INTO item (item_ref, scope_path, body)"
-                        " VALUES (%s, %s, %s)"
+                        "INSERT INTO item (item_ref, scope_path, body,"
+                        " provenance, trust, classification,"
+                        " delegation_ancestry, creating_authority)"
+                        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
                         " ON CONFLICT (scope_path, item_ref)"
-                        " DO UPDATE SET body = EXCLUDED.body",
-                        (ref, ch.scope_path, payload["body"]))
+                        " DO UPDATE SET body = EXCLUDED.body,"
+                        " provenance = EXCLUDED.provenance,"
+                        " trust = EXCLUDED.trust,"
+                        " classification = EXCLUDED.classification,"
+                        " delegation_ancestry = EXCLUDED.delegation_ancestry,"
+                        " creating_authority = EXCLUDED.creating_authority",
+                        (ref, ch.scope_path, payload["body"],
+                         sorted(taint.provenance) if taint else None,
+                         int(taint.trust) if taint else None,
+                         int(taint.classification) if taint else None,
+                         list(ancestry) if ancestry is not None else None,
+                         token.trace_id))
                     detail, said = f"item_ref={ref}", f"wrote {ref}"
 
                 # The SAME derivation recovery uses. Written in this
@@ -436,7 +476,12 @@ class WritePath:
         return self._pep.invoke(
             token, plan, plan.steps[0], authorization,
             resolve_binding=lambda name, scope: self.binding_for(scope, name),
-            transport=self._integration.transport_for(token, tool_name),
+            # I-111: the plan's taint is what authorization was decided
+            # against, so it is what gets persisted. Passing it here rather
+            # than letting the integration invent one keeps the recorded
+            # security state and the checked security state the same object.
+            transport=self._integration.transport_for(token, tool_name,
+                                                      taint=plan.taint),
             tool_version=TOOL_VERSION,
             provider_enforces_dedup=True,
         )

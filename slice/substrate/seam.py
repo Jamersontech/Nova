@@ -79,7 +79,7 @@ class Seam:
     def __init__(self, context: ContextService, pdp: PolicyDecisionPoint,
                  boundary: DataAccessBoundary, auth: AuthenticationService,
                  write_path=None, approvals=None, tree=None, conversation=None,
-                 attention=None):
+                 attention=None, revocations=None):
         # The scope tree, for navigation only. Every path it offers is checked
         # against a grant before it is shown, and entering one still issues a
         # token and runs the PDP -- navigation is not authorization.
@@ -99,6 +99,22 @@ class Seam:
         self._conversation = conversation
         # Optional: the cross-scope attention view (attention.AttentionService).
         self._attention = attention
+        # Optional: durable revocation of execution identities
+        # (revocation.RevocationRegistry, S7-D5).
+        #
+        # HELD, NOT YET CONSUMED, and deliberately so. The READ half of S7-D5
+        # needs nothing from this object: `_scope_context` reads
+        # `authority_revocation` on the SAME bound channel, in the SAME
+        # transaction as the items it is checking, which is what makes the
+        # check a consistent snapshot rather than a window. Routing that read
+        # through here would open a second channel and reintroduce exactly the
+        # gap between reading an item and checking its authority.
+        #
+        # What is missing is a SURFACE that revokes -- James deciding an
+        # execution identity is no longer trusted. That is not wiring, so it
+        # is not invented here. The registry is composed in so the surface has
+        # something to call when it exists.
+        self._revocations = revocations
         self._transcripts: dict[tuple[str, str], list[dict]] = {}
 
     # -- the session gate (A-1) ---------------------------------------------

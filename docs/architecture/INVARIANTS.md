@@ -327,11 +327,10 @@ decided and implemented.
 
 ## Added by Section 07 — Context & Memory Architecture
 
-> **`I-110`–`I-111` are PROPOSED, not accepted.** *(Added 2026-08-14.)* This file is Active
-> Section 03 material and every change to it is C3. **Everything from `I-110` down is proposed
-> through Section 07 and stands or falls with ADRs `0032`–`0033`, which are Proposed.** If those
-> ADRs are rejected, these invariants are removed rather than retained. `I-01`–`I-109` are
-> **unmodified** by Section 07.
+> **`I-110`–`I-111` are ACCEPTED.** *(Added 2026-08-14 as Proposed; ACCEPTED by James
+> 2026-08-15.)* This file is Active Section 03 material and every change to it is C3.
+> **`I-110`–`I-111` were proposed through Section 07 and stand on ADRs `0032`–`0033`, which are
+> Accepted 2026-08-15.** `I-01`–`I-109` are **unmodified** by Section 07.
 
 *Same status as every invariant above: REQUIREMENT, unverified.*
 

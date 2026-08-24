@@ -282,8 +282,8 @@ material (recorded as outstanding in [`../ROADMAP.md`](../ROADMAP.md)). **Three 
 
 | # | Decision | Status |
 | --- | --- | --- |
-| [0032](./0032-trust-promotion-authority.md) | **Trust promotion authority** — raising trust is an explicitly authorized, recorded, C3 operation; never automatic, never by an agent, never model-mediated. `system.verified` requires an authoritative source, and the term is defined | Proposed |
-| [0033](./0033-section-07-amendments-to-accepted-architecture.md) | `model.generated` quarantined; delegate memory carries ancestry and survival is not authority; union provenance survives persistence; revoked creating authority surfaced at retrieval. Authorizes all eight amendments | Proposed |
+| [0032](./0032-trust-promotion-authority.md) | **Trust promotion authority** — raising trust is an explicitly authorized, recorded, C3 operation; never automatic, never by an agent, never model-mediated. `system.verified` requires an authoritative source, and the term is defined | **Accepted** — 2026-08-15 |
+| [0033](./0033-section-07-amendments-to-accepted-architecture.md) | `model.generated` quarantined; delegate memory carries ancestry and survival is not authority; union provenance survives persistence; revoked creating authority surfaced at retrieval. Authorizes all eight amendments | **Accepted** — 2026-08-15 |
 
 ### Amendment-authority audit — Section 07 edits to Active/Accepted documents
 
@@ -316,10 +316,10 @@ changes no lifecycle stage.
 
 | # | Decision | Status |
 | --- | --- | --- |
-| [0034](./0034-the-plan-is-a-security-object.md) | **The plan is a security object** with declared schema, deterministic identity and immutability after authorization; authorization is an **envelope plus a per-action check**; re-planning creates a new plan | Proposed |
-| [0035](./0035-section-08-amendments-to-accepted-architecture.md) | Section 08 amendments — authorizes all seven, and records why `PLANNING_ARCHITECTURE.md` was **not** created | Proposed |
-| [0036](./0036-tool-declarations-are-claims-not-facts.md) | **Tool declarations are claims, not facts** — the classification must be **total** over the input schema, and an absent or unparseable claim is read as **consequence-determining**. No new invariant | Proposed |
-| [0037](./0037-provider-outcomes-and-provider-initiated-paths.md) | **Provider outcomes are claims; provider-initiated paths carry no authority; and authorization binds the execution binding (`I-114`)** — unknown is distinct from failure, retry needs **provider-enforced** deduplication, an inbound webhook/callback/event has no identity, and a tool action is authorized against the integration/credential binding that produces the consequence, with `I-109` amended in place | Proposed |
+| [0034](./0034-the-plan-is-a-security-object.md) | **The plan is a security object** with declared schema, deterministic identity and immutability after authorization; authorization is an **envelope plus a per-action check**; re-planning creates a new plan | **Accepted** — 2026-08-15 |
+| [0035](./0035-section-08-amendments-to-accepted-architecture.md) | Section 08 amendments — authorizes all seven, and records why `PLANNING_ARCHITECTURE.md` was **not** created | **Accepted** — 2026-08-15 |
+| [0036](./0036-tool-declarations-are-claims-not-facts.md) | **Tool declarations are claims, not facts** — the classification must be **total** over the input schema, and an absent or unparseable claim is read as **consequence-determining**. No new invariant | **Accepted** — 2026-08-15 |
+| [0037](./0037-provider-outcomes-and-provider-initiated-paths.md) | **Provider outcomes are claims; provider-initiated paths carry no authority; and authorization binds the execution binding (`I-114`)** — unknown is distinct from failure, retry needs **provider-enforced** deduplication, an inbound webhook/callback/event has no identity, and a tool action is authorized against the integration/credential binding that produces the consequence, with `I-109` amended in place | **Accepted** — 2026-08-15 |
 | [0038](./0038-automations-are-intent-not-authority.md) | **Automations are intent, not authority** — a stored definition plus its trigger carries no authorization; every firing is authorized freshly at fire time through the unmodified pipeline. No new invariant: a derivation from `I-10`, `I-14`, `I-17`, `I-112`, `I-113`, `S11-D3`, `V-2` | Proposed |
 | [0039](./0039-communication-is-classified-egress.md) | **Communication is classified egress** — the classification of the content leaving governs the send, enforced at PDP step 7 via the existing Tool call PEP. No new invariant, PEP or object; consent/opt-out deferred to Section 37 | Proposed |
 | [0040](./0040-voice-is-an-input-surface-not-an-authentication-factor.md) | **Voice is an input surface, not an authentication factor** — resolves the `USER_INTERFACE_ARCHITECTURE.md` §6–§7 / `AUTHENTICATION_MODEL.md` §4 contradiction by separating the action side from the session side; voice biometrics explicitly not adopted. No new invariant | Proposed |

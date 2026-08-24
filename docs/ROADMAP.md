@@ -31,7 +31,7 @@ genuine architectural requirement or a discovered problem justifies the change.
 | 04 — Security, Identity & Permissions | **Complete — ADRs `0016`–`0023` Accepted by James 2026-08-13** |
 | 05 — AI Architecture & Model Gateway | **Complete — ADRs `0024`–`0028` Accepted by James 2026-08-14** |
 | 06 — Agent Architecture & Agent Governance | **Complete — ADRs `0029`–`0031` Accepted by James 2026-08-14** |
-| 07 — Context & Memory Architecture | **PROPOSED, awaiting James's approval** |
+| 07 — Context & Memory Architecture | **Complete — ADRs `0032`–`0033` Accepted by James 2026-08-15** |
 | 08 — Reasoning, Planning & Orchestration | **PROPOSED, awaiting James's approval** |
 | 09 — Knowledge & Research System | **PROPOSED, awaiting James's approval** |
 | 10 — Tool & Capability Architecture | **PROPOSED, awaiting James's approval** |
@@ -666,7 +666,7 @@ accepted.** `I-01`–`I-111` are **unmodified**.
 **Roadmap ordering is unchanged.** No section was added, removed, renumbered, redefined, or
 reordered.
 
-## Section 07 — PROPOSED, awaiting James's approval
+## Section 07 — **Complete: ADRs `0032`–`0033` Accepted by James 2026-08-15**
 
 **Context & Memory Architecture.** Discovery found context and memory **already densely specified**
 across five Active documents — `CONTEXT_ARCHITECTURE.md`, `MEMORY_AND_KNOWLEDGE_ARCHITECTURE.md`,
@@ -674,7 +674,8 @@ across five Active documents — `CONTEXT_ARCHITECTURE.md`, `MEMORY_AND_KNOWLEDG
 section, and no new architecture document was created.** `CONTEXT_ARCHITECTURE.md` needed **no
 amendment at all**: it already answers every context question Section 07 raised.
 
-**Delivered — all Proposed:** ADRs `0032`–`0033`, invariants `I-110`–`I-111`, threat `T-35`.
+**Delivered — Accepted by James 2026-08-15:** ADRs `0032`–`0033`, invariants `I-110`–`I-111`,
+threat `T-35`.
 
 **The critical finding.** `I-39` gates fact status on *provenance **and** trust*. Provenance is
 immutable (`I-38`), classification-lowering is owned (`I-30`), approval and grants are James's

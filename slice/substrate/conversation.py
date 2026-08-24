@@ -55,7 +55,8 @@ import re
 from typing import Optional
 
 from ..core.gateway import CapabilityProfile, ModelGateway, ModelRequestItem
-from ..core.types import Classification, ContextToken, Denied, Risk, Taint
+from ..core.types import (Classification, ContextToken, Denied, Risk, Taint,
+                          Trust)
 from .approval_flow import ApprovalService
 from .boundary import DataAccessBoundary
 from .write_path import ADD_SCOPE, ADD_TASK, COMPLETE_TASK, TOOL
@@ -154,14 +155,73 @@ class ConversationService:
 
     # -- the scope's knowledge, through the authorized read path ------------
 
-    def _scope_context(self, token: ContextToken, scope_path: str) -> str:
+    @staticmethod
+    def _establish(rows, revoked):
+        """I-111's read half: restore the persisted security state, or withhold.
+
+        An item reaches the model ONLY when every component of its security
+        state was actually recorded and can be checked. Each of these is a
+        separate reason to withhold, and none of them is recoverable by
+        inference -- which is the point. Guessing any of them would invent
+        authority at read time, and `I-110` exists to forbid exactly that.
+
+            provenance / trust / classification NULL  unknown taint
+            delegation_ancestry NULL                  unknown lineage
+            creating_authority NULL                   unknown author
+            ancestry non-empty                        ancestors' revocation
+                                                      state is NOT
+                                                      establishable from this
+                                                      scope (I-03/I-86), so the
+                                                      lookup is incomplete
+            creating_authority in `revoked`           revoked author (S7-D5)
+
+        The ancestry rule is the subtle one. A delegate's ancestors may have
+        executed in BROADER scopes, whose revocation records a channel bound
+        here cannot see. "Could not check" must never become "not revoked", so
+        a non-empty ancestry withholds rather than guesses. An EMPTY ancestry
+        is different in kind: the item was created by a root execution whose
+        scope is this row's own scope, so its revocation record -- if any --
+        is necessarily visible here, and absence is a complete answer.
+
+        Legacy rows (written before I-111) have NULL throughout and are
+        withheld by the first rule. They are not backfilled, not assumed to be
+        `james.stated`, and not treated as trusted.
+        """
+        kept, withheld = [], 0
+        for ref, body, provenance, trust, classification, ancestry, author in rows:
+            if (provenance is None or trust is None or classification is None
+                    or ancestry is None or author is None
+                    or ancestry            # ancestors unestablishable from here
+                    or author in revoked):
+                withheld += 1
+                continue
+            kept.append((ref, body, Taint(frozenset(provenance), Trust(trust),
+                                          Classification(classification))))
+        return kept, withheld
+
+    def _scope_context(self, token: ContextToken, scope_path: str):
         """What this scope knows, gathered EXACTLY as a page render would:
         PDP data-read decision first, then a scope-bound channel, no
         application-side predicate, audit in the same transaction. The model
         is downstream of the same controls as a screen."""
         self._pdp.authorize_data_read(token, scope_path)
         with self._boundary.open(token) as ch:
-            items = ch.fetch("SELECT item_ref, body FROM item ORDER BY item_ref")
+            # I-111: the persisted security state comes back WITH the row. It
+            # is not recomputed, and it is not assumed from the fact that the
+            # row is in NOVA's own database.
+            rows = ch.fetch(
+                "SELECT item_ref, body, provenance, trust, classification,"
+                " delegation_ancestry, creating_authority"
+                " FROM item ORDER BY item_ref")
+            # Revocation is looked up ONCE, for the authorities this scope's
+            # own rows name, through this same bound channel (S7-D5). RLS is
+            # the completeness boundary: an authority whose revocation record
+            # lives outside this scope is not visible here, which is exactly
+            # why an unestablishable lookup fails closed below rather than
+            # being read as "not revoked".
+            revoked = {r[0] for r in ch.fetch(
+                "SELECT execution_identity FROM authority_revocation")}
+            items, withheld = self._establish(rows, revoked)
             tasks = ch.fetch(
                 "SELECT task_ref, title, due_on FROM task WHERE done_at IS NULL"
                 " ORDER BY due_on NULLS LAST, task_ref")
@@ -176,7 +236,8 @@ class ConversationService:
                 " VALUES (%s,'W-1','data.read',%s,%s,%s,%s)"
                 " ON CONFLICT (event_identity) DO NOTHING",
                 (event_identity, scope_path, token.trace_id, token.actor,
-                 f"conversation context items={len(items)}"))
+                 f"conversation context items={len(items)}"
+                 + (f" withheld={withheld}" if withheld else "")))
         lines = [f"Scope: {scope_path}",
                  f"Pending approvals awaiting James: {pending}"]
         if tasks:
@@ -187,10 +248,24 @@ class ConversationService:
             lines.append("No open tasks in this scope.")
         if items:
             lines.append("Notes in this scope:")
-            lines += [f"  - {ref}: {body}" for ref, body in items]
+            lines += [f"  - {ref}: {body}" for ref, body, _ in items]
         else:
             lines.append("This scope has no notes yet.")
-        return "\n".join(lines)
+        if withheld:
+            # Said plainly rather than hidden: NOVA reports that it cannot
+            # vouch for something, instead of quietly answering as though the
+            # scope were emptier than it is. The content is NOT included.
+            lines.append(f"{withheld} note(s) in this scope are withheld: their"
+                         " provenance, trust or creating authority cannot be"
+                         " established, so they are not shown to the model.")
+        # I-99 / I-111: the block's taint is the union of what went INTO it.
+        # The base covers NOVA's own reading of its own records (scope path,
+        # task titles, pending count); each included item contributes the taint
+        # that was actually persisted with it. Union takes the LOWEST trust and
+        # the STRICTEST classification, so nothing here can raise trust.
+        base = Taint.of("james.stated", Classification.CONFIDENTIAL)
+        taint = Taint.union(base, *[t for _, _, t in items]) if items else base
+        return "\n".join(lines), taint
 
     # -- one turn ------------------------------------------------------------
 
@@ -204,7 +279,7 @@ class ConversationService:
         anywhere near the model.
         """
         try:
-            context = self._scope_context(token, scope_path)
+            context, context_taint = self._scope_context(token, scope_path)
         except Denied as d:
             return Turn("refused", "", detail=d.reason)
 
@@ -213,20 +288,20 @@ class ConversationService:
 
         # The request the gateway authorizes, item by item (I-94):
         #   - instructions: NOVA's own fixed text
-        #   - scope data: James-authored notes, retrieved under this scope's
-        #     token. CONFIDENTIAL: it is client-scope content leaving for a
+        #   - scope data: what this scope knows. Its taint is the I-99 UNION
+        #     of the RESTORED taints of the items it contains (I-111) -- not
+        #     `james.stated` because the rows live in NOVA's database. One
+        #     `external.web` note at LOW trust drags the whole block to LOW,
+        #     which is the point: the block is a derivation of its inputs, and
+        #     `I-100`'s untrusted-derived ceiling is evaluated against it.
+        #     CONFIDENTIAL at minimum: it is client-scope content leaving for a
         #     provider, and the gateway's I-95 one-scope rule must see it as
-        #     scoped material, not ambient INTERNAL text. (Assumption recorded:
-        #     every item today enters through the James-approved write path,
-        #     so james.stated provenance is faithful. When integration-written
-        #     content exists, retrieval must restore stored taint -- I-111 --
-        #     and the missing taint column is an already-recorded gap.)
+        #     scoped material, not ambient INTERNAL text.
         #   - the message: James's words, verbatim.
         items = [
             ModelRequestItem("instructions", _INSTRUCTIONS, scope_path,
                              Taint.of("james.stated", Classification.INTERNAL)),
-            ModelRequestItem("scope-data", context, scope_path,
-                             Taint.of("james.stated", Classification.CONFIDENTIAL)),
+            ModelRequestItem("scope-data", context, scope_path, context_taint),
             ModelRequestItem("message", f"James says: {message}", scope_path,
                              Taint.of("james.stated", Classification.CONFIDENTIAL)),
         ]
