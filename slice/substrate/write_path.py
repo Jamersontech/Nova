@@ -381,6 +381,10 @@ class PostgresItemIntegration:
         once in `execute_action` -- it is recorded, so the elevation can be
         answered for afterwards. Passing it does not cause an elevation and
         omitting it does not prevent one; it is the audit half.
+
+        It is recorded inside the `write_item` branch rather than here, because
+        that branch is the only one that stores the I-111 columns and so the
+        only place an elevation can be real (F-8).
         """
 
         def transport(payload: dict[str, Any], secret: str) -> Outcome:
@@ -451,6 +455,54 @@ class PostgresItemIntegration:
                          token.trace_id))
                     detail, said = f"item_ref={ref}", f"wrote {ref}"
 
+                    # I-110 requires a promotion to RECORD, not merely to
+                    # happen. HERE, inside the branch that just stored the
+                    # taint, and deliberately not after the branches: this is
+                    # the only tool that persists the I-111 columns, so an
+                    # elevation is only real where this INSERT ran. Written
+                    # from the same `taint` the row above received, so the
+                    # record and the row cannot disagree.
+                    #
+                    # It sat after the branches until F-8. `add_task` declares
+                    # `title` EXPRESSIVE, so it reaches `execute_action` with
+                    # content leaves and evidence and elevates like any other
+                    # tool -- but it writes to `task`, which has no trust
+                    # column. The audit therefore fired for a row that could
+                    # not carry the elevation, asserting a promotion that had
+                    # not happened. Nothing was over-trusted; the trail simply
+                    # described state that did not exist, which is I-110's
+                    # requirement failing in the other direction.
+                    #
+                    # Placement rather than a second predicate is the point.
+                    # A guard listing which tools store taint would be a
+                    # separate definition of the same fact, free to drift from
+                    # the branches it describes. Here the audit cannot fire
+                    # for a tool that did not store a taint, because it is
+                    # inside the one that did.
+                    if evidence is not None and taint is not None:
+                        ch.execute(
+                            "INSERT INTO audit_record"
+                            " (event_identity, writer, category, scope_path, trace_id, actor_ref, detail)"
+                            " VALUES (%s,'W-1','trust.elevation',%s,%s,%s,%s)"
+                            " ON CONFLICT (event_identity) DO NOTHING",
+                            (hashlib.sha256(
+                                f"trust_elevation:{token.trace_id}:{ch.scope_path}"
+                                f":{tool_name}:{ref}".encode()).hexdigest()[:32],
+                             ch.scope_path, token.trace_id, token.actor,
+                             # The seven things I-110 names, in one line: the
+                             # item, its prior immutable provenance, the
+                             # evidence relied on, the authority responsible,
+                             # the resulting trust, and -- in the row's own
+                             # columns -- the trace.
+                             f"{tool_name} {detail}"
+                             f" from={sorted(evidence.proposed_taint.provenance)}"
+                             f" trust_from={evidence.proposed_taint.trust.name}"
+                             f" to={int(taint.trust)}({taint.trust.name})"
+                             f" approval={evidence.approval_id}"
+                             f" approved_by={evidence.approved_by}"
+                             f" inspected={sorted(evidence.content_leaves)}"),
+                        )
+
                 # The SAME derivation recovery uses. Written in this
                 # transaction, so the row exists if and only if the side
                 # effect above committed -- which is what makes an
@@ -466,33 +518,6 @@ class PostgresItemIntegration:
                      f"{tool_name} {detail}"),
                 )
 
-                # I-110 requires a promotion to RECORD, not merely to happen.
-                # Same table, same transaction, same deterministic-identity
-                # construction as every other audit row -- no second audit
-                # system. Written only when an elevation actually occurred, so
-                # its presence IS the claim that one did.
-                if evidence is not None and taint is not None:
-                    ch.execute(
-                        "INSERT INTO audit_record"
-                        " (event_identity, writer, category, scope_path, trace_id, actor_ref, detail)"
-                        " VALUES (%s,'W-1','trust.elevation',%s,%s,%s,%s)"
-                        " ON CONFLICT (event_identity) DO NOTHING",
-                        (hashlib.sha256(
-                            f"trust_elevation:{token.trace_id}:{ch.scope_path}"
-                            f":{tool_name}:{ref}".encode()).hexdigest()[:32],
-                         ch.scope_path, token.trace_id, token.actor,
-                         # The seven things I-110 names, in one line: the item,
-                         # its prior immutable provenance, the evidence relied
-                         # on, the authority responsible, the resulting trust,
-                         # and -- in the row's own columns -- the trace.
-                         f"{tool_name} {detail}"
-                         f" from={sorted(evidence.proposed_taint.provenance)}"
-                         f" trust_from={evidence.proposed_taint.trust.name}"
-                         f" to={int(taint.trust)}({taint.trust.name})"
-                         f" approval={evidence.approval_id}"
-                         f" approved_by={evidence.approved_by}"
-                         f" inspected={sorted(evidence.content_leaves)}"),
-                    )
             # The `with` block above has committed. Only now -- with the row
             # durable -- does the composition root learn about a new scope.
             if tool_name == ADD_SCOPE and self.on_scope_created is not None:

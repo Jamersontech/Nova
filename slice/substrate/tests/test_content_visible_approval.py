@@ -243,6 +243,92 @@ class ContentVisibleApprovalTest(unittest.TestCase):
             self.assertIn(expected, detail, f"audit omits {expected!r}")
 
     # =======================================================================
+    # F-8 -- the elevation audit describes a row, or it does not exist
+    # =======================================================================
+
+    def elevation_audits(self, tool=None):
+        rows = self.sql("SELECT detail FROM audit_record"
+                        " WHERE category='trust.elevation' ORDER BY id")
+        return [d for (d,) in rows if tool is None or d.startswith(tool)]
+
+    def approve_action(self, tool, arguments, taint=None):
+        """One approved action of any tool, through the production route."""
+        token = self.token()
+        approval_id = self.approvals.propose_action(
+            token, LIFE, tool, arguments,
+            action_text=f"{tool} in this scope.", if_wrong_text="x", taint=taint)
+        self.approvals.decide(token, approval_id, True, decided_by="james")
+        return approval_id
+
+    def test_07b_add_task_writes_no_elevation_audit(self):
+        """F-8, and the reason this section exists.
+
+        `add_task` declares `title` EXPRESSIVE, so it arrives at the elevation
+        point with content leaves and evidence and elevates exactly like
+        `write_item`. But it writes to `task`, which has NO trust column -- so
+        the elevation is computed and then discarded, and an audit record for
+        it would assert a promotion that never reached any row.
+
+        Nothing is over-trusted either way; this is I-110's recording
+        requirement failing in the OTHER direction, and a trail that describes
+        state that does not exist is worse than no trail."""
+        self.approve_action(ADD_TASK,
+                            {"task_ref": "t1", "title": BODY, "due_on": ""},
+                            taint=self.a_model_taint())
+        self.assertEqual([(BODY,)],
+                         self.sql("SELECT title FROM task WHERE task_ref='t1'"),
+                         "the control failed: the task was not written")
+        self.assertEqual([], self.elevation_audits(),
+                         "add_task claimed a trust elevation it cannot carry")
+
+    def test_07c_complete_task_writes_no_elevation_audit(self):
+        """No EXPRESSIVE content, so no elevation and nothing to record."""
+        self.approve_action(ADD_TASK,
+                            {"task_ref": "t1", "title": BODY, "due_on": ""},
+                            taint=self.a_model_taint())
+        self.approve_action(COMPLETE_TASK, {"task_ref": "t1"},
+                            taint=self.a_model_taint())
+        self.assertEqual([], self.elevation_audits())
+
+    def test_07d_add_scope_writes_no_elevation_audit(self):
+        """Both its arguments are CONSEQUENCE-determining -- there is no prose
+        to inspect, so no elevation and no record of one."""
+        self.approve_action(ADD_SCOPE, {"scope_name": "gym", "kind": "place"},
+                            taint=self.a_model_taint())
+        self.assertEqual([("/life/gym",)],
+                         self.sql("SELECT scope_path FROM scope"
+                                  " WHERE scope_path='/life/gym'"),
+                         "the control failed: the scope was not created")
+        self.assertEqual([], self.elevation_audits())
+
+    def test_07e_a_write_that_did_not_elevate_writes_no_audit(self):
+        """`persisted == plan.taint` means nothing was promoted, so there is
+        nothing to record. Covers the non-content-visible case."""
+        self.approve_write(taint=None)
+        _p, trust, _c, _a, _au = self.state()
+        self.assertEqual(int(Trust.LOW), trust, "the control failed: it elevated")
+        self.assertEqual([], self.elevation_audits())
+
+    def test_07f_a_legacy_approval_writes_no_elevation_audit(self):
+        """`proposed_taint = NULL` is unknown, so no elevation and no audit."""
+        token = self.token()
+        approval_id = self.approvals.propose(token, LIFE, "it-1", BODY,
+                                             taint=self.a_model_taint())
+        self.sql("UPDATE approval SET proposed_taint=NULL WHERE approval_id=%s",
+                 (approval_id,))
+        self.approvals.decide(token, approval_id, True, decided_by="james")
+        self.assertEqual([], self.elevation_audits())
+
+    def test_07g_exactly_one_audit_per_elevated_write(self):
+        """One row, one elevation, one record -- not zero, and not two."""
+        self.approve_write(ref="a", taint=self.a_model_taint())
+        self.approve_write(ref="b", taint=self.a_model_taint())
+        audits = self.elevation_audits()
+        self.assertEqual(2, len(audits))
+        self.assertTrue(all(d.startswith(TOOL) for d in audits),
+                        f"a non-write_item tool emitted an elevation audit: {audits}")
+
+    # =======================================================================
     # NEGATIVE -- the default, and the ways elevation must not happen
     # =======================================================================
 
