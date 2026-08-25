@@ -36,12 +36,14 @@ approval surface exists.
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 from typing import Any, Optional
 
 from ..core.broker import CredentialBroker
 from ..core.policy import PolicyDecisionPoint
 from ..core.types import (Approval, ArgumentEnvelope, ContextToken, Denied,
-                          ExecutionBinding, Outcome, Plan, PlanStep, Risk, Taint)  # noqa: F401 (Denied used by add_scope guard)
+                          ExecutionBinding, Outcome, Plan, PlanStep, Risk, Taint,
+                          Trust)  # noqa: F401 (Denied used by add_scope guard)
 from ..tools.pep import ToolPEP
 from ..tools.registry import ToolRegistry, ToolDefinition, CONSEQUENCE, EXPRESSIVE
 from .boundary import DataAccessBoundary
@@ -191,6 +193,71 @@ def execution_event_identity(trace_id: str, scope_path: str,
     ).hexdigest()[:32]
 
 
+# --------------------------------------------------------------------------
+# ADR 0048 -- content-visible approval
+# --------------------------------------------------------------------------
+
+# The provenance term an inspected-and-approved write ADDS. It already exists
+# in PROVENANCE_DEFAULT_TRUST at HIGHEST and had no writer until now; this
+# introduces no vocabulary.
+APPROVED_PROVENANCE = "james.approved"
+
+# What a write plan carries when nobody said where its content came from.
+# DELIBERATELY NOT `james.stated`: an absent taint is unknown, and unknown must
+# never read as "James said it". LOW and non-external, so it constrains without
+# tripping I-40 on a source that does not exist.
+UNKNOWN_ORIGIN = "model.generated"
+
+
+@dataclass(frozen=True)
+class ApprovalEvidence:
+    """What makes a trust elevation ATTRIBUTABLE (ADR 0048, property 4).
+
+    Assembled by `ApprovalService.decide` from the durable approval row, and
+    required by `elevate()`. It is not optional decoration: without it there is
+    no answer to "why is this row trusted?", and ADR 0048 says a row with no
+    answer is not trusted.
+
+    `content_leaves` is the set of EXPRESSIVE arguments the approval card
+    rendered in full. It comes from `WritePath.content_leaves()` -- the SAME
+    function the renderer calls -- so "was it shown?" is one computation with
+    one answer rather than a flag the UI asserts about itself.
+    """
+    approval_id: str
+    approved_by: str
+    proposed_taint: Taint
+    content_leaves: frozenset[str]
+
+
+def elevate(taint: Taint, evidence: ApprovalEvidence) -> Taint:
+    """ADR 0048's ONE elevation construction. One production call site.
+
+    ADDITIVE, never a rewrite: `I-38` and `I-110` both hold that provenance is
+    immutable and a promotion RECORDS a judgement rather than erasing origin.
+    So `model.generated` survives -- an approved item stays distinguishable
+    from something James typed himself -- and `james.approved` is added beside
+    it.
+
+    NOT `Taint.union`: union takes the LOWEST trust (`I-99`), so unioning
+    HIGHEST into a set containing `model.generated` yields LOW. Elevation is
+    therefore impossible through the ordinary combinator, which is `I-110`
+    working as written -- raising trust is an explicit act, never a side
+    effect of composition.
+
+    CLASSIFICATION IS NOT TOUCHED. An approval is evidence about
+    trustworthiness, not about sensitivity; `I-27`'s strictest-wins result
+    carries through unchanged.
+    """
+    if not evidence.content_leaves:
+        raise Denied("approval.elevate",
+                     "no inspected content backs this elevation", "I-110", True)
+    return Taint(
+        provenance=taint.provenance | {APPROVED_PROVENANCE},
+        trust=Trust.HIGHEST,
+        classification=taint.classification,
+    )
+
+
 class ApprovalStore:
     """Approvals by plan identity. I-09: only James's act creates one.
 
@@ -219,15 +286,25 @@ class ApprovalStore:
     def __init__(self) -> None:
         self._by_plan: dict[str, Approval] = {}
 
-    def james_approves(self, plan_identity: str) -> Approval:
-        """James's approval of ONE plan -- not standing, names no source.
-        Capture surface is Section 26's scope; this records the act.
+    def james_approves(self, plan_identity: str,
+                       names_sources: frozenset[str] = frozenset()) -> Approval:
+        """James's approval of ONE plan -- not standing. Capture surface is
+        Section 26's scope; this records the act.
+
+        `names_sources` is `I-40`'s requirement, not a convenience: a plan
+        influenced by EXTERNAL content cannot exceed PREPARE without an
+        approval NAMING THE SOURCE. The caller passes the sources actually
+        present in the taint James was shown, and the approval card names
+        those same sources -- an approval naming a source James never saw
+        would be the dishonesty ADR 0048 exists to prevent, wearing I-40's
+        clothes. Default empty, so a caller that says nothing names nothing.
 
         Re-arms an identity previously spent: a fresh decision is a fresh
         approval. Nothing here is automatic -- reaching this method at all
         required a human act (I-09).
         """
-        a = Approval(approval_id=f"appr-{plan_identity[:12]}", standing=False)
+        a = Approval(approval_id=f"appr-{plan_identity[:12]}",
+                     names_sources=frozenset(names_sources), standing=False)
         self._by_plan[plan_identity] = a
         return a
 
@@ -292,11 +369,19 @@ class PostgresItemIntegration:
         return tuple(facts(token).get("ancestry", ()))
 
     def transport_for(self, token: ContextToken, tool_name: str = TOOL,
-                      taint: Optional[Taint] = None):
+                      taint: Optional[Taint] = None,
+                      evidence: Optional[ApprovalEvidence] = None):
         """The transport for one tool. Every branch below writes through the
         SAME scope-bound channel and names `ch.scope_path` -- never a scope
         from the payload -- so WITH CHECK refuses anything else regardless of
-        which tool ran."""
+        which tool ran.
+
+        `evidence` is present ONLY when `taint` was elevated (ADR 0048). It is
+        not consulted to decide anything -- that decision was made and made
+        once in `execute_action` -- it is recorded, so the elevation can be
+        answered for afterwards. Passing it does not cause an elevation and
+        omitting it does not prevent one; it is the audit half.
+        """
 
         def transport(payload: dict[str, Any], secret: str) -> Outcome:
             with self._boundary.open(token) as ch:
@@ -380,6 +465,34 @@ class PostgresItemIntegration:
                     (event_identity, ch.scope_path, token.trace_id, token.actor,
                      f"{tool_name} {detail}"),
                 )
+
+                # I-110 requires a promotion to RECORD, not merely to happen.
+                # Same table, same transaction, same deterministic-identity
+                # construction as every other audit row -- no second audit
+                # system. Written only when an elevation actually occurred, so
+                # its presence IS the claim that one did.
+                if evidence is not None and taint is not None:
+                    ch.execute(
+                        "INSERT INTO audit_record"
+                        " (event_identity, writer, category, scope_path, trace_id, actor_ref, detail)"
+                        " VALUES (%s,'W-1','trust.elevation',%s,%s,%s,%s)"
+                        " ON CONFLICT (event_identity) DO NOTHING",
+                        (hashlib.sha256(
+                            f"trust_elevation:{token.trace_id}:{ch.scope_path}"
+                            f":{tool_name}:{ref}".encode()).hexdigest()[:32],
+                         ch.scope_path, token.trace_id, token.actor,
+                         # The seven things I-110 names, in one line: the item,
+                         # its prior immutable provenance, the evidence relied
+                         # on, the authority responsible, the resulting trust,
+                         # and -- in the row's own columns -- the trace.
+                         f"{tool_name} {detail}"
+                         f" from={sorted(evidence.proposed_taint.provenance)}"
+                         f" trust_from={evidence.proposed_taint.trust.name}"
+                         f" to={int(taint.trust)}({taint.trust.name})"
+                         f" approval={evidence.approval_id}"
+                         f" approved_by={evidence.approved_by}"
+                         f" inspected={sorted(evidence.content_leaves)}"),
+                    )
             # The `with` block above has committed. Only now -- with the row
             # durable -- does the composition root learn about a new scope.
             if tool_name == ADD_SCOPE and self.on_scope_created is not None:
@@ -406,10 +519,34 @@ class WritePath:
     # -- the proposed execution, deterministic (I-112) ----------------------
 
     def plan_for_action(self, scope_path: str, tool_name: str,
-                        arguments: dict[str, Any]) -> Plan:
+                        arguments: dict[str, Any],
+                        taint: Optional[Taint] = None) -> Plan:
         """I-112: deterministic identity over the tool AND its arguments, so
         two different tools -- or the same tool with different arguments --
-        are two different plans and one approval never covers the other."""
+        are two different plans and one approval never covers the other.
+
+        `taint` is the HONEST origin of this plan's content -- the union of
+        what the proposer read, plus the proposer's own provenance. It used to
+        be the constant `Taint.of("james.stated")`, which meant every write
+        persisted as HIGHEST regardless of what produced it and left
+        `policy.py`'s I-40 branch reading synthetic state (ADR 0048).
+
+        THE TAINT IS NOT PART OF THE IDENTITY, and must not become part of it:
+        `I-112` lists the material changes that mint a new plan as *a step,
+        resource, right, risk class, scope, tool, or cost* -- taint is carried
+        by the plan, not hashed into it. That is what lets `decide()`
+        reconstruct a plan from stored arguments and match the identity James
+        approved without having to reproduce the taint as well.
+
+        NEVER PASS AN ELEVATED TAINT HERE. The plan's taint is what the PDP
+        authorizes against; elevation happens after authorization, at one call
+        site in `execute_action`, and going the other way would re-break I-40
+        from the opposite direction.
+
+        Absent taint is UNKNOWN, and unknown is `model.generated` at LOW --
+        never `james.stated`. A caller that does not know where content came
+        from does not get to say James said it.
+        """
         return Plan(
             steps=(PlanStep(action=tool_name, resource=scope_path,
                             tool_name=tool_name,
@@ -418,13 +555,38 @@ class WritePath:
             required_rights=frozenset({"write"}),
             declared_risk=Risk.EXECUTE,
             scope_path=scope_path,
-            taint=Taint.of("james.stated"),
+            taint=taint if taint is not None else Taint.of(UNKNOWN_ORIGIN),
             cost_estimate=1,
         )
 
-    def plan_for(self, scope_path: str, item_ref: str, body: str) -> Plan:
+    def plan_for(self, scope_path: str, item_ref: str, body: str,
+                 taint: Optional[Taint] = None) -> Plan:
         return self.plan_for_action(scope_path, TOOL,
-                                    {"item_ref": item_ref, "body": body})
+                                    {"item_ref": item_ref, "body": body}, taint)
+
+    def content_leaves(self, tool_name: str) -> frozenset[str]:
+        """The EXPRESSIVE arguments of one tool -- ADR 0048's "content".
+
+        THE SINGLE SOURCE OF TRUTH, called by both the approval card that
+        renders them and the elevation check that requires them to have been
+        rendered. One function, one answer: "was the content shown?" cannot
+        drift from "what counts as content", because nothing computes either
+        of them separately.
+
+        ADR 0036 already drew this line and drew it the right way round:
+        CONSEQUENCE is the default and EXPRESSIVE is the exception a tool must
+        declare. So prose -- an item's body, a task's title -- is EXPRESSIVE,
+        while identifiers and dates are CONSEQUENCE and are pinned by the
+        ArgumentEnvelope instead (`I-100`).
+
+        EMPTY MEANS NO ELEVATION IS POSSIBLE. `complete_task` and `add_scope`
+        persist no prose at all, so there is nothing for James to inspect and
+        nothing an inspection could vouch for. That is a property of the tool,
+        not a check that could be forgotten.
+        """
+        definition = self._registry.get(tool_name, TOOL_VERSION)
+        return frozenset(leaf for leaf in definition.leaves()
+                         if not definition.is_consequence_determining(leaf))
 
     def binding_for(self, scope_path: str, tool_name: str = TOOL) -> ExecutionBinding:
         """I-114: the concrete substrate, resolved before the decision. The
@@ -440,11 +602,20 @@ class WritePath:
     # -- the full authorized execution --------------------------------------
 
     def execute_action(self, token: ContextToken, scope_path: str,
-                       tool_name: str, arguments: dict[str, Any]) -> Outcome:
+                       tool_name: str, arguments: dict[str, Any],
+                       taint: Optional[Taint] = None,
+                       evidence: Optional[ApprovalEvidence] = None) -> Outcome:
         """Authorize, then execute. No database write occurs before
         authorize_plan has succeeded -- the transport is not even constructed
-        until the PEP, and the PEP requires the authorization object."""
-        plan = self.plan_for_action(scope_path, tool_name, arguments)
+        until the PEP, and the PEP requires the authorization object.
+
+        `taint` is the honest origin of the content; `evidence` is what ADR
+        0048 requires before that content may be persisted as trusted. Both
+        arrive from `ApprovalService.decide`, which read them off the durable
+        approval row. A caller supplying neither gets an unelevated write --
+        the default, not a failure.
+        """
+        plan = self.plan_for_action(scope_path, tool_name, arguments, taint)
         binding = self.binding_for(scope_path, tool_name)
 
         # I-100: the envelope pins every CONSEQUENCE-DETERMINING argument to
@@ -473,20 +644,45 @@ class WritePath:
             cost_ceiling=10, approval=approval,
         )
 
+        # ===== ADR 0048's ELEVATION POINT -- the only one =====
+        #
+        # HERE, and deliberately nowhere else: after `authorize_plan` returned
+        # and after the approval was atomically taken. Downstream of the PDP,
+        # so the decision was made against the HONEST taint and an elevation
+        # can never widen what was authorized; upstream of the transport, so
+        # the integration is handed a finished value rather than a judgement.
+        #
+        # All four conditions, and no default that supplies any of them:
+        #   approval  -- a human act happened (I-09); `take()` returns None on
+        #                a replay, so a spent approval elevates nothing
+        #   evidence  -- the durable row carried the taint James was shown.
+        #                NULL there means unknown, and unknown is not a licence
+        #   leaves    -- the tool HAS prose to inspect. complete_task and
+        #                add_scope have none and can never reach elevation
+        #   (elevate itself re-checks the leaves and raises rather than
+        #    quietly returning the input, so the guard cannot rot into a no-op)
+        #
+        # Anything missing => `plan.taint` persists unchanged. That is ADR
+        # 0048's default: the write still happens, it is simply not trusted.
+        persisted, elevation = plan.taint, None
+        if approval is not None and evidence is not None and evidence.content_leaves:
+            persisted, elevation = elevate(plan.taint, evidence), evidence
+
         return self._pep.invoke(
             token, plan, plan.steps[0], authorization,
             resolve_binding=lambda name, scope: self.binding_for(scope, name),
-            # I-111: the plan's taint is what authorization was decided
-            # against, so it is what gets persisted. Passing it here rather
-            # than letting the integration invent one keeps the recorded
-            # security state and the checked security state the same object.
+            # I-111: the security state recorded with the row. It is the taint
+            # authorization was decided against, plus -- and only where ADR
+            # 0048's evidence exists -- the elevation that evidence supports.
             transport=self._integration.transport_for(token, tool_name,
-                                                      taint=plan.taint),
+                                                      taint=persisted,
+                                                      evidence=elevation),
             tool_version=TOOL_VERSION,
             provider_enforces_dedup=True,
         )
 
     def execute(self, token: ContextToken, scope_path: str,
-                item_ref: str, body: str) -> Outcome:
+                item_ref: str, body: str,
+                taint: Optional[Taint] = None) -> Outcome:
         return self.execute_action(token, scope_path, TOOL,
-                                   {"item_ref": item_ref, "body": body})
+                                   {"item_ref": item_ref, "body": body}, taint)

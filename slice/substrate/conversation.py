@@ -315,14 +315,25 @@ class ConversationService:
             return Turn("unavailable", "",
                         detail=f"model outcome: {response.outcome}")
 
-        return self._interpret(response.text, scope_path, execute_token)
+        return self._interpret(response.text, scope_path, execute_token,
+                               context_taint)
 
     def _interpret(self, text: str, scope_path: str,
-                   execute_token: Optional[ContextToken]) -> Turn:
+                   execute_token: Optional[ContextToken],
+                   context_taint: Optional[Taint] = None) -> Turn:
         """Parse the ONE marker; everything else is prose. The marker is
         stripped from what James reads either way -- what he sees about a
         proposal is the SERVER's approval card, built from the stored
-        approval row, never the model's own description of it."""
+        approval row, never the model's own description of it.
+
+        ADR 0048: a proposal's content is MODEL TEXT, and its honest taint is
+        the block the model read (`context_taint`) derived through its own
+        `model.generated` provenance -- union of sources, lowest trust (I-99).
+        That taint is recorded with the approval and is what the PDP later
+        decides against. It is emphatically NOT `james.stated`: James has not
+        said anything yet, and will not have until he reads the card."""
+        proposal_taint = (context_taint.derive("model.generated")
+                          if context_taint is not None else None)
         tool_name, match = None, None
         for candidate, pattern in _MARKERS:
             found = pattern.search(text)
@@ -351,7 +362,8 @@ class ConversationService:
                     {"task_ref": ref, "title": title, "due_on": due},
                     action_text=(f"Add task \u201c{title}\u201d"
                                  + (f", due {due}." if due else ", with no due date.")),
-                    if_wrong_text="A task you did not want appears in this scope.")
+                    if_wrong_text="A task you did not want appears in this scope.",
+                    taint=proposal_taint)
             elif tool_name == ADD_SCOPE:
                 name, kind = ref, match.group(2)
                 approval_id = self._approvals.propose_action(
@@ -361,15 +373,18 @@ class ConversationService:
                     why_text=("Creating a place changes NOVA's structure. "
                               "Nothing may grow the tree without your approval."),
                     cost_text="One empty scope created. Nothing else changes.",
-                    if_wrong_text="An empty place exists that you can simply ignore.")
+                    if_wrong_text="An empty place exists that you can simply ignore.",
+                    taint=proposal_taint)
             elif tool_name == COMPLETE_TASK:
                 approval_id = self._approvals.propose_action(
                     execute_token, scope_path, COMPLETE_TASK, {"task_ref": ref},
                     action_text=f"Mark task \u201c{ref}\u201d done.",
-                    if_wrong_text="A task still outstanding is recorded as finished.")
+                    if_wrong_text="A task still outstanding is recorded as finished.",
+                    taint=proposal_taint)
             else:
                 approval_id = self._approvals.propose(
-                    execute_token, scope_path, ref, match.group(2))
+                    execute_token, scope_path, ref, match.group(2),
+                    taint=proposal_taint)
         except Denied as d:
             return Turn("answered", prose, detail=f"proposal refused: {d.reason}")
         return Turn("proposed", prose, approval_id=approval_id)

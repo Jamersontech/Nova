@@ -178,7 +178,19 @@ class Seam:
         if not requests:
             body = "<p class=\"muted\">Nothing needs your decision here.</p>"
         else:
-            body = "".join(_approval_card(r) for r in requests)
+            # ADR 0048: the card must show the exact content, and the set of
+            # arguments that IS the content comes from the write path's own
+            # `content_leaves` -- the same function the elevation check uses.
+            # Asking the write path rather than deciding here is the whole
+            # point: two computations of "what counts as content" could
+            # disagree, and then an elevation would claim an inspection this
+            # page never offered.
+            body = "".join(
+                _approval_card(
+                    r,
+                    self._writes.content_leaves(r.tool_name)
+                    if self._writes is not None else frozenset())
+                for r in requests)
         return 200, _page(f"Approvals — {html.escape(scope_path)}",
                           f"<p class=\"muted\">Active context: "
                           f"<code>{html.escape(scope_path)}</code></p>{body}")
@@ -755,21 +767,56 @@ def _talk_page(scope_path: str, log: list) -> str:
     return _page(f"NOVA \u2014 {html.escape(_label(scope_path))}", body)
 
 
-def _approval_card(r) -> str:
-    """The five things USER_INTERFACE_ARCHITECTURE.md section 6 requires, and
-    the statement that NOVA is not the approving authority (I-09).
+def _approval_card(r, content_leaves=frozenset()) -> str:
+    """The five things USER_INTERFACE_ARCHITECTURE.md section 6 requires, the
+    EXACT CONTENT the action will persist (ADR 0048), and the statement that
+    NOVA is not the approving authority (I-09).
 
     Approve and Deny are separate forms: one action each, no default, and no
     script. The browser posts a decision; it does not make one.
+
+    CONTENT VISIBILITY (ADR 0048, properties 1 and 2). Every EXPRESSIVE
+    argument is rendered here, VERBATIM and COMPLETE. Before this, a note's
+    body was stored on the approval row and never shown: James approved
+    `Write item "x" in this scope.` while the bytes that would be persisted --
+    written by a model, from context he could not see -- stayed invisible. An
+    approval given without sight of the content cannot be evidence about the
+    content, and ADR 0048 makes that the difference between a trusted row and
+    an untrusted one.
+
+    NO TRUNCATION, and no summary. A shortened body is a different body, and
+    approving it would vouch for something other than what is stored. The
+    marker grammar already caps a body at 1000 characters and a title at 300
+    (`conversation.py`), so "render all of it" is a bounded promise.
+
+    `content_leaves` is supplied by the caller from `WritePath.content_leaves`
+    rather than decided here -- one definition of "what is content", shared
+    with the elevation check, so this page cannot show less than the check
+    assumes was shown.
     """
     def field(label: str, value: str) -> str:
         return (f"<div class=\"field\"><span class=\"label\">{html.escape(label)}</span>"
                 f"<span>{html.escape(value)}</span></div>")
 
+    arguments = r.plan_arguments()
+    content = "".join(
+        field(f"exact {leaf.replace('_', ' ')} to be saved", str(arguments.get(leaf, "")))
+        for leaf in sorted(content_leaves) if leaf in arguments)
+
+    # I-40: where the content derives from an EXTERNAL source, approving names
+    # that source. James is told which -- an approval naming a source he was
+    # never shown would satisfy the policy while defeating its purpose.
+    taint = r.taint()
+    sources = sorted(taint.external_sources()) if taint is not None else []
+    source_field = (field("outside sources this draws on", ", ".join(sources))
+                    if sources else "")
+
     return f"""
     <article class="card">
       <span class="risk">{html.escape(r.risk_class)}</span>
       <h2>{html.escape(r.action_text)}</h2>
+      {content}
+      {source_field}
       {field("in scope", r.scope_path)}
       {field("why approval is needed", r.why_text)}
       {field("what it costs", r.cost_text)}
