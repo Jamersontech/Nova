@@ -250,6 +250,40 @@ CREATE TABLE IF NOT EXISTS task (
     UNIQUE (scope_path, task_ref)
 );
 
+-- ADR 0049 / I-111: a TASK TITLE IS CONTENT, not control state.
+--
+-- `add_task_tool()` has always declared `title` EXPRESSIVE -- "prose, same
+-- ruling as write_item" (ADR 0036) -- and ADR 0048's approval card renders it
+-- as content for James to inspect. Every layer above storage already treated
+-- it as content; only this table disagreed, and the taint computed for a task
+-- was discarded at the INSERT. A title can carry a factual claim in imperative
+-- grammar -- "call the supplier, their bank details changed to X" -- so
+-- treating all titles as safe control state laundered attacker-controlled
+-- facts into model context as james.stated/HIGHEST once the original source
+-- was deleted. Measured before this existed.
+--
+-- The same five columns as `item`, with the same meanings, deliberately not
+-- reinterpreted. NULL is unknown throughout, which is what makes a row written
+-- before ADR 0049 structurally distinguishable from one whose state was
+-- genuinely recorded.
+--
+-- ROW-LEVEL, and no history table (ADR 0049's Model 1). The existing upsert
+-- keeps ONE row per (scope_path, task_ref) and destroys the previous title
+-- outright, so there is no superseded version that could become detached from
+-- its provenance -- provided the write updates these columns in the SAME
+-- statement as the title, which it does.
+--
+-- No guard is needed here, unlike `item.provenance`: no conflicting column of
+-- another type ever existed on this table. Existing rows are NOT backfilled --
+-- inventing provenance for a title nobody recorded one for is the assumption
+-- I-110 forbids.
+ALTER TABLE task
+    ADD COLUMN IF NOT EXISTS provenance          text[],
+    ADD COLUMN IF NOT EXISTS trust               smallint,
+    ADD COLUMN IF NOT EXISTS classification      smallint,
+    ADD COLUMN IF NOT EXISTS delegation_ancestry text[],
+    ADD COLUMN IF NOT EXISTS creating_authority  text;
+
 -- I-93: every mandatory audit record carries a deterministic event identity, so
 -- an uncertain write is retried and de-duplicated by identity rather than
 -- producing a second event. The UNIQUE constraint is that rule, enforced.

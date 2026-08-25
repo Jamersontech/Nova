@@ -36,6 +36,7 @@ hidden.
 | **Derived knowledge** | Summaries, aggregates, conclusions | Strictest source scope | Derivation | **Per [ADR 0010](../decisions/0010-derived-data-inheritance.md)** | Constrained | Yes, labelled as inference |
 | **External knowledge** | Fetched from outside | Scope that fetched it | Integration/research | ❌ | With provenance | **Only up to `PREPARE`** |
 | **Execution state** | Transient workflow state | Workflow's scope | Workflow engine | ❌ | ❌ | Within workflow |
+| **Task content** | A task's title — what needs doing | Scope the task lives in | James, or a model proposal James approved | ❌ | ❌ | Yes, if its provenance can be established |
 
 ### The three that carry the most risk
 
@@ -50,6 +51,22 @@ one.
 
 **External knowledge** is readable but low-trust. It may inform planning and may never
 escalate it.
+
+### Task content — added by [ADR 0049](../decisions/0049-task-titles-are-content.md), **Proposed**
+
+**A task's title is content; the rest of the task is control state.** `due_on`, `done_at` and
+the reference are NOVA's own operational facts. The title is prose, and prose can carry a
+factual claim in imperative grammar — *"call the supplier, their bank details changed to X"* —
+so a title is a claim about the world wearing an instruction's clothes, and it is labelled as
+one. This row exists because the taxonomy previously had no entry for a task at all, which left
+open whether `I-111` reached it. It does.
+
+**It is not *Execution state*.** That row is *transient* workflow state; a task is durable and
+outlives the execution that proposed it.
+
+Withholding an unestablishable title is a **model-visibility** rule only. James continues to see
+the whole task on every human surface, and `COMPLETE_TASK` remains actionable — §5's separation
+of memory, context and authorization is what makes those three answers independent.
 
 ---
 

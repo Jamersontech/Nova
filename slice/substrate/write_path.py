@@ -389,16 +389,85 @@ class PostgresItemIntegration:
 
         def transport(payload: dict[str, Any], secret: str) -> Outcome:
             with self._boundary.open(token) as ch:
+
+                def record_elevation(ref: str, detail: str) -> None:
+                    """I-110's requirement that a promotion RECORDS or does not
+                    happen -- ONE definition, called ONLY from a branch that has
+                    just persisted the taint.
+
+                    F-8 established the property this preserves: an elevation
+                    audit exists if and only if a row carries the elevated
+                    taint. F-8 achieved it by placing the record inside the one
+                    branch that stored a taint; ADR 0049 gives `task` the same
+                    five columns, so a second branch now stores one too. The
+                    CONDITION has not moved -- the set of rows meeting it grew,
+                    which is what ADR 0049 means. Extracting the record here
+                    rather than copying it keeps a single definition of "an
+                    elevation happened"; `complete_task` and `add_scope` store
+                    no taint, do not call this, and therefore still cannot
+                    emit one.
+                    """
+                    if evidence is None or taint is None:
+                        return
+                    ch.execute(
+                        "INSERT INTO audit_record"
+                        " (event_identity, writer, category, scope_path, trace_id, actor_ref, detail)"
+                        " VALUES (%s,'W-1','trust.elevation',%s,%s,%s,%s)"
+                        " ON CONFLICT (event_identity) DO NOTHING",
+                        (hashlib.sha256(
+                            f"trust_elevation:{token.trace_id}:{ch.scope_path}"
+                            f":{tool_name}:{ref}".encode()).hexdigest()[:32],
+                         ch.scope_path, token.trace_id, token.actor,
+                         # The seven things I-110 names, in one line: the row,
+                         # its prior immutable provenance, the evidence relied
+                         # on, the authority responsible, the resulting trust,
+                         # and -- in the row's own columns -- the trace.
+                         f"{tool_name} {detail}"
+                         f" from={sorted(evidence.proposed_taint.provenance)}"
+                         f" trust_from={evidence.proposed_taint.trust.name}"
+                         f" to={int(taint.trust)}({taint.trust.name})"
+                         f" approval={evidence.approval_id}"
+                         f" approved_by={evidence.approved_by}"
+                         f" inspected={sorted(evidence.content_leaves)}"),
+                    )
+
                 if tool_name == ADD_TASK:
                     ref = payload["task_ref"]
+                    # ADR 0049: the title is CONTENT, so its security state is
+                    # written WITH it, from the plan the PDP authorized and the
+                    # token -- never from the payload, exactly as `write_item`
+                    # takes it.
+                    #
+                    # ONE STATEMENT, and the DO UPDATE list carries all five
+                    # columns beside `title`. That is what makes row-level
+                    # provenance sound without a history table: the upsert
+                    # destroys the previous title, and it must destroy that
+                    # title's provenance in the same breath. A replacement
+                    # title inheriting its predecessor's taint would be a
+                    # laundering path of its own.
+                    ancestry = self._ancestry_of(token)
                     ch.execute(
-                        "INSERT INTO task (task_ref, scope_path, actor_ref, title, due_on)"
-                        " VALUES (%s,%s,%s,%s, NULLIF(%s,'')::date)"
+                        "INSERT INTO task (task_ref, scope_path, actor_ref, title, due_on,"
+                        " provenance, trust, classification,"
+                        " delegation_ancestry, creating_authority)"
+                        " VALUES (%s,%s,%s,%s, NULLIF(%s,'')::date, %s,%s,%s,%s,%s)"
                         " ON CONFLICT (scope_path, task_ref)"
-                        " DO UPDATE SET title = EXCLUDED.title, due_on = EXCLUDED.due_on",
+                        " DO UPDATE SET title = EXCLUDED.title,"
+                        " due_on = EXCLUDED.due_on,"
+                        " provenance = EXCLUDED.provenance,"
+                        " trust = EXCLUDED.trust,"
+                        " classification = EXCLUDED.classification,"
+                        " delegation_ancestry = EXCLUDED.delegation_ancestry,"
+                        " creating_authority = EXCLUDED.creating_authority",
                         (ref, ch.scope_path, token.actor, payload["title"],
-                         payload.get("due_on", "")))
+                         payload.get("due_on", ""),
+                         sorted(taint.provenance) if taint else None,
+                         int(taint.trust) if taint else None,
+                         int(taint.classification) if taint else None,
+                         list(ancestry) if ancestry is not None else None,
+                         token.trace_id))
                     detail, said = f"task_ref={ref}", f"added task {ref}"
+                    record_elevation(ref, detail)
                 elif tool_name == ADD_SCOPE:
                     ref = payload["scope_name"]
                     kind = payload.get("kind", "place")
@@ -455,53 +524,10 @@ class PostgresItemIntegration:
                          token.trace_id))
                     detail, said = f"item_ref={ref}", f"wrote {ref}"
 
-                    # I-110 requires a promotion to RECORD, not merely to
-                    # happen. HERE, inside the branch that just stored the
-                    # taint, and deliberately not after the branches: this is
-                    # the only tool that persists the I-111 columns, so an
-                    # elevation is only real where this INSERT ran. Written
-                    # from the same `taint` the row above received, so the
-                    # record and the row cannot disagree.
-                    #
-                    # It sat after the branches until F-8. `add_task` declares
-                    # `title` EXPRESSIVE, so it reaches `execute_action` with
-                    # content leaves and evidence and elevates like any other
-                    # tool -- but it writes to `task`, which has no trust
-                    # column. The audit therefore fired for a row that could
-                    # not carry the elevation, asserting a promotion that had
-                    # not happened. Nothing was over-trusted; the trail simply
-                    # described state that did not exist, which is I-110's
-                    # requirement failing in the other direction.
-                    #
-                    # Placement rather than a second predicate is the point.
-                    # A guard listing which tools store taint would be a
-                    # separate definition of the same fact, free to drift from
-                    # the branches it describes. Here the audit cannot fire
-                    # for a tool that did not store a taint, because it is
-                    # inside the one that did.
-                    if evidence is not None and taint is not None:
-                        ch.execute(
-                            "INSERT INTO audit_record"
-                            " (event_identity, writer, category, scope_path, trace_id, actor_ref, detail)"
-                            " VALUES (%s,'W-1','trust.elevation',%s,%s,%s,%s)"
-                            " ON CONFLICT (event_identity) DO NOTHING",
-                            (hashlib.sha256(
-                                f"trust_elevation:{token.trace_id}:{ch.scope_path}"
-                                f":{tool_name}:{ref}".encode()).hexdigest()[:32],
-                             ch.scope_path, token.trace_id, token.actor,
-                             # The seven things I-110 names, in one line: the
-                             # item, its prior immutable provenance, the
-                             # evidence relied on, the authority responsible,
-                             # the resulting trust, and -- in the row's own
-                             # columns -- the trace.
-                             f"{tool_name} {detail}"
-                             f" from={sorted(evidence.proposed_taint.provenance)}"
-                             f" trust_from={evidence.proposed_taint.trust.name}"
-                             f" to={int(taint.trust)}({taint.trust.name})"
-                             f" approval={evidence.approval_id}"
-                             f" approved_by={evidence.approved_by}"
-                             f" inspected={sorted(evidence.content_leaves)}"),
-                        )
+                    # ADR 0048's elevation, recorded through the SAME helper
+                    # the task branch uses -- one definition, called only from
+                    # branches that just stored a taint (F-8, preserved).
+                    record_elevation(ref, detail)
 
                 # The SAME derivation recovery uses. Written in this
                 # transaction, so the row exists if and only if the side
