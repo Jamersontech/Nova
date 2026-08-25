@@ -59,7 +59,8 @@ from ..core.types import (Classification, ContextToken, Denied, Risk, Taint,
                           Trust)
 from .approval_flow import ApprovalService
 from .boundary import DataAccessBoundary
-from .write_path import ADD_SCOPE, ADD_TASK, COMPLETE_TASK, TOOL
+from .write_path import (ADD_SCOPE, ADD_TASK, COMPLETE_TASK, TOOL,
+                         UNKNOWN_ORIGIN)
 
 # ---------------------------------------------------------------------------
 # D-08, resolved for Conversation (ADR 0047). This block is the application's
@@ -316,13 +317,44 @@ class ConversationService:
                          " They remain visible to James and, for tasks, remain"
                          " completable.")
         # I-99 / I-111: the block's taint is the union of what went INTO it.
-        # The base covers NOVA's own reading of its own records (the scope path
-        # and the pending count -- both NOVA's own facts). Each included item
-        # AND each included task contributes the taint that was actually
-        # persisted with it: ADR 0049 made a task title content, so it carries
-        # its origin into this union like anything else. Union takes the LOWEST
-        # trust and the STRICTEST classification, so nothing here raises trust.
-        base = Taint.of("james.stated", Classification.CONFIDENTIAL)
+        # Each included item AND each included task contributes the taint that
+        # was actually persisted with it: ADR 0049 made a task title content, so
+        # it carries its origin into this union like anything else. Union takes
+        # the LOWEST trust and the STRICTEST classification, so nothing here
+        # raises trust.
+        #
+        # THE BASE COVERS WHAT NOTHING ELSE ATTRIBUTES: the headers, the pending
+        # count, the withheld message -- and the SCOPE PATH. It used to be
+        # `james.stated` alone, justified as "NOVA's own facts". ADR 0050 (F-11)
+        # records why that premise no longer holds: `add_scope` lets a MODEL
+        # choose a path segment, so part of the path is not NOVA's own fact and
+        # not something James stated.
+        #
+        # The correction is the I-99 union with UNKNOWN_ORIGIN -- the term
+        # `write_path` already defines for "nobody said where this came from",
+        # DELIBERATELY not `james.stated`. Union takes the lowest trust, so the
+        # block reads LOW.
+        #
+        # COARSE ON PURPOSE. ADR 0050 rules a scope name CONTROL/ADDRESSING, so
+        # `scope` carries no provenance and there is nothing from which to
+        # reconstruct which segment a model chose. Inventing one is precisely
+        # what `I-110` forbids, so this says only what is known: some of this
+        # block is NOVA's and James's own framing, and some of it may not be.
+        # Every scope block therefore reads LOW, including for scopes James
+        # created himself -- the honest cost of declining to invent provenance.
+        #
+        # A RESTRICTION, NOT A PROMOTION. `I-110`'s closing sentence -- "lowering
+        # trust is not governed by this invariant" -- is why lowering is not
+        # gated like elevation.
+        #
+        # NOT AN `I-40` CHANGE: neither term is in `EXTERNAL_PROVENANCE`, so
+        # `is_untrusted_derived()` still fires on external content and only on
+        # external content. Classification stays CONFIDENTIAL so the gateway's
+        # `I-95` still sees scoped material rather than ambient INTERNAL text.
+        base = Taint.union(
+            Taint.of("james.stated", Classification.CONFIDENTIAL),
+            Taint.of(UNKNOWN_ORIGIN, Classification.CONFIDENTIAL),
+        )
         contributed = [t for _, _, t in items] + [t for _, _, t in tasks]
         taint = Taint.union(base, *contributed) if contributed else base
         return "\n".join(lines), taint

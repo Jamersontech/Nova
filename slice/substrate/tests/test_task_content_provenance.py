@@ -269,8 +269,16 @@ class TaskContentProvenanceTest(unittest.TestCase):
         text, taint = self.model_context()
         self.assertNotIn(TITLE, text, "a legacy task reached the model")
         self.assertIn("withheld", text, "the withholding was not reported")
-        self.assertEqual(Trust.HIGHEST, taint.trust,
+        # The property is that WITHHOLDING removes the row rather than dragging
+        # the block's taint down -- so the block reads exactly the base and no
+        # lower. ADR 0050 (F-11) lowered that base from `james.stated`/HIGHEST
+        # to the union with `UNKNOWN_ORIGIN` at LOW; the withheld row still
+        # contributes nothing, which is what this asserts.
+        self.assertEqual(Trust.LOW, taint.trust,
                          "withholding should remove the row, not taint the block")
+        self.assertEqual(frozenset({"james.stated", "model.generated"}),
+                         taint.provenance,
+                         "the withheld row's provenance leaked into the block")
 
     def test_07_a_legacy_task_is_not_backfilled_by_being_read(self):
         """Reading must not repair a row it refused to trust."""

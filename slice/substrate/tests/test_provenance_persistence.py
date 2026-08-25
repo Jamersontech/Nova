@@ -384,14 +384,22 @@ class ProvenancePersistenceTest(unittest.TestCase):
 
     def test_16b_an_empty_scope_does_not_borrow_trust_from_nothing(self):
         """The base case, so 16's union cannot pass by accident: with no items
-        the block carries NOVA's own reading of its own records."""
+        the block carries the BASE and nothing else.
+
+        ADR 0050 (F-11) changed what that base is. It was `james.stated` alone
+        at HIGHEST, justified as "NOVA's own facts" -- but `add_scope` lets a
+        MODEL choose a path segment, so the block is now the `I-99` union with
+        `UNKNOWN_ORIGIN` at LOW. The property this test protects is unchanged:
+        the base is distinguishable, and an empty scope borrows trust from
+        nothing."""
         token = self.context.issue_root(identity="james", actor="james",
                                         scope_path=LIFE,
                                         rights=frozenset({"read"}),
                                         ceiling=Risk.READ, ttl=60)
         _text, taint = self.conversation._scope_context(token, LIFE)
-        self.assertEqual(Trust.HIGHEST, taint.trust)
-        self.assertEqual(frozenset({"james.stated"}), taint.provenance)
+        self.assertEqual(Trust.LOW, taint.trust)
+        self.assertEqual(frozenset({"james.stated", "model.generated"}),
+                         taint.provenance)
 
     def test_17_forged_security_metadata_in_the_payload_is_ignored(self):
         """A real injection attempt, not a walk down the happy path.
