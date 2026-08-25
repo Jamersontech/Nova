@@ -12,9 +12,14 @@ only on James's explicit decision (`decisions/README.md`, *Authority*).
 (ADR [0033](./0033-section-07-amendments-to-accepted-architecture.md)), `I-40`, `I-99`, `I-20`,
 `I-09`, `I-112` (ADR [0034](./0034-the-plan-is-a-security-object.md))
 
-> **IMPLEMENTATION STATUS: NONE.** This decision is accepted; the behaviour it requires **does not
-> exist yet**. The shipped write path still exhibits the F-1 behaviour documented below. Nothing
-> in this ADR describes code that has been written.
+> **IMPLEMENTATION STATUS: IMPLEMENTED, PENDING MERGE.** This decision was accepted first and
+> implemented afterwards, in that order. The implementation is on
+> `feature/adr-0048-content-visible-approval-implementation` and **has not yet merged to `main`**,
+> so until it does, `main` still exhibits the F-1 behaviour documented below.
+>
+> The decision text below is unchanged from acceptance. Where it says the behaviour "does not
+> exist" or that no code has changed, read that as the state at the ADR Decision Gate on
+> 2026-08-24 — it is the record of what was decided, not a running description of the system.
 
 ---
 
@@ -555,6 +560,31 @@ determine — within Option C, and subject to `I-110`'s existing requirements �
 label represents approved content, what trust level and classification it carries, what makes an
 approval content-visible for each tool, and what audit evidence records the elevation. Nothing in
 this ADR authorizes a specific mechanism.
+
+### Implementation record — added after acceptance
+
+*Everything above this line is the decision as accepted on 2026-08-24 and is unchanged. This
+section records what was built against it; it decides nothing.*
+
+The design and implementation followed, and answered the questions the decision left open — within
+Option C, not beyond it:
+
+| Open question | Answered by the implementation |
+| --- | --- |
+| Q5 — provenance label | `james.approved`, **added beside** the derived provenance, never replacing it (`I-38`) |
+| Q6 — trust level | `HIGHEST`, set by one explicit construction; unreachable through `Taint.union` |
+| Q7 — classification | inherited from the input taint; **never** elevated by approval |
+| Q8 — distinguishable | yes — `model.generated` survives in the provenance of every approved item |
+| Q9 — `I-40` treatment | evaluated against the honest **derived** taint, before and independently of any elevation |
+| Q10 — audit evidence | one `trust.elevation` record, same table and transaction as the write |
+
+Content-visibility is derived from each tool's own EXPRESSIVE declaration (ADR 0036) rather than
+asserted by a flag, through one function shared by the approval card and the elevation check. One
+new nullable column, `approval.proposed_taint`, carries the evidence; `I-112`'s plan identity was
+extended by nothing, because it already bound the content.
+
+**Historical items were intentionally not reclassified**, per the prospective-only ruling above.
+Legacy approvals with no recorded taint remain executable and can never elevate.
 
 ---
 
