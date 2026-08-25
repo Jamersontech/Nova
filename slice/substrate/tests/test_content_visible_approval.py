@@ -260,35 +260,55 @@ class ContentVisibleApprovalTest(unittest.TestCase):
         self.approvals.decide(token, approval_id, True, decided_by="james")
         return approval_id
 
-    def test_07b_add_task_writes_no_elevation_audit(self):
-        """F-8, and the reason this section exists.
+    def test_07b_add_task_audits_its_elevation_because_it_now_persists_one(self):
+        """F-8's invariant, under ADR 0049.
 
-        `add_task` declares `title` EXPRESSIVE, so it arrives at the elevation
-        point with content leaves and evidence and elevates exactly like
-        `write_item`. But it writes to `task`, which has NO trust column -- so
-        the elevation is computed and then discarded, and an audit record for
-        it would assert a promotion that never reached any row.
+        F-8's rule is unchanged and is the only rule here: AN ELEVATION AUDIT
+        EXISTS IF AND ONLY IF A ROW CARRIES THE ELEVATED TAINT. What changed is
+        which rows can. Before ADR 0049 a task had no trust column, so the
+        elevation was computed and discarded and the audit asserted a promotion
+        that reached nothing -- that was the F-8 defect. Now the task row
+        stores it, so the record is accurate and I-110's "records or does not
+        happen" requires it.
 
-        Nothing is over-trusted either way; this is I-110's recording
-        requirement failing in the OTHER direction, and a trail that describes
-        state that does not exist is worse than no trail."""
+        The assertion is deliberately paired: the audit must exist AND the row
+        must actually carry HIGHEST. Either alone would let the spurious case
+        back in."""
         self.approve_action(ADD_TASK,
                             {"task_ref": "t1", "title": BODY, "due_on": ""},
                             taint=self.a_model_taint())
+        row = self.sql("SELECT title, trust, provenance FROM task"
+                       " WHERE task_ref='t1'")[0]
+        self.assertEqual(BODY, row[0], "the control failed: the task was not written")
+        self.assertEqual(int(Trust.HIGHEST), row[1],
+                         "no elevation was persisted, so the audit below would lie")
+        self.assertIn(APPROVED_PROVENANCE, row[2])
+        audits = self.elevation_audits()
+        self.assertEqual(1, len(audits), "the persisted elevation was not recorded")
+        self.assertTrue(audits[0].startswith(ADD_TASK))
+
+    def test_07b2_a_task_write_that_did_not_elevate_writes_no_audit(self):
+        """The F-8 defect's exact shape, held closed from the other side: an
+        elevation that did not happen is never recorded."""
+        self.approve_action(ADD_TASK,
+                            {"task_ref": "t1", "title": BODY, "due_on": ""},
+                            taint=None)
         self.assertEqual([(BODY,)],
                          self.sql("SELECT title FROM task WHERE task_ref='t1'"),
                          "the control failed: the task was not written")
         self.assertEqual([], self.elevation_audits(),
-                         "add_task claimed a trust elevation it cannot carry")
+                         "a task write with no evidence claimed an elevation")
 
     def test_07c_complete_task_writes_no_elevation_audit(self):
-        """No EXPRESSIVE content, so no elevation and nothing to record."""
+        """No EXPRESSIVE content, so nothing to inspect, nothing to elevate and
+        nothing to record -- regardless of what the task it closes carried."""
         self.approve_action(ADD_TASK,
                             {"task_ref": "t1", "title": BODY, "due_on": ""},
                             taint=self.a_model_taint())
         self.approve_action(COMPLETE_TASK, {"task_ref": "t1"},
                             taint=self.a_model_taint())
-        self.assertEqual([], self.elevation_audits())
+        self.assertEqual([], self.elevation_audits(COMPLETE_TASK),
+                         "complete_task claimed an elevation it cannot carry")
 
     def test_07d_add_scope_writes_no_elevation_audit(self):
         """Both its arguments are CONSEQUENCE-determining -- there is no prose
@@ -326,7 +346,24 @@ class ContentVisibleApprovalTest(unittest.TestCase):
         audits = self.elevation_audits()
         self.assertEqual(2, len(audits))
         self.assertTrue(all(d.startswith(TOOL) for d in audits),
-                        f"a non-write_item tool emitted an elevation audit: {audits}")
+                        f"a tool that stores no taint emitted an audit: {audits}")
+
+    def test_07h_only_taint_storing_tools_can_ever_audit(self):
+        """The structural half of F-8, restated for ADR 0049. `write_item` and
+        `add_task` store a taint and may record one; `complete_task` and
+        `add_scope` store none and must never appear in this trail, whatever
+        else happens in the scope."""
+        self.approve_write(taint=self.a_model_taint())
+        self.approve_action(ADD_TASK, {"task_ref": "t1", "title": BODY, "due_on": ""},
+                            taint=self.a_model_taint())
+        self.approve_action(COMPLETE_TASK, {"task_ref": "t1"},
+                            taint=self.a_model_taint())
+        self.approve_action(ADD_SCOPE, {"scope_name": "gym", "kind": "place"},
+                            taint=self.a_model_taint())
+        self.assertEqual([], self.elevation_audits(COMPLETE_TASK))
+        self.assertEqual([], self.elevation_audits(ADD_SCOPE))
+        self.assertEqual(2, len(self.elevation_audits()),
+                         "exactly the two taint-storing writes should be recorded")
 
     # =======================================================================
     # NEGATIVE -- the default, and the ways elevation must not happen

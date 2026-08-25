@@ -222,9 +222,20 @@ class ConversationService:
             revoked = {r[0] for r in ch.fetch(
                 "SELECT execution_identity FROM authority_revocation")}
             items, withheld = self._establish(rows, revoked)
-            tasks = ch.fetch(
-                "SELECT task_ref, title, due_on FROM task WHERE done_at IS NULL"
+            # ADR 0049: a task title is CONTENT, so it comes back with the same
+            # five columns an item does and goes through the SAME `_establish`.
+            # That method never inspects the content field -- it passes it
+            # through untouched -- so a task's (title, due_on) travels exactly
+            # where an item's body does. One establishment rule, one taint
+            # representation; a second would be a second trust model.
+            task_rows = ch.fetch(
+                "SELECT task_ref, title, due_on, provenance, trust, classification,"
+                " delegation_ancestry, creating_authority"
+                " FROM task WHERE done_at IS NULL"
                 " ORDER BY due_on NULLS LAST, task_ref")
+            tasks, tasks_withheld = self._establish(
+                [(r[0], (r[1], r[2]), r[3], r[4], r[5], r[6], r[7])
+                 for r in task_rows], revoked)
             pending = ch.fetch(
                 "SELECT count(*) FROM approval WHERE status = 'pending'")[0][0]
             event_identity = hashlib.sha256(
@@ -236,14 +247,15 @@ class ConversationService:
                 " VALUES (%s,'W-1','data.read',%s,%s,%s,%s)"
                 " ON CONFLICT (event_identity) DO NOTHING",
                 (event_identity, scope_path, token.trace_id, token.actor,
-                 f"conversation context items={len(items)}"
-                 + (f" withheld={withheld}" if withheld else "")))
+                 f"conversation context items={len(items)} tasks={len(tasks)}"
+                 + (f" withheld={withheld + tasks_withheld}"
+                    if withheld or tasks_withheld else "")))
         lines = [f"Scope: {scope_path}",
                  f"Pending approvals awaiting James: {pending}"]
         if tasks:
             lines.append("Open tasks in this scope (ref, title, due):")
             lines += [f"  - {ref} | {title} | due {due or 'no date'}"
-                      for ref, title, due in tasks]
+                      for ref, (title, due), _ in tasks]
         else:
             lines.append("No open tasks in this scope.")
         if items:
@@ -251,20 +263,31 @@ class ConversationService:
             lines += [f"  - {ref}: {body}" for ref, body, _ in items]
         else:
             lines.append("This scope has no notes yet.")
-        if withheld:
+        if withheld or tasks_withheld:
             # Said plainly rather than hidden: NOVA reports that it cannot
             # vouch for something, instead of quietly answering as though the
             # scope were emptier than it is. The content is NOT included.
-            lines.append(f"{withheld} note(s) in this scope are withheld: their"
-                         " provenance, trust or creating authority cannot be"
-                         " established, so they are not shown to the model.")
+            #
+            # Counted separately because they are different objects to James:
+            # a withheld task is still on his attention surface and still
+            # completable, while a withheld note is simply not shown here.
+            parts = ([f"{withheld} note(s)"] if withheld else []) + \
+                    ([f"{tasks_withheld} task(s)"] if tasks_withheld else [])
+            lines.append(f"{' and '.join(parts)} in this scope are withheld:"
+                         " their provenance, trust or creating authority cannot"
+                         " be established, so they are not shown to the model."
+                         " They remain visible to James and, for tasks, remain"
+                         " completable.")
         # I-99 / I-111: the block's taint is the union of what went INTO it.
-        # The base covers NOVA's own reading of its own records (scope path,
-        # task titles, pending count); each included item contributes the taint
-        # that was actually persisted with it. Union takes the LOWEST trust and
-        # the STRICTEST classification, so nothing here can raise trust.
+        # The base covers NOVA's own reading of its own records (the scope path
+        # and the pending count -- both NOVA's own facts). Each included item
+        # AND each included task contributes the taint that was actually
+        # persisted with it: ADR 0049 made a task title content, so it carries
+        # its origin into this union like anything else. Union takes the LOWEST
+        # trust and the STRICTEST classification, so nothing here raises trust.
         base = Taint.of("james.stated", Classification.CONFIDENTIAL)
-        taint = Taint.union(base, *[t for _, _, t in items]) if items else base
+        contributed = [t for _, _, t in items] + [t for _, _, t in tasks]
+        taint = Taint.union(base, *contributed) if contributed else base
         return "\n".join(lines), taint
 
     # -- one turn ------------------------------------------------------------
