@@ -151,10 +151,14 @@ class ProvenancePersistenceTest(unittest.TestCase):
         conn.close()
         return rows
 
-    def write_through_the_real_path(self, ref="it-1", body=MARKER, scope=LIFE):
-        """The production route: propose, James decides, the write executes."""
+    def write_through_the_real_path(self, ref="it-1", body=MARKER, scope=LIFE,
+                                    taint=None):
+        """The production route: propose, James decides, the write executes.
+
+        `taint` is ADR 0048's recorded origin. Omitted, the approval carries no
+        taint at all -- which is the legacy shape, and must never elevate."""
         token = self.token(scope)
-        approval_id = self.approvals.propose(token, scope, ref, body)
+        approval_id = self.approvals.propose(token, scope, ref, body, taint=taint)
         self.approvals.decide(token, approval_id, True, decided_by="james")
         return token
 
@@ -182,13 +186,22 @@ class ProvenancePersistenceTest(unittest.TestCase):
     # =======================================================================
 
     def test_01_a_real_write_persists_its_security_state(self):
-        """The control. If this fails, everything below is testing nothing."""
+        """The control. If this fails, everything below is testing nothing.
+
+        REWRITTEN for ADR 0048. It used to assert `james.stated` at HIGHEST --
+        which was true only because `plan_for_action` hardcoded that taint for
+        every write ever made, and would have passed no matter what produced
+        the content. The claim now is the honest one: state is recorded, and
+        an approval carrying no recorded origin records UNKNOWN rather than
+        James's authorship."""
         self.write_through_the_real_path()
         row = self.sql("SELECT provenance, trust, classification,"
                        " delegation_ancestry, creating_authority IS NOT NULL"
                        " FROM item WHERE item_ref='it-1'")[0]
-        self.assertEqual((["james.stated"], int(Trust.HIGHEST),
+        self.assertEqual((["model.generated"], int(Trust.LOW),
                           int(Classification.INTERNAL), [], True), row)
+        self.assertNotIn("james.stated", row[0],
+                         "an unattributed write claimed James said it")
 
     def test_02_multiple_provenance_values_survive_as_a_union(self):
         """I-99: the union, not the latest writer. Stored as a set-valued
@@ -430,8 +443,14 @@ class ProvenancePersistenceTest(unittest.TestCase):
                        " WHERE item_ref='hostile'")[0]
         provenance, trust, classification, ancestry, author = row
 
-        self.assertEqual(["james.stated"], provenance, "forged provenance persisted")
-        self.assertEqual(int(Trust.HIGHEST), trust)
+        # ADR 0048: the server-derived value is now the plan's HONEST taint --
+        # `model.generated` at LOW, because `plan_for` was given no origin --
+        # rather than the old hardcoded `james.stated` at HIGHEST. The claim
+        # under test is unchanged and is the point: whatever the payload says,
+        # the row carries what the SERVER decided.
+        self.assertEqual(["model.generated"], provenance, "forged provenance persisted")
+        self.assertEqual(int(Trust.LOW), trust, "forged trust persisted")
+        self.assertNotIn("system.verified", provenance)
         self.assertEqual(int(Classification.INTERNAL), classification,
                          "forged classification persisted")
         self.assertEqual([], ancestry, "forged delegation ancestry persisted")

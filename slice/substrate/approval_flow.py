@@ -49,9 +49,9 @@ import json
 import secrets
 from typing import Any, Optional
 
-from ..core.types import ContextToken, Denied, Outcome, Risk
+from ..core.types import ContextToken, Denied, Outcome, Risk, Taint
 from .boundary import DataAccessBoundary
-from .write_path import (REF_ARGUMENT, TOOL, WritePath,
+from .write_path import (ApprovalEvidence, REF_ARGUMENT, TOOL, WritePath,
                          execution_event_identity)
 
 PENDING, APPROVED, DENIED = "pending", "approved", "denied"
@@ -81,6 +81,17 @@ class ApprovalRequest:
     decided_by: Optional[str] = None
     tool_name: str = TOOL
     arguments: Optional[dict] = None
+    proposed_taint: Optional[str] = None
+
+    def taint(self) -> Optional[Taint]:
+        """The honest taint recorded at proposal time (ADR 0048), or None.
+
+        None is UNKNOWN, not "untainted": rows written before ADR 0048 have no
+        recorded taint at all. The caller must treat None as a reason never to
+        elevate, never as a reason to refuse -- the write still happens, at the
+        derived taint.
+        """
+        return Taint.from_row(self.proposed_taint) if self.proposed_taint else None
 
     def plan_arguments(self) -> dict:
         """The arguments the plan is rebuilt from. `write_item` reads the
@@ -103,21 +114,35 @@ class ApprovalService:
     # -- propose -------------------------------------------------------------
 
     def propose(self, token: ContextToken, scope_path: str,
-                item_ref: str, body: str) -> str:
+                item_ref: str, body: str,
+                taint: Optional[Taint] = None) -> str:
         """Record a pending approval for one exact write. Writes nothing else."""
         return self.propose_action(
             token, scope_path, TOOL, {"item_ref": item_ref, "body": body},
             action_text=f"Write item \u201c{item_ref}\u201d in this scope.",
-            if_wrong_text="The item holds the wrong content until it is corrected.")
+            if_wrong_text="The item holds the wrong content until it is corrected.",
+            taint=taint)
 
     def propose_action(self, token: ContextToken, scope_path: str,
                        tool_name: str, arguments: dict[str, Any],
                        action_text: str, if_wrong_text: str,
                        cost_text: str = "One row written or updated. No spend.",
                        why_text: str = ("Writing changes stored data. Reading it "
-                                        "was autonomous; changing it is not.")) -> str:
-        """Record a pending approval for one exact action, of any tool."""
-        plan = self._writes.plan_for_action(scope_path, tool_name, arguments)
+                                        "was autonomous; changing it is not."),
+                       taint: Optional[Taint] = None) -> str:
+        """Record a pending approval for one exact action, of any tool.
+
+        `taint` is the HONEST origin of this action's content (ADR 0048): the
+        union of what the proposer read, plus the proposer's own provenance.
+        It is stored, never recomputed later -- an elevation has to be
+        attributable to the taint James was actually shown, and by execution
+        time the scope may hold different rows than it did when he looked.
+
+        NEVER store an elevated taint here. This column records what the
+        content IS; whether that earns trust is decided at execution, once,
+        against evidence this row provides rather than asserts.
+        """
+        plan = self._writes.plan_for_action(scope_path, tool_name, arguments, taint)
         approval_id = "ap-" + secrets.token_hex(8)
 
         with self._boundary.open(token) as ch:
@@ -125,15 +150,16 @@ class ApprovalService:
                 "INSERT INTO approval (approval_id, actor_ref, scope_path,"
                 " binding_identity, risk_class, plan_identity, status,"
                 " action_text, why_text, cost_text, if_wrong_text, item_ref, body,"
-                " tool_name, arguments)"
-                " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                " tool_name, arguments, proposed_taint)"
+                " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (approval_id, token.actor, ch.scope_path,
                  self._writes.binding_for(scope_path, tool_name).identity(),
                  plan.declared_risk.name, plan.identity(), PENDING,
                  # The five things section 6 requires, in plain language.
                  action_text, why_text, cost_text, if_wrong_text,
                  arguments.get("item_ref"), arguments.get("body"),
-                 tool_name, json.dumps(arguments)),
+                 tool_name, json.dumps(arguments),
+                 taint.to_row() if taint is not None else None),
             )
         return approval_id
 
@@ -141,7 +167,7 @@ class ApprovalService:
 
     _COLUMNS = ("approval_id, scope_path, plan_identity, risk_class, status,"
                 " action_text, why_text, cost_text, if_wrong_text, item_ref, body,"
-                " actor_ref, decided_by, tool_name, arguments")
+                " actor_ref, decided_by, tool_name, arguments, proposed_taint")
 
     def _row_to_request(self, row) -> ApprovalRequest:
         return ApprovalRequest(*row)
@@ -189,8 +215,16 @@ class ApprovalService:
         # I-112 / I-109: reconstruct the plan from the stored arguments and
         # require the identity James saw. A request edited after the fact --
         # or pointed at another action -- no longer matches and cannot execute.
+        #
+        # The STORED taint is used, not a recomputed one (ADR 0048). It plays
+        # no part in the identity -- I-112's material changes are step,
+        # resource, right, risk class, scope, tool and cost -- so supplying it
+        # cannot make a plan James approved stop matching. It is carried
+        # because everything downstream must decide against the origin he was
+        # shown rather than against whatever the scope holds now.
+        proposed_taint = request.taint()
         plan = self._writes.plan_for_action(request.scope_path, request.tool_name,
-                                            request.plan_arguments())
+                                            request.plan_arguments(), proposed_taint)
         if plan.identity() != request.plan_identity:
             raise Denied("approval.decide",
                          "plan identity differs from the approved plan", "I-112", True)
@@ -221,11 +255,34 @@ class ApprovalService:
 
         # I-09's act, recorded. The PDP still decides: this is an INPUT to
         # step 9, and execute() re-runs the full ten steps below it.
-        self._writes.approvals.james_approves(plan.identity())
+        #
+        # The approval NAMES the external sources present in the taint James
+        # was shown (I-40). Taken from the stored taint rather than from the
+        # plan's, so the sources named are the ones on the card he read; a
+        # legacy row with no stored taint names nothing, which is what an
+        # approval that predates the evidence requirement is worth.
+        names = (proposed_taint.external_sources()
+                 if proposed_taint is not None else frozenset())
+        self._writes.approvals.james_approves(plan.identity(), names)
+
+        # ADR 0048's evidence. Assembled ONLY here, from the durable row --
+        # never from anything the caller passes in -- and required by the one
+        # elevation call site downstream. `content_leaves` is the same
+        # computation the approval card uses to decide what to render, so the
+        # elevation cannot claim an inspection the card did not offer.
+        evidence = None
+        if proposed_taint is not None:
+            evidence = ApprovalEvidence(
+                approval_id=request.approval_id,
+                approved_by=decided_by,
+                proposed_taint=proposed_taint,
+                content_leaves=self._writes.content_leaves(request.tool_name),
+            )
         try:
             outcome = self._writes.execute_action(token, request.scope_path,
                                                   request.tool_name,
-                                                  request.plan_arguments())
+                                                  request.plan_arguments(),
+                                                  proposed_taint, evidence)
         except Exception:
             # Terminal either way. The approval stays spent -- `consumed_at`
             # is never cleared -- so a failure requires a fresh decision

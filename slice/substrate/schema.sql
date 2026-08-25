@@ -146,6 +146,22 @@ ALTER TABLE approval
     -- reconstruct exactly as before.
     ADD COLUMN IF NOT EXISTS tool_name      text NOT NULL DEFAULT 'write_item',
     ADD COLUMN IF NOT EXISTS arguments      jsonb,
+    -- ADR 0048. The HONEST taint of the content at proposal time -- the union
+    -- of what the proposer read plus its own provenance -- serialized with the
+    -- existing `Taint.to_row()`. No new serialization, no content hash (the
+    -- plan identity already hashes every argument), no `content_visible` flag
+    -- (a flag is the UI's claim about itself; visibility is derived from the
+    -- tool's own EXPRESSIVE declaration instead).
+    --
+    -- It is stored rather than recomputed because an elevation must be
+    -- attributable to the taint James was actually shown. Recomputing it at
+    -- execution would read a scope that may have changed since he looked.
+    --
+    -- NULLABLE, and NULL means UNKNOWN: rows written before ADR 0048 have no
+    -- recorded taint, so they execute at the derived taint and can never
+    -- elevate. Not backfilled -- inventing evidence of an inspection that may
+    -- never have happened is precisely what ADR 0048 forbids.
+    ADD COLUMN IF NOT EXISTS proposed_taint text,
     -- SINGLE USE (I-09). An approval is James's act for ONE execution, not a
     -- durable permission. NULL means unspent; once set it is never cleared,
     -- and no path re-offers the row. The column is the DURABLE half of the
