@@ -63,12 +63,31 @@ class RevocationRegistry:
 
         WHERE THE AUTHORITY'S SCOPE COMES FROM. A ContextToken carries exactly
         one `scope_path`, and the Data-Access Boundary binds the channel to it,
-        so `item.scope_path` IS the scope of the token that wrote the row. One
+        so a row's `scope_path` IS the scope of the token that wrote it. One
         execution identity can therefore only ever have written at one scope,
-        and `item.creating_authority` -- persisted by I-111 -- is the durable
-        record of which. This DERIVES the scope from evidence the system
-        already keeps; it does not ask the caller, because a caller-supplied
-        scope is exactly the mistake above with a parameter in front of it.
+        and `creating_authority` -- persisted by I-111 -- is the durable record
+        of which. This DERIVES the scope from evidence the system already
+        keeps; it does not ask the caller, because a caller-supplied scope is
+        exactly the mistake above with a parameter in front of it.
+
+        EVERY I-111-BEARING TABLE, NOT JUST `item` (F-9). ADR 0049 made a task
+        title CONTENT and gave `task` the same five columns, including
+        `creating_authority`, and `_establish` checks a task's authority
+        against this registry like any other row's. While the derivation read
+        `item` alone, an authority that wrote only a task -- which is EVERY
+        task-writing authority, since each approval decision mints its own
+        execution token -- produced zero rows here, failed the guard below, and
+        could never be revoked at all. The check downstream still ran and still
+        answered "not revoked", every time, forever: a fail-closed reader
+        defaulting open because the writing half could not reach it.
+
+        The UNION is therefore the single definition of "where has this
+        authority persisted content", covering both tables in ONE query. Not a
+        second mechanism and not a per-table branch: a new I-111-bearing table
+        joins this union, and nothing else changes. The union cannot widen the
+        answer -- one token binds one scope, so both halves can only ever agree
+        -- and it reads through the revoker's own bound channel exactly as
+        before, so RLS still decides what is derivable.
 
         The derivation reads through the revoker's own bound channel, so RLS
         decides what is derivable: an authority whose work lies outside the
@@ -86,8 +105,10 @@ class RevocationRegistry:
         """
         with self._boundary.open(token) as ch:
             scopes = ch.fetch(
-                "SELECT DISTINCT scope_path FROM item WHERE creating_authority = %s",
-                (execution_identity,))
+                "SELECT DISTINCT scope_path FROM item WHERE creating_authority = %s"
+                " UNION"
+                " SELECT DISTINCT scope_path FROM task WHERE creating_authority = %s",
+                (execution_identity, execution_identity))
             if len(scopes) != 1:
                 raise Denied(
                     "revocation.scope",
