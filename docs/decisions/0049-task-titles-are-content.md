@@ -1,22 +1,26 @@
 # 0049 — Task Titles Are Content, Not Control State
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-25
 **Proposed:** 2026-08-25 — drafted by an agent on James's F-2 decision of 2026-08-25
+**Accepted:** 2026-08-25 — by James, at the ADR Decision Gate, on the review recorded below
 **Section:** 07 — applies `I-111` to a second persisted entity; governed by `I-110`
 **Governance class:** **C3** — a domain-model classification
 ([`IDENTITY_AND_AUTHORITY.md`](../architecture/IDENTITY_AND_AUTHORITY.md) §4), so James's
-approval **and** an ADR are required
-**Decision owner:** James. Drafted `Proposed` by an agent; only James moves it to `Accepted`
-(`decisions/README.md`, *Authority*).
+approval **and** an ADR were required, and both are recorded here
+**Decision owner:** James. Drafted `Proposed` by an agent and moved to `Accepted` only on
+James's explicit decision (`decisions/README.md`, *Authority*).
 **Resolves:** **F-2** — the task-content provenance gap left open by
 [ADR 0048](./0048-provenance-and-trust-of-an-approved-write.md)
 **Relates to:** `I-111`, `I-110`, `I-112`, `I-40`, `I-99`, `I-27`, `I-09`; ADRs
 [0036](./0036-tool-declarations-are-claims-not-facts.md),
 [0048](./0048-provenance-and-trust-of-an-approved-write.md)
 
-> **IMPLEMENTATION STATUS: NOT IMPLEMENTED at the time of drafting.** This ADR records a
-> decision. An implementation record is appended below the decision and is clearly separated
-> from it; nothing above that separator describes code.
+> **IMPLEMENTATION STATUS: IMPLEMENTED, PENDING MERGE.** This ADR was drafted `Proposed`
+> before implementation, accepted on 2026-08-25, and the implementation is on
+> `feature/adr-0049-task-content-provenance` (PR #10), **not yet merged to `main`**.
+>
+> An implementation record is appended below the decision and is clearly separated from it;
+> **nothing above that separator describes code**, and the record decides nothing.
 
 ---
 
@@ -226,7 +230,10 @@ special-case rule that lets a task reach `HIGHEST` more easily than an item.
 
 ## Date
 
-**2026-08-25** — proposed. Not accepted at time of writing.
+**2026-08-25** — proposed and accepted. Option A chosen by James, with row-level provenance
+as the mutable-task model, and the three properties recorded above kept distinct: a withheld
+task stays visible to James unchanged, its title is withheld from model context, and neither
+affects his authorization to act on it.
 
 ---
 
