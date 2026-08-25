@@ -489,9 +489,28 @@ class PostgresItemIntegration:
                     ref = payload["task_ref"]
                     # Conditional on done_at IS NULL: a retry is a no-op at the
                     # provider, which is what `idempotent=True` claims.
+                    #
+                    # PINNED TO `ch.scope_path`, like every other branch here,
+                    # and for the same reason (F-10). `task_ref` is unique only
+                    # per (scope_path, task_ref), while a channel reaches its
+                    # own scope AND every descendant -- so without this
+                    # predicate one approval closed every task sharing the ref
+                    # anywhere beneath it. Measured: an approval decided at
+                    # /business closed /business/client-a's task of the same
+                    # ref, in one statement, leaving a single audit record
+                    # naming only /business. That is an approval for one
+                    # resource executing against several (I-109, I-112) and a
+                    # scope mutated with no record in it (I-49).
+                    #
+                    # RLS is unchanged and is still what makes another scope
+                    # unreachable; this narrows the statement to the ONE row
+                    # the approval named. From the CHANNEL, never the payload:
+                    # a payload-supplied scope would be a caller naming its own
+                    # target, which is the shape every other branch refuses.
                     ch.execute(
                         "UPDATE task SET done_at = now()"
-                        " WHERE task_ref = %s AND done_at IS NULL", (ref,))
+                        " WHERE task_ref = %s AND scope_path = %s"
+                        " AND done_at IS NULL", (ref, ch.scope_path))
                     detail, said = f"task_ref={ref}", f"completed task {ref}"
                 else:
                     ref = payload["item_ref"]
