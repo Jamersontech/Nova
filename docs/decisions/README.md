@@ -596,6 +596,30 @@ own. The browser holds one opaque reference; the database stores only its hash. 
 changed and the authorization system was not redesigned around authentication** — it terminates at
 an authenticated server identity and everything below is untouched.
 
+## The write half of `I-111` — ADR `0048` (**Accepted** 2026-08-24)
+
+**`0048` — What provenance, trust and classification does an approved write carry?** A **C3**
+decision under `I-110`, raised by the post-merge hostile review of PR #6. `I-111`'s retrieval and
+persistence half is enforced; its **write-side construction was not** —
+`WritePath.plan_for_action()` carries a constant `Taint.of("james.stated")`, so every approved item
+persists as `james.stated`/`HIGHEST`/`INTERNAL` regardless of what influenced the model, and the
+note approval card never exposes the body James is approving. Reproduced end-to-end against real
+PostgreSQL: low-trust content round-trips through an approval and returns as high-trust content no
+one stated.
+
+**Decided: Option C — content-visible approval.** An approved write may receive elevated
+provenance/trust **only** when the exact content persisted was identifiable and inspectable before
+approval, the approval is bound to that content and plan identity, the elevation is attributable to
+that approval evidence, and any post-approval change invalidates the approval. Where any of the
+five properties is absent the write is persisted at its **derived** taint — non-elevation is the
+default, and elevation is earned. The principle underneath it: **authorization to persist content
+and evidence about that content's provenance are separate security properties.**
+
+**Implementation does not exist.** The decision fixes the security semantics that implementation
+must satisfy; the shipped write path still exhibits the documented behaviour, and the label, trust
+level, classification and audit evidence are settled during implementation design under `I-110`.
+Task provenance is explicitly downstream of this ADR; revocation findings are outside it.
+
 ---
 
 Decisions that were consciously postponed are tracked separately in
