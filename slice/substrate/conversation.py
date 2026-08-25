@@ -98,6 +98,20 @@ _MARKERS = (
 )
 _ANY_MARKER = re.compile(r'\[\[[A-Z_]+[^\]]*\]\]')
 
+# F-13 / `S7-D5`. The per-row revocation label. ONE constant, so the marker the
+# block renders and the marker anything asserts about it cannot drift.
+#
+# Deliberately not a `[[MARKER]]`: those are the grammar the SERVER parses out
+# of MODEL output, and this travels the other way. Deliberately not a
+# provenance term either -- revocation is a later fact ABOUT an authority, not
+# an origin, and `I-38` makes provenance immutable.
+_REVOKED_MARK = "  [creating authority revoked]"
+
+
+def _mark(revoked: bool) -> str:
+    """The label, or nothing. Deterministic and per row (F-13)."""
+    return _REVOKED_MARK if revoked else ""
+
 _INSTRUCTIONS = """\
 You are NOVA, James's private operating system. You are speaking with James \
 inside ONE scope of his life; the scope path and its current data are below. \
@@ -160,11 +174,16 @@ class ConversationService:
     def _establish(rows, revoked):
         """I-111's read half: restore the persisted security state, or withhold.
 
-        An item reaches the model ONLY when every component of its security
-        state was actually recorded and can be checked. Each of these is a
-        separate reason to withhold, and none of them is recoverable by
-        inference -- which is the point. Guessing any of them would invent
-        authority at read time, and `I-110` exists to forbid exactly that.
+        Returns `(kept, withheld)`, where each kept row is
+        `(ref, content, taint, revoked_authority)` -- the restored taint, and
+        BESIDE it a structured flag for a fact that is not part of the taint.
+
+        UNKNOWN AND REVOKED ARE DIFFERENT (F-13). That distinction is the whole
+        of `S7-D5` -- ADR 0033 §4, and `MEMORY_MODEL.md` §4 rule 8.
+
+        WITHHELD -- the security state CANNOT BE ESTABLISHED. Each of these is
+        a separate reason, and none is recoverable by inference; guessing any
+        of them would invent authority at read time, which `I-110` forbids.
 
             provenance / trust / classification NULL  unknown taint
             delegation_ancestry NULL                  unknown lineage
@@ -174,7 +193,6 @@ class ConversationService:
                                                       establishable from this
                                                       scope (I-03/I-86), so the
                                                       lookup is incomplete
-            creating_authority in `revoked`           revoked author (S7-D5)
 
         The ancestry rule is the subtle one. A delegate's ancestors may have
         executed in BROADER scopes, whose revocation records a channel bound
@@ -187,17 +205,37 @@ class ConversationService:
         Legacy rows (written before I-111) have NULL throughout and are
         withheld by the first rule. They are not backfilled, not assumed to be
         `james.stated`, and not treated as trusted.
+
+        LABELLED -- the authority IS established, and is established as
+        REVOKED. `MEMORY_MODEL.md` §4 rule 8 and ADR 0033 §4 (`S7-D5`): such a row
+        is "RETAINED... and its revocation state is EXPOSED at retrieval.
+        Nothing is automatically deleted, downgraded, invalidated, promoted, or
+        reclassified... The CONSUMING AUTHORITY decides", because "revocation
+        happens for many reasons and only some impeach what was learned".
+
+        This USED to withhold, in the same branch as the five unknowns above.
+        That applied a rule for UNKNOWN state to KNOWN state: nothing here is
+        unestablishable -- the revocation record was found. F-13 separates
+        them.
+
+        WHY A FLAG AND NOT PROVENANCE. Revocation is not an ORIGIN; it is a
+        later fact ABOUT an authority. Putting it in `provenance` would make a
+        set `I-38` calls immutable change after the fact, and would read as if
+        the content came from somewhere it did not. Trust and classification
+        are untouched for the same reason rule 8 gives: revocation "does not
+        re-weight". The row is returned exactly as it was established, plus one
+        additional fact about it.
         """
         kept, withheld = [], 0
         for ref, body, provenance, trust, classification, ancestry, author in rows:
             if (provenance is None or trust is None or classification is None
                     or ancestry is None or author is None
-                    or ancestry            # ancestors unestablishable from here
-                    or author in revoked):
+                    or ancestry):          # ancestors unestablishable from here
                 withheld += 1
                 continue
             kept.append((ref, body, Taint(frozenset(provenance), Trust(trust),
-                                          Classification(classification))))
+                                          Classification(classification)),
+                         author in revoked))
         return kept, withheld
 
     def _scope_context(self, token: ContextToken, scope_path: str):
@@ -274,6 +312,14 @@ class ConversationService:
             tasks, tasks_withheld = self._establish(
                 [(r[0], (r[1], r[2]), r[3], r[4], r[5], r[6], r[7])
                  for r in task_rows], revoked)
+            # F-13 / `S7-D5`. REVOKED and UNESTABLISHABLE are different facts,
+            # counted separately here and reported separately below. Collapsing
+            # them is what the previous version did, and it made the withheld
+            # sentence FALSE for a revoked row: its provenance, trust and
+            # creating authority are all established -- the authority is
+            # established AS REVOKED.
+            revoked_items = sum(1 for *_, rev in items if rev)
+            revoked_tasks = sum(1 for *_, rev in tasks if rev)
             pending = ch.fetch(
                 "SELECT count(*) FROM approval WHERE status = 'pending'")[0][0]
             event_identity = hashlib.sha256(
@@ -287,20 +333,44 @@ class ConversationService:
                 (event_identity, scope_path, token.trace_id, token.actor,
                  f"conversation context items={len(items)} tasks={len(tasks)}"
                  + (f" withheld={withheld + tasks_withheld}"
-                    if withheld or tasks_withheld else "")))
+                    if withheld or tasks_withheld else "")
+                 # F-13: recorded separately, never folded into `withheld`.
+                 # A revoked row was RETAINED, so counting it as withheld
+                 # would make the audit record say the opposite of what
+                 # happened.
+                 + (f" revoked_authority={revoked_items + revoked_tasks}"
+                    if revoked_items or revoked_tasks else "")))
         lines = [f"Scope: {scope_path}",
                  f"Pending approvals awaiting James: {pending}"]
         if tasks:
             lines.append("Open tasks in this scope (ref, title, due):")
-            lines += [f"  - {ref} | {title} | due {due or 'no date'}"
-                      for ref, (title, due), _ in tasks]
+            lines += [f"  - {ref} | {title} | due {due or 'no date'}{_mark(rev)}"
+                      for ref, (title, due), _, rev in tasks]
         else:
             lines.append("No open tasks in this scope.")
         if items:
             lines.append("Notes in this scope:")
-            lines += [f"  - {ref}: {body}" for ref, body, _ in items]
+            lines += [f"  - {ref}: {body}{_mark(rev)}"
+                      for ref, body, _, rev in items]
         else:
             lines.append("This scope has no notes yet.")
+        if revoked_items or revoked_tasks:
+            # The rows above are SHOWN, with their recorded state unchanged.
+            # What NOVA adds is one further fact, and it deliberately draws no
+            # conclusion from it: `MEMORY_MODEL.md` §4 rule 8 reserves that
+            # judgement for the consuming authority, because "revocation
+            # happens for many reasons and only some impeach what was learned".
+            parts = ([f"{revoked_items} note(s)"] if revoked_items else []) + \
+                    ([f"{revoked_tasks} task(s)"] if revoked_tasks else [])
+            lines.append(f"{' and '.join(parts)} above are marked"
+                         f" {_REVOKED_MARK.strip()}: the execution identity that"
+                         " created them was later revoked. They are retained and"
+                         " shown with their recorded provenance, trust and"
+                         " classification UNCHANGED -- revocation is not a"
+                         " judgement about the content. Treat it as information,"
+                         " not as authority to act or to refuse: what it means"
+                         " is decided where a consequential action is"
+                         " authorized, never here.")
         if withheld or tasks_withheld:
             # Said plainly rather than hidden: NOVA reports that it cannot
             # vouch for something, instead of quietly answering as though the
@@ -309,6 +379,9 @@ class ConversationService:
             # Counted separately because they are different objects to James:
             # a withheld task is still on his attention surface and still
             # completable, while a withheld note is simply not shown here.
+            #
+            # This sentence now covers ONLY unestablishable rows. A revoked
+            # authority is established, and is labelled above instead.
             parts = ([f"{withheld} note(s)"] if withheld else []) + \
                     ([f"{tasks_withheld} task(s)"] if tasks_withheld else [])
             lines.append(f"{' and '.join(parts)} in this scope are withheld:"
@@ -355,7 +428,10 @@ class ConversationService:
             Taint.of("james.stated", Classification.CONFIDENTIAL),
             Taint.of(UNKNOWN_ORIGIN, Classification.CONFIDENTIAL),
         )
-        contributed = [t for _, _, t in items] + [t for _, _, t in tasks]
+        # A revoked row contributes EXACTLY what it always did. `S7-D5`: the
+        # row is retained and not re-weighted, so its taint joins this union
+        # unchanged -- revocation is carried beside the taint, never inside it.
+        contributed = [t for _, _, t, _ in items] + [t for _, _, t, _ in tasks]
         taint = Taint.union(base, *contributed) if contributed else base
         return "\n".join(lines), taint
 

@@ -48,7 +48,8 @@ from .. import db, tree_store
 from ..approval_flow import ApprovalService
 from ..attention import AttentionService
 from ..boundary import DataAccessBoundary
-from ..conversation import CONVERSATION_MODEL, PROVIDER, ConversationService
+from ..conversation import (CONVERSATION_MODEL, PROVIDER, ConversationService,
+                            _REVOKED_MARK)
 from ..revocation import RevocationRegistry
 from ..seam import Seam
 from ..write_path import (ADD_SCOPE, ADD_TASK, COMPLETE_TASK,
@@ -418,7 +419,8 @@ class ScopeNameAttributionTest(unittest.TestCase):
 
     def test_13_f9_task_authority_revocation_is_intact(self):
         """F-9: a task-only authority is still revocable, and revocation still
-        withholds the title from model context."""
+        reaches model context -- as a label since ADR 0051 (F-13), which is
+        what `S7-D5` requires."""
         authority = self.task(BUSINESS, "t1", "MARKER-TASK-call-the-supplier")
         self.assertEqual([], self.sql("SELECT 1 FROM item"))
         self.revocations.revoke(self.token(BUSINESS), authority,
@@ -427,7 +429,9 @@ class ScopeNameAttributionTest(unittest.TestCase):
             "SELECT scope_path FROM authority_revocation"
             " WHERE execution_identity = %s", (authority,)))
         context, _ = self.block(BUSINESS)
-        self.assertNotIn("MARKER-TASK-call-the-supplier", context)
+        self.assertIn("MARKER-TASK-call-the-supplier", context)
+        self.assertIn(_REVOKED_MARK.strip(), context,
+                      "revocation did not reach model context")
 
     def test_14_f10_completion_is_still_scope_pinned(self):
         """F-10: one approval closes one task, in one scope."""

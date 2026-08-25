@@ -32,7 +32,7 @@ did not.
 
 WHAT NEITHER FIX CHANGES. RLS is still what makes another scope unreachable;
 neither of these statements was ever the isolation control, and neither becomes
-one. Human visibility is unchanged (ADR 0049): a revoked task is withheld from
+one. Human visibility is unchanged (ADR 0049); a revoked task is labelled in
 the MODEL and stays on James's surfaces. Asserted below in both directions.
 
 Skips without PostgreSQL -- never passes without its subject.
@@ -50,7 +50,8 @@ from .. import db, tree_store
 from ..approval_flow import ApprovalService
 from ..attention import AttentionService
 from ..boundary import DataAccessBoundary
-from ..conversation import CONVERSATION_MODEL, PROVIDER, ConversationService
+from ..conversation import (CONVERSATION_MODEL, PROVIDER, ConversationService,
+                            _REVOKED_MARK)
 from ..revocation import RevocationRegistry
 from ..seam import Seam
 from ..write_path import (ADD_TASK, COMPLETE_TASK, PostgresItemIntegration,
@@ -236,10 +237,15 @@ class AuthorityScopeAndCompletionScopeTest(unittest.TestCase):
                      " WHERE execution_identity=%s", (authority,)),
             "the revocation was not filed at the authority's own scope")
 
-    def test_02_a_revoked_task_authority_withholds_the_title(self):
+    def test_02_a_revoked_task_authority_labels_the_title(self):
         """Revocation has to REACH the reader, not merely be recorded. The
-        title is content (ADR 0049), so a revoked authority withholds it from
-        model context exactly as it withholds an item's body."""
+        title is content (ADR 0049), so a revoked authority labels it in model
+        context exactly as it labels an item's body.
+
+        ADR 0051 (F-13) changed the observable effect from absence to a label:
+        `S7-D5` retains the row and exposes its revocation state. The property
+        this test protects -- that F-9's fix makes revocation reach the reader
+        at all -- is unchanged."""
         authority = self.add_task(BUSINESS, "t-1", TASK_TITLE)
         self.assertIn(TASK_TITLE, self.prompt_after_a_turn(BUSINESS),
                       "the title never reached the model, so withholding it"
@@ -249,12 +255,15 @@ class AuthorityScopeAndCompletionScopeTest(unittest.TestCase):
                                 revoked_by="james")
 
         prompt = self.prompt_after_a_turn(BUSINESS)
-        self.assertNotIn(TASK_TITLE, prompt,
-                         "a revoked authority's task title reached the model")
-        self.assertIn("withheld", prompt,
-                      "the withholding was silent -- NOVA must say it cannot"
-                      " vouch for something rather than answer as though the"
-                      " scope were emptier than it is")
+        self.assertIn(TASK_TITLE, prompt,
+                      "a revoked authority's task title was withheld -- S7-D5"
+                      " requires it retained and labelled")
+        self.assertIn(_REVOKED_MARK.strip(), prompt,
+                      "the revocation was silent -- NOVA must say what it knows"
+                      " about the row rather than answer as though nothing had"
+                      " changed")
+        self.assertNotIn("cannot be established", prompt,
+                         "a revoked authority was called unestablishable")
         self.assertIsNotNone(authority)
 
     def test_03_a_revoked_task_is_still_visible_to_james(self):
@@ -287,7 +296,13 @@ class AuthorityScopeAndCompletionScopeTest(unittest.TestCase):
             [(BUSINESS,)],
             self.sql("SELECT scope_path FROM authority_revocation"
                      " WHERE execution_identity=%s", (executor.trace_id,)))
-        self.assertNotIn(NOTE_BODY, self.prompt_after_a_turn(BUSINESS))
+        # ADR 0051 (F-13): the effect of revocation is a LABEL, not an absence.
+        # What this test is about -- that an item-only authority is revocable
+        # at all -- is asserted above and unchanged.
+        prompt = self.prompt_after_a_turn(BUSINESS)
+        self.assertIn(NOTE_BODY, prompt)
+        self.assertIn(_REVOKED_MARK.strip(), prompt,
+                      "revocation did not reach model context")
 
     def test_05_one_authority_across_both_tables_resolves_to_one_scope(self):
         """A token binds ONE scope, so both halves of the union can only ever
@@ -314,9 +329,16 @@ class AuthorityScopeAndCompletionScopeTest(unittest.TestCase):
             [(BUSINESS,)],
             self.sql("SELECT scope_path FROM authority_revocation"
                      " WHERE execution_identity=%s", (authority,)))
+        # ADR 0051 (F-13): both rows are retained and both are labelled. The
+        # subject of this test -- that the UNION deduplicates to one scope
+        # rather than tripping the guard -- is asserted above and unchanged.
         prompt = self.prompt_after_a_turn(BUSINESS)
-        self.assertNotIn(NOTE_BODY, prompt)
-        self.assertNotIn(TASK_TITLE, prompt)
+        self.assertIn(NOTE_BODY, prompt)
+        self.assertIn(TASK_TITLE, prompt)
+        for marker in (NOTE_BODY, TASK_TITLE):
+            line = next(l for l in prompt.splitlines() if marker in l)
+            self.assertIn(_REVOKED_MARK.strip(), line,
+                          f"the row carrying {marker} was not labelled")
 
     def test_06_an_authority_that_wrote_nothing_still_fails_closed(self):
         """The guard is UNCHANGED. With no evidence in either table there is
