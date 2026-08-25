@@ -201,9 +201,44 @@ class ConversationService:
 
     def _scope_context(self, token: ContextToken, scope_path: str):
         """What this scope knows, gathered EXACTLY as a page render would:
-        PDP data-read decision first, then a scope-bound channel, no
-        application-side predicate, audit in the same transaction. The model
-        is downstream of the same controls as a screen."""
+        PDP data-read decision first, then a scope-bound channel, audit in the
+        same transaction. The model is downstream of the same controls as a
+        screen.
+
+        ONE SCOPE'S CONTENT, NOT A SUBTREE'S (F-12, `I-95`). The content reads
+        carry an explicit `scope_path = %s`, which is NOT the isolation control
+        -- RLS is, and it is still what makes another scope's rows unreachable.
+        It is the DECOMPOSITION rule, exactly as `attention.py` states it: a
+        token covers its descendants, so without the predicate a conversation
+        at a parent assembled every descendant's rows into ONE model request,
+        and two sibling clients' CLIENT-CONFIDENTIAL content left NOVA
+        correlated in one buffer to one provider. Measured before this existed.
+
+        Containment and isolation are different properties and both hold here.
+        Containment is unchanged: the token may still cover descendants, and
+        ancestor-to-descendant authorization for reads and writes elsewhere is
+        untouched. Isolation is what this predicate expresses -- covered
+        content may be reached, but sibling content may not be CORRELATED in
+        one provider request (`I-95`, `CROSS_SCOPE_DATA_RULES` §2 and §6,
+        `CONTEXT_ARCHITECTURE` §6, `SECURITY_BOUNDARIES` §3). Cross-scope work
+        reaching a model is N single-scope calls aggregated above them; this
+        method is one of those calls.
+
+        UNIFORM ACROSS SIBLINGS, with no scope-kind special case: `I-95` says
+        "sibling content", not "client content", and reasoning about `kind`
+        here would be a second security semantics the architecture does not
+        have.
+
+        The subtree-wide counts below are deliberately UNCHANGED. A count in
+        which no scope is identifiable is permitted aggregation
+        (`CROSS_SCOPE_DATA_RULES` §3), and narrowing them is not part of the
+        decomposition rule.
+
+        The predicate is bound from `ch.scope_path` -- the channel's own
+        binding, established by the Data-Access Boundary from a verified token
+        -- and never from a payload, a model-supplied argument, a ref, or any
+        caller-supplied string. A caller naming its own scope is the shape
+        every write branch already refuses."""
         self._pdp.authorize_data_read(token, scope_path)
         with self._boundary.open(token) as ch:
             # I-111: the persisted security state comes back WITH the row. It
@@ -212,7 +247,8 @@ class ConversationService:
             rows = ch.fetch(
                 "SELECT item_ref, body, provenance, trust, classification,"
                 " delegation_ancestry, creating_authority"
-                " FROM item ORDER BY item_ref")
+                " FROM item WHERE scope_path = %s ORDER BY item_ref",
+                (ch.scope_path,))
             # Revocation is looked up ONCE, for the authorities this scope's
             # own rows name, through this same bound channel (S7-D5). RLS is
             # the completeness boundary: an authority whose revocation record
@@ -231,8 +267,9 @@ class ConversationService:
             task_rows = ch.fetch(
                 "SELECT task_ref, title, due_on, provenance, trust, classification,"
                 " delegation_ancestry, creating_authority"
-                " FROM task WHERE done_at IS NULL"
-                " ORDER BY due_on NULLS LAST, task_ref")
+                " FROM task WHERE done_at IS NULL AND scope_path = %s"
+                " ORDER BY due_on NULLS LAST, task_ref",
+                (ch.scope_path,))
             tasks, tasks_withheld = self._establish(
                 [(r[0], (r[1], r[2]), r[3], r[4], r[5], r[6], r[7])
                  for r in task_rows], revoked)
