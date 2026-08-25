@@ -40,7 +40,8 @@ import unittest
 from .. import db, tree_store
 from ..approval_flow import ApprovalService
 from ..boundary import DataAccessBoundary
-from ..conversation import (CONVERSATION_MODEL, PROVIDER, ConversationService)
+from ..conversation import (CONVERSATION_MODEL, PROVIDER, ConversationService,
+                            _REVOKED_MARK)
 from ..revocation import RevocationRegistry
 from ..seam import Seam
 from ..write_path import (PostgresItemIntegration, WritePath, write_item_tool,
@@ -303,19 +304,29 @@ class ProvenancePersistenceTest(unittest.TestCase):
     # 12-15 -- revocation, and its durability
     # =======================================================================
 
-    def test_12_a_revoked_creating_authority_withholds(self):
+    def test_12_a_revoked_creating_authority_is_labelled(self):
+        """ADR 0051 (F-13) reversed this. `S7-D5` says a row created under a
+        revoked authority is RETAINED and its revocation state EXPOSED at
+        retrieval -- it used to be withheld, in the same branch as rows whose
+        state cannot be established. The property is unchanged: revocation
+        REACHES the reader. What changed is that it arrives as a label rather
+        than as an absence."""
         token = self.write_through_the_real_path()
         self.assertIn(MARKER, self.prompt_after_a_turn(),
                       "the control failed: the item never reached the model")
 
         self.revocations.revoke(self.token(), token.trace_id, revoked_by="james")
-        self.assertNotIn(MARKER, self.prompt_after_a_turn(),
-                         "a revoked authority's item still reached the model")
+        prompt = self.prompt_after_a_turn()
+        self.assertIn(MARKER, prompt,
+                      "a revoked authority's item was withheld -- S7-D5"
+                      " requires it retained and labelled")
+        self.assertIn(_REVOKED_MARK.strip(), prompt,
+                      "revocation did not reach the reader at all")
 
     def test_13_revocation_survives_restart(self):
         """The whole reason the registry is durable. A fresh ContextService --
         an empty in-memory revoked set, exactly as after a restart -- must
-        still withhold, because the TABLE is the authority."""
+        still LABEL, because the TABLE is the authority (ADR 0051)."""
         token = self.write_through_the_real_path()
         self.revocations.revoke(self.token(), token.trace_id, revoked_by="james")
 
@@ -328,8 +339,9 @@ class ProvenancePersistenceTest(unittest.TestCase):
                          "the fixture did not actually simulate a restart")
 
         prompt = self.prompt_after_a_turn()
-        self.assertNotIn(MARKER, prompt,
-                         "revocation did not survive restart")
+        self.assertIn(_REVOKED_MARK.strip(), prompt,
+                      "revocation did not survive restart")
+        self.assertIn(MARKER, prompt, "the row was withheld rather than labelled")
 
     def test_14_deleting_the_item_does_not_erase_the_revocation(self):
         """Revocation is AUTHORITY state, not item lineage (ADR 0013). An
@@ -536,7 +548,7 @@ class ProvenancePersistenceTest(unittest.TestCase):
                       delegation_ancestry=[], creating_authority=author.trace_id)
         return author
 
-    def test_21_revoking_from_an_ancestor_scope_still_withholds(self):
+    def test_21_revoking_from_an_ancestor_scope_still_labels(self):
         """TEST A -- the exploit that used to succeed.
 
         The authority executed in /life/fitness. James revokes it while
@@ -544,7 +556,11 @@ class ProvenancePersistenceTest(unittest.TestCase):
         were filed at the REVOKER's scope it would be invisible to a read
         bound at /life/fitness -- a complete, authorized, successful lookup
         returning nothing, read as "not revoked", and the content would go to
-        the model. Nothing would fail and nothing would log."""
+        the model UNLABELLED. Nothing would fail and nothing would log.
+
+        ADR 0051 (F-13) changed the observable effect from absence to a label;
+        the property under test -- that the record is filed where a narrower
+        read can see it -- is unchanged."""
         author = self.authored_item(FITNESS, "fit-note", MARKER)
 
         # Revoke from the ANCESTOR scope.
@@ -558,8 +574,9 @@ class ProvenancePersistenceTest(unittest.TestCase):
                          " authority's -- narrower scopes cannot see it")
 
         prompt = self.prompt_after_a_turn(FITNESS)
-        self.assertNotIn(MARKER, prompt,
-                         "a revoked authority's item reached the model")
+        self.assertIn(_REVOKED_MARK.strip(), prompt,
+                      "a revoked authority's item reached the model UNLABELLED")
+        self.assertIn(MARKER, prompt, "the row was withheld rather than labelled")
 
     def test_22_a_sibling_scopes_revocation_is_not_visible(self):
         """TEST B -- and the fix must not have widened the lookup to find it.
@@ -622,7 +639,9 @@ class ProvenancePersistenceTest(unittest.TestCase):
         self.assertEqual([(FITNESS,)],
                          self.sql("SELECT scope_path FROM authority_revocation"
                                   " WHERE execution_identity=%s", (author.trace_id,)))
-        self.assertNotIn(MARKER, self.prompt_after_a_turn(FITNESS))
+        prompt = self.prompt_after_a_turn(FITNESS)
+        self.assertIn(_REVOKED_MARK.strip(), prompt)
+        self.assertIn(MARKER, prompt)
 
     def test_26_the_caller_cannot_choose_the_recorded_scope(self):
         """TEST E -- the scope is DERIVED from durable evidence, not supplied.
