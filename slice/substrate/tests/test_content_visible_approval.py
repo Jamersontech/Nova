@@ -228,7 +228,17 @@ class ContentVisibleApprovalTest(unittest.TestCase):
         text, taint = self.conversation._scope_context(read, LIFE)
         self.assertIn(BODY, text)
         self.assertIn(APPROVED_PROVENANCE, taint.provenance)
-        self.assertEqual(Trust.HIGHEST, taint.trust)
+        # The ROW's elevation is what this test is about, and it survives: the
+        # restored `james.approved` reaches the block above. The BLOCK's trust
+        # is now LOW because ADR 0050 (F-11) lowered the base -- `I-99` union
+        # takes the lowest contributor, and a lower block trust can only
+        # tighten downstream gates, never loosen one. The row itself is still
+        # HIGHEST; test_04 asserts that directly.
+        self.assertEqual(Trust.LOW, taint.trust)
+        self.assertEqual(
+            [(int(Trust.HIGHEST),)],
+            self.sql("SELECT trust FROM item WHERE item_ref='it-1'"),
+            "the elevated ROW lost its trust")
 
     def test_07_the_elevation_is_audited(self):
         """I-110 requires a promotion to RECORD or not happen. Same table, same
