@@ -340,10 +340,19 @@ CREATE TABLE IF NOT EXISTS item (
 -- reinterpreted. The replacement is guarded on the column's current type, so
 -- re-applying this file never drops a populated text[] column -- an unguarded
 -- DROP+ADD here would silently destroy provenance on every startup.
+--
+-- The guard is qualified to `current_schema()` because `information_schema`
+-- spans the WHOLE database while the `ALTER TABLE item` below resolves through
+-- `search_path`. Unqualified, a legacy `item.provenance text` in ANY other
+-- schema satisfied the test and the DROP then landed on THIS schema's item --
+-- destroying a populated `text[]` column, silently, on every startup. Reaching
+-- other schemas is not hypothetical here: `apply_schema()` runs as the
+-- SUPERUSER, for which `information_schema` hides nothing.
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns
-               WHERE table_name = 'item' AND column_name = 'provenance'
+               WHERE table_schema = current_schema()
+                 AND table_name = 'item' AND column_name = 'provenance'
                  AND data_type = 'text') THEN
         ALTER TABLE item DROP COLUMN provenance;
     END IF;
