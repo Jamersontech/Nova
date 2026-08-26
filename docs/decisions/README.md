@@ -574,7 +574,7 @@ implementation lives in [`../../slice/ui/section17/`](../../slice/ui/section17/R
 
 
 
-## The substrate — ADRs `0044`, `0045` (**Accepted** 2026-08-16) and `0046` (**Proposed**)
+## The substrate — ADRs `0044`, `0045` (**Accepted** 2026-08-16) and `0046` (**Accepted** 2026-08-26)
 
 **`0044` — Runtime, persistence and hosting.** Server-rendered Python over managed PostgreSQL with
 Row-Level Security, one provider in one region. Resolves `D-01`, `D-02`, `D-04` and part of

@@ -61,10 +61,13 @@ STATED LIMITATIONS
    NOVA does not establish WHICH authenticator model holds the key. `A-2` is
    about replay resistance and does not require attestation; device allow-lists
    are a Section 31 concern.
-3. NO STEP-UP RE-AUTHENTICATION (`A-3`). Session strength is fixed at login.
-   IRREVERSIBLE actions and changes to grants, policy or credentials require a
-   FRESH authentication, which is not implemented -- and no IRREVERSIBLE path
-   exists yet to require it. Recorded, not claimed.
+3. STEP-UP RE-AUTHENTICATION (`A-3`) COVERS `IRREVERSIBLE` DECISIONS ONLY.
+   Ordinary session strength is still fixed at login; what `step_up_options` /
+   `verify_step_up` add is a fresh assertion for one named act, required by the
+   seam where `I-67` demands it. NO FRESHNESS STATE IS PERSISTED -- the ceremony
+   is started and consumed inside one request, so there is no interval in which
+   a step-up could go stale and nothing to record. The ceremony store is in
+   memory, so a restart invalidates one in flight: that fails CLOSED.
 4. NO RECOVERY FLOW (`A-4`). Losing every passkey means losing access. That is
    the safe direction to fail, and a recovery path is the most attacked surface
    in any authentication system; it is not built speculatively.
@@ -340,6 +343,140 @@ class AuthenticationService:
             return session_token
         finally:
             conn.close()
+
+    # -- step-up (`A-3`, `I-67`) ---------------------------------------------
+    #
+    # ADR 0018 (Accepted 2026-08-13) decided consequence-scaled step-up:
+    # "IRREVERSIBLE actions and changes to grants, policy, or credentials
+    # require FRESH authentication, not merely a valid session". `A-3` states
+    # it, `I-67` mints it, ADR 0046 selected the mechanism. So this is the
+    # already-selected mechanism applied to an already-accepted requirement --
+    # not a new authentication concept.
+    #
+    # WHAT MAKES IT "FRESH". A new assertion, verified now, over a challenge
+    # this server minted for THIS purpose, consumed on use. Nothing here reads
+    # or writes a freshness flag, because there is none to read: the caller
+    # starts the ceremony and consumes it inside one request, so there is no
+    # interval in which a step-up could go stale. That removes the whole class
+    # of stale-step-up bugs rather than mitigating it.
+    #
+    # NO NEW STATE OF ANY KIND. No table, no column, no session field. The
+    # ceremony store is the same in-memory, single-use, expiring, purpose-
+    # scoped `_Ceremonies` login already uses, and losing it to a restart
+    # fails CLOSED -- James authenticates again.
+
+    def _stepup_purpose(self, purpose: str) -> str:
+        """The ceremony purpose namespace. Distinct from `register` and
+        `authenticate` so a login challenge can never be presented as a
+        step-up, or the reverse -- `_Ceremonies.take` already refuses a
+        purpose mismatch, and this is what gives it something to refuse."""
+        return f"stepup:{purpose}"
+
+    def step_up_options(self, session: AuthenticatedSession,
+                        purpose: str) -> tuple[str, str]:
+        """Begin a step-up for ONE named purpose. Mints no session.
+
+        `purpose` is supplied by the SERVER-side caller from something it
+        already knows -- never by the browser. Binding is only worth something
+        if the party being challenged cannot choose what the challenge is for.
+
+        Refuses a single-factor session outright. `A-1` already bars such a
+        session from EXECUTE, so offering it a ceremony that could only be
+        refused later would be theatre; this fails at the first step instead.
+        """
+        if not session.is_multi_factor:
+            raise AuthenticationFailed("step-up requires a two-factor session")
+        options = webauthn.generate_authentication_options(
+            rp_id=self.rp_id,
+            # REQUIRED, unlike login. Login deliberately accepts a UV-less
+            # assertion and reads the flag to decide strength (`A-1`); a
+            # step-up has no weaker outcome to fall back to, so the ceremony
+            # asks for the strong one and the verify below re-checks it out of
+            # the signature rather than trusting that it was asked for.
+            user_verification=UserVerificationRequirement.REQUIRED,
+        )
+        return (self._ceremonies.start(options.challenge,
+                                       self._stepup_purpose(purpose)),
+                options_to_json(options))
+
+    def verify_step_up(self, ceremony_id: Optional[str], credential_json: str,
+                       session: AuthenticatedSession, purpose: str) -> None:
+        """Prove that the human behind THIS session is present, for THIS act.
+
+        Returns None on success and raises `AuthenticationFailed` on every
+        failure -- there is no boolean, because a caller that forgets to check
+        a boolean proceeds, and a caller that forgets to catch an exception
+        does not.
+
+        MINTS NOTHING. No session, no row, no flag. The only effect of success
+        is that this call returned.
+
+        The one check `verify_login` does not have, and the reason this is not
+        just a second login: `verify_login` DERIVES the actor from whichever
+        credential signed, because at login there is nobody to compare against.
+        Here there is. Without step 3 below, ANY enrolled credential would
+        satisfy ANY session -- which is the whole property in one line.
+        """
+        # 1-3. Consume the ceremony. Single-use, purpose-bound and expiring,
+        #      all three enforced by `take` itself: it pops the entry before
+        #      checking anything, so a replay finds nothing, and a mismatched
+        #      purpose or a stale challenge is refused with the same message.
+        challenge = self._ceremonies.take(ceremony_id,
+                                          self._stepup_purpose(purpose))
+        try:
+            raw_id = json.loads(credential_json)["id"]
+        except Exception as exc:
+            raise AuthenticationFailed("malformed credential") from exc
+
+        conn = self._connect()
+        try:
+            # 4. Resolve the credential.
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT actor_ref, public_key, sign_count"
+                    " FROM auth_credential WHERE credential_id=%s", (raw_id,))
+                row = cur.fetchone()
+            if row is None:
+                raise AuthenticationFailed("step-up rejected")
+            actor, public_key, sign_count = row
+
+            # 5. THE ACTOR BINDING. Compared before the signature is checked,
+            #    so a credential belonging to someone else is refused whether
+            #    or not it signs correctly. Same opaque failure either way.
+            if actor != session.actor:
+                raise AuthenticationFailed("step-up rejected")
+
+            # 6-8. The same verification login performs, with the same origin,
+            #      relying-party and signature-counter protections -- all of it
+            #      `py_webauthn`'s, none of it written here.
+            try:
+                verified = webauthn.verify_authentication_response(
+                    credential=credential_json,
+                    expected_challenge=challenge,
+                    expected_rp_id=self.rp_id,
+                    expected_origin=self.origin,
+                    credential_public_key=bytes(public_key),
+                    credential_current_sign_count=sign_count,
+                    # 7. REQUIRED here, unlike login. `I-67` asks for a fresh
+                    #    STRONG proof, and a UV-less assertion is one factor.
+                    #    Read out of the signed payload, so the client cannot
+                    #    assert it.
+                    require_user_verification=True,
+                )
+            except Exception as exc:
+                raise AuthenticationFailed("step-up rejected") from exc
+
+            # 9. Clone detection, through the existing mechanism: recording the
+            #    advance is what lets the NEXT verification refuse a counter
+            #    that did not move.
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE auth_credential SET sign_count=%s"
+                    " WHERE credential_id=%s",
+                    (verified.new_sign_count, raw_id))
+        finally:
+            conn.close()
+        # 11. Reached only when every check above passed.
 
     # -- the seam's interface ------------------------------------------------
 
