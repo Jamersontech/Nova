@@ -1,7 +1,11 @@
 # 0046 — Authentication Is WebAuthn Passkeys with Opaque Server-Side Sessions
 
-**Status:** **Proposed**
+**Status:** **Accepted** — 2026-08-26
 **Proposed:** 2026-08-16 — substrate work under ADR 0044
+**Accepted:** 2026-08-26 — by James, at the ADR Decision Gate. **The decision content is
+unchanged**; acceptance records the mechanism half of `D-09` as settled, so that implementing
+`A-3` step-up is `C1`/`C2` work under an accepted mechanism rather than work resting on a
+`Proposed` document
 **Section:** 04 — `D-09` has always been owned by Section 04
 **Resolves:** `D-09` — the **provider and factor technology** half. The *model* half was resolved
 by [ADR 0018](./0018-authentication-model.md) and is not reopened.
@@ -82,7 +86,7 @@ make all of it premature.
 | --- | --- | --- |
 | **1** | **Bootstrap is trust-on-first-use.** The first passkey enrols with no session, because otherwise none could ever exist. Whoever reaches the enrolment route first on a system with no credential becomes James | Every *subsequent* passkey requires an authenticated multi-factor session belonging to the same actor (proven by test). In deployment the window closes by not exposing the route after enrolment — an **operational** control, and not claimed to be more |
 | **2** | **No attestation is verified.** NOVA does not establish *which* authenticator model holds the key | `A-2` is about replay resistance and does not require attestation. Device allow-listing is a Section 31 concern |
-| **3** | **No step-up re-authentication (`A-3`).** Session strength is fixed at login | No `IRREVERSIBLE` path exists yet to require it. Stated, not claimed |
+| **3** | **Step-up re-authentication (`A-3`) exists only for `IRREVERSIBLE` decisions.** *(Implemented 2026-08-26.)* Deciding one requires a fresh WebAuthn assertion — single-use, bound to that one approval, expiring with the ceremony, and requiring user verification. Ordinary session strength is still fixed at login, and **no freshness state is persisted** | `A-3` scales friction to consequence, and everything below `IRREVERSIBLE` is reversible by another approved action. The ceremony is started and consumed in one request, so there is no interval in which a step-up could go stale — which is why there is nothing to store. The ceremony store is in memory, so a restart invalidates one in flight: that fails **closed** |
 | **4** | **No recovery flow (`A-4`).** Losing every passkey means losing access | That is the safe direction to fail. Recovery is the most attacked path in any authentication system and is not built speculatively — `A-4` requires it to be *at least as strong as* the primary factor, which is real work |
 | **5** | **No idle timeout.** Expiry is absolute (12 hours) | `A-4`'s session rules call absolute expiry the requirement and idle timeout *"additional, not a substitute"* |
 

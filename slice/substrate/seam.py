@@ -63,6 +63,29 @@ from .boundary import DataAccessBoundary
 # I-09: only James approves. The identity that may decide, checked server-side.
 APPROVER_IDENTITY = "james"
 
+
+def _requires_step_up(request) -> bool:
+    """`I-67`: does deciding this approval need FRESH authentication?
+
+    ONE definition, read by the route that offers a ceremony and by the route
+    that demands one -- so what is challenged and what is required cannot
+    disagree.
+
+    The rule is `I-67`'s own wording and nothing else: *"IRREVERSIBLE actions
+    and changes to grants, policy, classification, or credentials require fresh
+    authentication, not merely a valid session"*. The risk class is the
+    approval's OWN declared class, stored on the durable row when it was
+    proposed; nothing the browser sends reaches this.
+
+    NO TOOL DECLARES `IRREVERSIBLE` TODAY, so this returns False for every
+    approval NOVA can currently create, and no existing path changes behaviour.
+    That is the correct state, not dead code: the gate exists so that the first
+    tool to declare an irreversible action is gated on the day it lands rather
+    than needing this built underneath it. Which class any future tool declares
+    is that tool's decision (`MT-6`, a `C3` change) and is not settled here.
+    """
+    return request.risk_class == Risk.IRREVERSIBLE.name
+
 # The browser holds exactly these two, both opaque and both HttpOnly: a session
 # reference and an in-flight ceremony reference. No token, no scope, no rights.
 SESSION_COOKIE = "nova_session"
@@ -189,14 +212,59 @@ class Seam:
                 _approval_card(
                     r,
                     self._writes.content_leaves(r.tool_name)
-                    if self._writes is not None else frozenset())
+                    if self._writes is not None else frozenset(),
+                    # I-67: the card must ASK for the passkey where one is
+                    # required, from the same predicate the route enforces.
+                    step_up=_requires_step_up(r))
                 for r in requests)
+            if any(_requires_step_up(r) for r in requests):
+                body += f"<script>{_STEP_UP_SCRIPT}</script>"
         return 200, _page(f"Approvals — {html.escape(scope_path)}",
                           f"<p class=\"muted\">Active context: "
                           f"<code>{html.escape(scope_path)}</code></p>{body}")
 
+    def approval_step_up_options(self, session_id: Optional[str], scope_path: str,
+                                 approval_id: str
+                                 ) -> tuple[int, str, str, list[tuple[str, str]]]:
+        """Begin the fresh authentication an `IRREVERSIBLE` approval needs.
+
+        THE PURPOSE IS NOT THE BROWSER'S TO CHOOSE. It is `approval_id`, taken
+        from the route the browser asked for -- so a ceremony can only ever be
+        minted for the approval the caller is looking at, and `verify_step_up`
+        recomputes it from the same place. A client that could name its own
+        purpose could mint a challenge for a cheap approval and spend it on an
+        expensive one, which is the whole reason the binding exists.
+
+        Refuses unless the approval is reachable in this scope AND actually
+        requires step-up: no ceremony is offered for an action that does not
+        need one, so this route cannot become a general re-authentication
+        oracle.
+        """
+        if self._approvals is None:
+            return 404, "application/json", '{"ok":false}', []
+        session, refusal = self._signed_in(session_id, execute=True)
+        if refusal:
+            return 401, "application/json", '{"ok":false}', []
+        if session.identity != APPROVER_IDENTITY:
+            return 403, "application/json", '{"ok":false}', []
+        try:
+            token = self._execute_token(session, scope_path)
+            request = self._approvals.get(token, approval_id)
+        except Denied:
+            return 403, "application/json", '{"ok":false}', []
+        if request is None or not _requires_step_up(request):
+            return 403, "application/json", '{"ok":false}', []
+        try:
+            ceremony_id, options = self._auth.step_up_options(session, approval_id)
+        except AuthenticationFailed:
+            return 403, "application/json", '{"ok":false}', []
+        return 200, "application/json", options, [
+            self._cookie(CEREMONY_COOKIE, ceremony_id)]
+
     def decide_page(self, session_id: Optional[str], scope_path: str,
-                    approval_id: str, approve: bool) -> tuple[int, str]:
+                    approval_id: str, approve: bool,
+                    ceremony_id: Optional[str] = None,
+                    assertion: str = "") -> tuple[int, str]:
         """Record the decision. On approval the action executes through the
         full authorization path -- this handler authorizes nothing itself."""
         if self._approvals is None:
@@ -212,6 +280,43 @@ class Seam:
                               "<p>Only James can approve or deny an action.</p>")
         try:
             token = self._execute_token(session, scope_path)
+
+            # I-67 / A-3, decided by ADR 0018: an IRREVERSIBLE action requires
+            # FRESH authentication, "not merely a valid session". A-1 already
+            # got us a two-factor session; this proves the human is still here,
+            # now, for THIS act.
+            #
+            # HERE, AND DELIBERATELY NOT INSIDE `decide()`. The approval
+            # machinery is untouched: I-09's single-use claim, I-112's identity
+            # re-derivation and the PDP's ten steps all run exactly as before,
+            # and they run only if this gate let the call through. A gate in
+            # front of the act is auditable in one place; a check woven into
+            # `decide()` would put an authentication concern inside the
+            # authorization object.
+            #
+            # ONLY ON APPROVAL. Declining is not a consequential act -- it
+            # writes a status and nothing else -- so requiring a ceremony to
+            # say "no" would put friction on the safe answer.
+            if approve:
+                request = self._approvals.get(token, approval_id)
+                if request is not None and _requires_step_up(request):
+                    try:
+                        self._auth.verify_step_up(ceremony_id, assertion,
+                                                  session, approval_id)
+                    except AuthenticationFailed:
+                        # FAILS CLOSED, and provably: `decide()` is not
+                        # reached, so the approval is not claimed, nothing
+                        # executes, and no execution record is written. The
+                        # approval is still pending and can be decided again.
+                        return 401, _page(
+                            "Fresh authentication required",
+                            "<p>This action cannot be undone, so approving it "
+                            "needs your passkey again. Nothing has been done.</p>"
+                            f"<div class=\"actions\">"
+                            f"<a href=\"/scope{html.escape(scope_path)}/approvals\">"
+                            f"<button class=\"primary\" type=\"button\">"
+                            f"Back to approvals</button></a></div>")
+
             status, outcome = self._approvals.decide(
                 token, approval_id, approve, decided_by=session.actor)
         except Denied as d:
@@ -767,7 +872,7 @@ def _talk_page(scope_path: str, log: list) -> str:
     return _page(f"NOVA \u2014 {html.escape(_label(scope_path))}", body)
 
 
-def _approval_card(r, content_leaves=frozenset()) -> str:
+def _approval_card(r, content_leaves=frozenset(), step_up: bool = False) -> str:
     """The five things USER_INTERFACE_ARCHITECTURE.md section 6 requires, the
     EXACT CONTENT the action will persist (ADR 0048), and the statement that
     NOVA is not the approving authority (I-09).
@@ -811,6 +916,34 @@ def _approval_card(r, content_leaves=frozenset()) -> str:
     source_field = (field("outside sources this draws on", ", ".join(sources))
                     if sources else "")
 
+    # I-67 / A-3. Said before the button, not after it: James should know the
+    # action cannot be undone BEFORE he reaches for his passkey, not while the
+    # authenticator is already prompting him.
+    #
+    # The Approve button becomes a script hook; Decline stays a plain form,
+    # because declining is not consequential and must never be harder than
+    # approving. If the script does not run, Approve submits nothing and the
+    # server-side gate refuses anyway -- the page failing closed twice.
+    action = f"/scope{html.escape(r.scope_path)}/approvals/{html.escape(r.approval_id)}"
+    if step_up:
+        notice = ("<p class=\"muted\">This action cannot be undone, so approving "
+                  "it needs your passkey again — a valid sign-in is not enough.</p>")
+        approve_control = f"""
+        <form method="post" action="{action}" id="f-{html.escape(r.approval_id)}">
+          <input type="hidden" name="decision" value="approve">
+          <input type="hidden" name="assertion" value="">
+          <button type="button" class="primary"
+                  onclick="stepUpApprove('{html.escape(r.approval_id)}','{action}')">
+            Approve with passkey</button>
+        </form>"""
+    else:
+        notice = ""
+        approve_control = f"""
+        <form method="post" action="{action}">
+          <input type="hidden" name="decision" value="approve">
+          <button type="submit" class="primary">Approve</button>
+        </form>"""
+
     return f"""
     <article class="card">
       <span class="risk">{html.escape(r.risk_class)}</span>
@@ -824,16 +957,15 @@ def _approval_card(r, content_leaves=frozenset()) -> str:
       {field("requested by", r.requested_by)}
       <p class="muted">Only James can approve this. NOVA prepared the request;
          it cannot approve it.</p>
+      {notice}
       <div class="actions">
-        <form method="post" action="/scope{html.escape(r.scope_path)}/approvals/{html.escape(r.approval_id)}">
-          <input type="hidden" name="decision" value="approve">
-          <button type="submit" class="primary">Approve</button>
-        </form>
-        <form method="post" action="/scope{html.escape(r.scope_path)}/approvals/{html.escape(r.approval_id)}">
+        {approve_control}
+        <form method="post" action="{action}">
           <input type="hidden" name="decision" value="deny">
           <button type="submit">Decline</button>
         </form>
       </div>
+      <p class="muted" id="s-{html.escape(r.approval_id)}" role="status"></p>
     </article>"""
 
 
@@ -976,6 +1108,51 @@ async function ceremony(optionsUrl, submitUrl, kind) {
 """
 
 
+# The SECOND script island, and the last one. Same reason as the first: an
+# authenticator is reachable only through a browser API. It holds no authority
+# whatsoever -- it moves an assertion from the authenticator into a form field
+# the server then verifies, and every decision about that assertion is made in
+# `verify_step_up`.
+#
+# It names no approval it was not handed, chooses no purpose (the server derives
+# that from the URL), and cannot make the request succeed: a page that skipped
+# this entirely would post no assertion and be refused server-side.
+#
+# The b64url helpers are repeated from `_LOGIN_SCRIPT` rather than shared. That
+# is deliberate: factoring them out would edit the login path, which this change
+# is required to leave exactly as it was, and eight lines of base64 is a cheaper
+# price than a regression in the only route that establishes a session.
+_STEP_UP_SCRIPT = """
+const b64uS = {
+  dec: s => Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0)),
+  enc: b => btoa(String.fromCharCode(...new Uint8Array(b)))
+              .replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'')
+};
+async function stepUpApprove(approvalId, action) {
+  const status = document.getElementById('s-' + approvalId);
+  const form = document.getElementById('f-' + approvalId);
+  status.textContent = 'Waiting for your passkey…';
+  try {
+    const options = await (await fetch(action + '/stepup/options')).json();
+    options.challenge = b64uS.dec(options.challenge);
+    if (options.allowCredentials)
+      options.allowCredentials.forEach(c => c.id = b64uS.dec(c.id));
+    const credential = await navigator.credentials.get({ publicKey: options });
+    const r = credential.response;
+    form.assertion.value = JSON.stringify({
+      id: credential.id, rawId: b64uS.enc(credential.rawId), type: credential.type,
+      clientExtensionResults: {},
+      response: { clientDataJSON: b64uS.enc(r.clientDataJSON),
+                  authenticatorData: b64uS.enc(r.authenticatorData),
+                  signature: b64uS.enc(r.signature),
+                  userHandle: r.userHandle ? b64uS.enc(r.userHandle) : null }
+    });
+    form.submit();
+  } catch (e) { status.textContent = 'Not accepted. Nothing has been done.'; }
+}
+"""
+
+
 def _login_page() -> str:
     return _page("Sign in to NOVA",
                  "<p>NOVA authenticates with a passkey. There is no password to "
@@ -1043,6 +1220,20 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(css)))
             self.end_headers()
             self.wfile.write(css)
+            return
+
+        # /scope/<path>/approvals/<approval_id>/stepup/options -- BEFORE the
+        # approvals-list route below, which would otherwise not match, and
+        # before the catch-all /scope/<path>. I-67's ceremony, and the only
+        # GET that starts one outside /auth.
+        suffix = "/stepup/options"
+        if self.path.startswith("/scope/") and self.path.endswith(suffix) \
+                and "/approvals/" in self.path:
+            head, _, tail = self.path.partition("/approvals/")
+            scope_path = "/" + head[len("/scope/"):].strip("/")
+            approval_id = tail[:-len(suffix)]
+            self._respond_raw(*_Handler.seam.approval_step_up_options(
+                self._session(), scope_path, approval_id))
             return
 
         if self.path.startswith("/scope/") and self.path.endswith("/approvals"):
@@ -1113,8 +1304,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             head, _, approval_id = self.path.partition("/approvals/")
             scope_path = "/" + head[len("/scope/"):].strip("/")
             approve = (form.get("decision") or [""])[0] == "approve"
+            # The step-up assertion, if the page collected one. The CEREMONY id
+            # comes from the cookie, exactly as login's does -- never from the
+            # form, so the browser cannot pair an assertion with a ceremony it
+            # chose. Empty for every ordinary approval, which is why nothing
+            # about the existing flow changes.
             status, page = _Handler.seam.decide_page(
-                self._session(), scope_path, approval_id, approve)
+                self._session(), scope_path, approval_id, approve,
+                ceremony_id=self._cookie(CEREMONY_COOKIE),
+                assertion=(form.get("assertion") or [""])[0])
             self._respond(status, page)
             return
 
