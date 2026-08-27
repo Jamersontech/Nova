@@ -55,10 +55,10 @@ import re
 from typing import Optional
 
 from ..core.gateway import CapabilityProfile, ModelGateway, ModelRequestItem
-from ..core.types import (Classification, ContextToken, Denied, Risk, Taint,
-                          Trust)
+from ..core.types import Classification, ContextToken, Denied, Risk, Taint
 from .approval_flow import ApprovalService
 from .boundary import DataAccessBoundary
+from .establishment import establish
 from .write_path import (ADD_SCOPE, ADD_TASK, COMPLETE_TASK, TOOL,
                          UNKNOWN_ORIGIN)
 
@@ -170,73 +170,15 @@ class ConversationService:
 
     # -- the scope's knowledge, through the authorized read path ------------
 
-    @staticmethod
-    def _establish(rows, revoked):
-        """I-111's read half: restore the persisted security state, or withhold.
-
-        Returns `(kept, withheld)`, where each kept row is
-        `(ref, content, taint, revoked_authority)` -- the restored taint, and
-        BESIDE it a structured flag for a fact that is not part of the taint.
-
-        UNKNOWN AND REVOKED ARE DIFFERENT (F-13). That distinction is the whole
-        of `S7-D5` -- ADR 0033 §4, and `MEMORY_MODEL.md` §4 rule 8.
-
-        WITHHELD -- the security state CANNOT BE ESTABLISHED. Each of these is
-        a separate reason, and none is recoverable by inference; guessing any
-        of them would invent authority at read time, which `I-110` forbids.
-
-            provenance / trust / classification NULL  unknown taint
-            delegation_ancestry NULL                  unknown lineage
-            creating_authority NULL                   unknown author
-            ancestry non-empty                        ancestors' revocation
-                                                      state is NOT
-                                                      establishable from this
-                                                      scope (I-03/I-86), so the
-                                                      lookup is incomplete
-
-        The ancestry rule is the subtle one. A delegate's ancestors may have
-        executed in BROADER scopes, whose revocation records a channel bound
-        here cannot see. "Could not check" must never become "not revoked", so
-        a non-empty ancestry withholds rather than guesses. An EMPTY ancestry
-        is different in kind: the item was created by a root execution whose
-        scope is this row's own scope, so its revocation record -- if any --
-        is necessarily visible here, and absence is a complete answer.
-
-        Legacy rows (written before I-111) have NULL throughout and are
-        withheld by the first rule. They are not backfilled, not assumed to be
-        `james.stated`, and not treated as trusted.
-
-        LABELLED -- the authority IS established, and is established as
-        REVOKED. `MEMORY_MODEL.md` §4 rule 8 and ADR 0033 §4 (`S7-D5`): such a row
-        is "RETAINED... and its revocation state is EXPOSED at retrieval.
-        Nothing is automatically deleted, downgraded, invalidated, promoted, or
-        reclassified... The CONSUMING AUTHORITY decides", because "revocation
-        happens for many reasons and only some impeach what was learned".
-
-        This USED to withhold, in the same branch as the five unknowns above.
-        That applied a rule for UNKNOWN state to KNOWN state: nothing here is
-        unestablishable -- the revocation record was found. F-13 separates
-        them.
-
-        WHY A FLAG AND NOT PROVENANCE. Revocation is not an ORIGIN; it is a
-        later fact ABOUT an authority. Putting it in `provenance` would make a
-        set `I-38` calls immutable change after the fact, and would read as if
-        the content came from somewhere it did not. Trust and classification
-        are untouched for the same reason rule 8 gives: revocation "does not
-        re-weight". The row is returned exactly as it was established, plus one
-        additional fact about it.
-        """
-        kept, withheld = [], 0
-        for ref, body, provenance, trust, classification, ancestry, author in rows:
-            if (provenance is None or trust is None or classification is None
-                    or ancestry is None or author is None
-                    or ancestry):          # ancestors unestablishable from here
-                withheld += 1
-                continue
-            kept.append((ref, body, Taint(frozenset(provenance), Trust(trust),
-                                          Classification(classification)),
-                         author in revoked))
-        return kept, withheld
+    # `I-111`'s read half now lives in `establishment.py`, so `approval_flow`
+    # can reach the SAME rules without importing this module -- which would be
+    # a cycle, since this module imports `ApprovalService`. Nothing about the
+    # rules changed; only where they live did.
+    #
+    # The name is KEPT, and kept as a staticmethod, because it is the calling
+    # convention two production call sites below and one test already use.
+    # Preserving it is what makes this a move rather than a rewrite.
+    _establish = staticmethod(establish)
 
     def _scope_context(self, token: ContextToken, scope_path: str):
         """What this scope knows, gathered EXACTLY as a page render would:
