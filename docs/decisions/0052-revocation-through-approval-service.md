@@ -5,6 +5,10 @@
 **Accepted:** 2026-08-27 — by James, at the ADR Decision Gate, on the corrected text below and
 the two merged prerequisites it records. **Acceptance settles the ARCHITECTURE only.**
 Implementing `F-3` requires a separate, explicit authorization that has not been given
+**Amended:** 2026-08-28 — by James, adding **element 8** (irreversible authority). The seven
+accepted elements are unchanged and were not reconsidered. **The original acceptance did not
+include this decision**: ADR 0052 was silent on how an actor obtains authority for an
+`IRREVERSIBLE` act, and F-3 implementation stopped on that silence
 **Section:** 07 — gives `S7-D5` a production surface; governed by `MEMORY_MODEL.md` §4 rule 8
 **Resolves:** `F-3`, and `F-4` as a bundled consequence
 **Depends on:** [ADR 0051](./0051-revoked-authority-is-labelled-not-withheld.md) (`F-13`), which had to
@@ -25,7 +29,8 @@ retained
 **Revocation of an execution authority is a consequential action proposed from the row it
 concerns and decided by James through the existing ApprovalService.** Ruled by James, 2026-08-26.
 
-Seven elements, each binding:
+Eight elements, each binding. **Elements 1-7 were accepted 2026-08-27; element 8 was added by
+amendment on 2026-08-28** and is marked as such where it appears.
 
 1. **Act model — ApprovalService.** James's UI action *proposes*; the existing
    `ApprovalService` → PDP `authorize_plan` → `ToolPEP` → `CredentialBroker` → Data-Access
@@ -57,6 +62,33 @@ Seven elements, each binding:
    `I-67` mints it. **`ADR 0046`'s status was never the blocker** — it selected the *mechanism*.
    Step-up has since been built to that mechanism and merged (`d6a0d45`), and `ADR 0046` is
    Accepted with its limitation 3 updated to describe the implemented state.
+
+8. **Irreversible authority is a DISTINCT right, not a consequence of `EXECUTE`.**
+   *(Added by amendment 2026-08-28. Not part of the 2026-08-27 acceptance.)*
+
+   **An `EXECUTE` grant does not authorize an `IRREVERSIBLE` act.** Authority for one is held
+   as a distinct right under the EXISTING grant model — `right_name = "revoke"`, conferring a
+   `Risk.IRREVERSIBLE` ceiling, scope-bound and inherited downward like every other grant. **No
+   new permission concept is created and no schema change is made to store a ceiling.**
+
+   **The `write` right is NOT widened.** It stays `Risk.EXECUTE`; widening it would broaden
+   every existing write grant on every scope to permit irreversible acts, which is
+   over-permissioning by construction.
+
+   Three consequences bind the implementation:
+
+   a. **`plan_for_action` derives BOTH authority-relevant properties from the tool
+      declaration** — `declared_risk` *and* `required_rights`. Leaving rights hardcoded to
+      `{"write"}` would mean `revoke_authority` never actually demands the `revoke` right, and
+      the distinction above would be decorative.
+   b. **The execution token requests the ceiling the APPROVED PLAN requires**, not an
+      unconditional `Risk.EXECUTE`.
+   c. **Context/`issue_root` must enforce the grant-side ceiling**: a request whose ceiling
+      exceeds what James-created grants confer is refused (`I-07`, `I-106`). **`F-3` must not
+      rely on the present under-enforcement** — see the finding recorded below.
+
+   **Delegation and agent-definition ceilings remain NARROWING mechanisms only** (`I-106`,
+   `I-107`). Neither may ever widen authority James granted.
 
 **`F-4` is bundled and requires no bespoke audit write.** `F-4` and `F-14` are **downstream of
 `F-3` and must not be implemented independently of it.**
@@ -324,6 +356,73 @@ freshness state is persisted.
 already-selected mechanism — see
 **[Prerequisites and authorization](#prerequisites-and-authorization)**.
 
+## 8. Irreversible authority — a distinct right
+
+*Added by amendment 2026-08-28. **Not part of the 2026-08-27 acceptance**: the accepted text
+settled the risk CLASS of the act and was silent on how an actor comes to hold authority for it.
+F-3 implementation stopped on exactly that silence, which is what produced this ruling.*
+
+### What the implementation ran into
+
+Element 7 makes the act `IRREVERSIBLE`, and the accepted `plan_for_action` requirement carries
+that class into the plan. The PDP then refuses it:
+
+```
+policy.py:114     step 6 denies when  plan.declared_risk > token.risk_ceiling   -> I-101
+seam.py:169       the execute token is issued at  Risk.EXECUTE  (3)
+revoke_authority  declares                        Risk.IRREVERSIBLE  (5)
+tree_store.py:43  READ_RIGHTS = {"read": Risk.READ, "write": Risk.EXECUTE}
+```
+
+Every `write` grant James holds confers `EXECUTE`. So the accepted architecture, implemented
+faithfully, cannot execute — and the two ways out were a governance decision, not a coding one.
+
+### Why `EXECUTE` must not imply `IRREVERSIBLE`
+
+`PERMISSION_ARCHITECTURE.md` §5 separates them by name: *"Low-risk approval — EXECUTE, routine
+and **reversible**"* against *"Explicit human command — IRREVERSIBLE — James must **initiate**,
+not merely consent."* Reading one as the other collapses a distinction the accepted architecture
+draws explicitly. `I-07` makes an execution's authority the **intersection** of agent definition,
+granting identity, token and risk ceiling — *"No mechanism produces a union"* — and treating an
+`EXECUTE` grant as conferring `IRREVERSIBLE` is a union. `I-14` is default-deny: absence of
+authority is denial, never escalation.
+
+### Why `write` is not widened
+
+A grant's ceiling is not stored. The `grant` table holds `actor_ref, scope_path, right_name` and
+nothing else; `tree_store.py:43` **derives** the ceiling from the right name. So raising `write`
+means raising **one shared map entry**, and with it every write grant on every scope — every
+actor holding any write grant anywhere would gain irreversible capability, to satisfy one tool.
+That is over-permissioning by construction (`PERMISSION_ARCHITECTURE.md` §7, least privilege).
+
+### Why the mechanism is a right, and not a new concept
+
+The same fact makes the answer cheap. **A right name IS how a ceiling is conferred today.** A
+`"revoke"` right mapped to `Risk.IRREVERSIBLE` therefore invents nothing: grants already carry
+`right_name` per scope, already inherit downward, already come only from James (`I-10`), and are
+already revocable and inspectable. `PERMISSION_ARCHITECTURE.md` §1 and §3 already define a
+permission as carrying a risk ceiling; the substrate simply derives it rather than storing it.
+
+**No schema change**, because the ceiling was never stored to begin with.
+
+### The rights half, which is what makes it real
+
+`plan_for_action` hardcodes `required_rights=frozenset({"write"})`. Left alone, a
+`revoke_authority` tool would demand only `write` — and the `revoke` right would gate nothing.
+So the same method must read BOTH properties from the declaration, for the same reason
+`execute_action`'s envelope already reads the consequence-determining set from it: **what a tool
+requires is the tool's declaration to make, not the plan builder's to assume.**
+
+`I-101` is satisfied, not weakened: the class still derives from the action and the tool's
+declared class, and nothing lowers it.
+
+### What is NOT decided here
+
+Not the enforcement gap below — that is separate work at its own gate. Not who holds the
+`revoke` right, on which scopes, or how it is seeded; that is grant administration under `I-10`,
+and F-3 implementation must not create a grant. Not delegation: `I-106` and `I-107` ceilings
+remain **narrowing only** and may never widen what James granted.
+
 ## `F-4` — bundled, with no bespoke audit write
 
 `revoke()` writes no audit record today. Under this decision it does not gain one.
@@ -359,6 +458,42 @@ The same holds for **`F-14`**, for a different reason: it re-resolves state at t
 boundary of a revocation approval, and until `F-3` can create a revocation there is no state to
 re-resolve. **`F-14` must not be implemented independently of `F-3`** either.
 
+### Recorded separately: `issue_root` does not enforce the grant-side ceiling
+
+*Found 2026-08-28 during F-3 implementation. **A pre-existing gap, not introduced by `F-3`, and
+NOT fixed by it.** Recorded here because element 8c depends on it, and nowhere else because it is
+not this ADR's to decide.*
+
+`issue_root` verifies that a grant **exists** for each requested right (`context_service.py:115`)
+and never compares the requested ceiling against what that grant confers. Measured: a grant of
+`write` at `max_risk=EXECUTE` yields a token at `ceiling=IRREVERSIBLE` on request.
+
+`Grant.max_risk` is **written and never read** — three occurrences in the whole repository, all
+of them the dataclass field, its constructor parameter, and the constructor call. The enforcement
+pattern already exists three lines above, for the agent definition:
+
+```
+agent_allowed_context  ->  checked        (I-106)
+agent_allowed_rights   ->  checked        (I-106)
+agent_risk_ceiling     ->  checked        (I-106)
+grant scope            ->  checked        (find_grant / contains)
+grant rights           ->  checked        (the loop)
+grant ceiling          ->  NOT CHECKED    <- the gap
+```
+
+So the gap is the missing third of an existing triple rather than a missing concept. `I-07` calls
+the token an intersection and `I-106` requires refusal of any token that would exceed
+James-created grants; neither holds on the ceiling axis today.
+
+**Does it block `F-3`? No — but it is why element 8's alternative was rejected.** `F-3` is blocked
+by the absence of a legitimate way to HOLD irreversible authority, which element 8 now settles.
+The gap is what would have let `F-3` ship by simply requesting a higher ceiling and having it
+granted — working today, and breaking silently the moment the invariant is enforced. **A feature
+resting on an unenforced invariant is a feature that breaks when the invariant is enforced**, which
+is why element 8c requires the enforcement rather than tolerating the gap.
+
+**Its remedy is separate work at its own gate**, and this ADR neither performs nor authorizes it.
+
 ## Non-goals
 
 - **No durable execution registry.** The coverage limitation above is accepted, not fixed.
@@ -369,6 +504,9 @@ re-resolve. **`F-14` must not be implemented independently of `F-3`** either.
   satisfying it was a separate work item — `C1`/`C2` implementation of the accepted ADR 0018
   requirement, not a new `C3` decision — and it has since been done and merged (`d6a0d45`).
 - **No supersession, restore or un-revoke mechanism** — deferred to its own ADR (element 4).
+- **No fix to `issue_root`'s grant-ceiling gap** — recorded above, remedied elsewhere.
+- **No grant is created by `F-3`.** Only James grants (`I-10`).
+- **The `write` right is not widened**, and no existing grant changes (element 8).
 - **No extraction of `_establish`** — a separately authorized prerequisite (element 6), since
   implemented and merged (`d1f5763`).
 - **No revocation of grants, sessions, delegations or credential bindings.** Those are `ADR 0021`
@@ -390,7 +528,9 @@ re-resolve. **`F-14` must not be implemented independently of `F-3`** either.
 accepted invariant narrowly, and the reading is recorded so it can be challenged.
 
 **Engaged, and NOT reinterpreted:** `I-67` — see element 7. It was satisfied by building
-step-up, never by being read down to permit `F-3`.
+step-up, never by being read down to permit `F-3`. **`I-07`, `I-101`, `I-106`, `I-10` and `I-14`**
+— see element 8. Element 8 is the reading under which all five hold; the alternatives required one
+of them to be bypassed or left unenforced. **None is amended.**
 
 **The governing authority, named:** `I-67` + `A-3` + **`ADR 0018` (Accepted 2026-08-13)**.
 `ADR 0046` supplies the *mechanism*, which step-up was built to.
@@ -409,8 +549,14 @@ base taint; `F-12`'s scope predicates; `F-13`'s `_REVOKED_MARK` and `_mark()`.
 scoped against a known shape, not so it can be built.
 
 - `write_path.py` — one `revoke_authority_tool()` `ToolDefinition` declaring
-  **`Risk.IRREVERSIBLE`**, one `transport` dispatch branch, one `REF_ARGUMENT` entry, **and the
-  risk-class propagation below**.
+  **`Risk.IRREVERSIBLE`** and **`required_rights={"revoke"}`** (element 8), one `transport`
+  dispatch branch, one `REF_ARGUMENT` entry, **and the risk-class and rights propagation below**.
+- `seam.py` — the execution token requests the ceiling the approved plan requires, not an
+  unconditional `Risk.EXECUTE` (element 8b).
+- `tree_store.py` — `"revoke"` mapped to `Risk.IRREVERSIBLE` beside the existing rights. **No
+  schema change**: the ceiling is derived from the right name, as it already is.
+- **A `revoke` grant must exist for the scope acted in.** Creating one is James's act (`I-10`);
+  `F-3` implementation creates no grant.
 - `approval_flow.py` — `F-14` re-resolution, exposed to the render path and re-run at decision.
 - `seam.py` — a control on each note/task row, one POST route, one confirmation page; and
   `self._revocations`, currently assigned and never read, becomes read.
@@ -442,6 +588,10 @@ every test would pass and every page would look right.
 **The requirement:** `plan_for_action` must read the declared risk class from the tool's own
 `ToolDefinition` and carry it into the plan, so `Risk.IRREVERSIBLE` reaches the enforcement point
 that already exists.
+
+**Extended by element 8 (2026-08-28):** the same method must also read `required_rights` from the
+declaration. Risk alone is not enough — without the rights half, `revoke_authority` would demand
+only `write` and the `revoke` right would gate nothing.
 
 **Existing behaviour must be preserved, and can be.** All four current tools declare
 `Risk.EXECUTE`, which is exactly what `plan_for_action` hardcodes today — so reading the
@@ -574,6 +724,14 @@ It is no longer the prerequisites, and it is not yet `F-3`.
 **2026-08-26** — drafted on James's F-3 ruling of the same day, and revised the same day on his
 rulings of the three questions the first draft raised: revocation-only, `I-67` applies, and a
 shared establishment module.
+
+**2026-08-28 — AMENDED: element 8 added** (irreversible authority is a distinct `revoke`
+right). Ruled by James after F-3 implementation stopped on a question this ADR had not answered:
+how an actor obtains authority for an `IRREVERSIBLE` act. **The seven accepted elements were not
+reconsidered and are unchanged.** Recorded as an in-place dated amendment, as `ADR 0021` and
+others do — `docs/decisions/README.md` requires a superseding ADR for *changing* an accepted
+decision, and no accepted decision changed here; element 8 answers a silence. Also recorded: the
+`issue_root` grant-ceiling enforcement gap, as a separate finding remedied elsewhere.
 
 **2026-08-27 — documentation and state correction**, after both prerequisites landed
 (`d6a0d45`, `d1f5763`). **No ruling was reconsidered and no element changed.** What changed:
