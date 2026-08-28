@@ -394,7 +394,13 @@ class Test11TaintCannotEscalate(SliceTest):
 
     def test_untrusted_derived_plan_below_prepare_proceeds(self):
         """Untrusted content may INFORM. PREPARE-level work is not blocked."""
-        tok = self.token(ceiling=Risk.PREPARE, rights=frozenset({"read"}))
+        # `send` is carried alongside `read` only so the token is one James
+        # actually authorized: he grants `read` at READ and `send` at EXECUTE,
+        # and a PREPARE ceiling is above what `read` alone confers. Before
+        # issuance enforced the grant ceiling (I-07/I-106) this asked for
+        # `{"read"}` at PREPARE and got it. The plan below still declares
+        # `read` and PREPARE, so what this test asserts is unchanged.
+        tok = self.token(ceiling=Risk.PREPARE, rights=frozenset({"read", "send"}))
         web = Taint.of("external.web", Classification.INTERNAL)
         plan = self.rt.planner.plan(
             objective="x", scope_path=SCOPE_A, tool_name=TOOL, action="send",

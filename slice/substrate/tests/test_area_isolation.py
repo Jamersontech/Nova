@@ -167,10 +167,15 @@ class AreaIsolationTest(unittest.TestCase):
         conn.close()
 
     def read_token(self, scope_path):
+        # `Risk.READ`, which is what this suite's production seeding actually
+        # confers for the `read` right -- and what every production read path
+        # asks for. This said `ANALYZE` before issuance enforced the grant
+        # ceiling (I-07/I-106), which no grant here permits. A read is the
+        # lowest class, so every assertion below is unaffected.
         return self.context.issue_root(identity="james", actor="james",
                                        scope_path=scope_path,
                                        rights=frozenset({"read"}),
-                                       ceiling=Risk.ANALYZE, ttl=60)
+                                       ceiling=Risk.READ, ttl=60)
 
     # =======================================================================
     # 1 -- the three areas are genuinely populated
