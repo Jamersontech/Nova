@@ -66,9 +66,14 @@ CRED_REF = "control-plane/anthropic"
 DEFAULT_SCOPES = [("/life", "domain", None),
                   ("/business", "domain", None),
                   ("/wealth", "domain", None)]
+# I-10: James's grants, written by `tree_store.seed` on the OWNER connection.
+# `revoke` is seeded like any other right and confers `Risk.IRREVERSIBLE`
+# through `READ_RIGHTS` -- ADR 0052 element 8c, using the existing mechanism
+# rather than a new one. It is a SEPARATE right precisely so `write` stays
+# EXECUTE: an EXECUTE grant must not authorize an irreversible act.
 DEFAULT_GRANTS = [("james", path, right)
                   for path, _, _ in DEFAULT_SCOPES
-                  for right in ("read", "write")]
+                  for right in ("read", "write", "revoke")]
 
 
 class ScopedWritePath(WritePath):
@@ -110,7 +115,13 @@ def wire(data_dir: str, rp_id: str, origin: str) -> Seam:
     for tool in ALL_TOOLS:
         registry.register(tool())
     pep = ToolPEP(registry, broker, context, audit)
-    integration = PostgresItemIntegration(boundary)
+    # S7-D5 / I-111. ONE registry, at the composition root, over the same
+    # boundary as everything else -- no privileged connection, no second
+    # authorization path. Constructed HERE, before the integration, because
+    # F-3's transport writes the revocation on the channel it already holds so
+    # the registry row and its W-1 audit record share one transaction.
+    revocations = RevocationRegistry(boundary, context)
+    integration = PostgresItemIntegration(boundary, revocations=revocations)
 
     def on_scope_created(path: str, kind: str) -> None:
         """Post-commit, ADD_SCOPE only. Two things a new scope needs to be
@@ -152,12 +163,10 @@ def wire(data_dir: str, rp_id: str, origin: str) -> Seam:
     conversation = ConversationService(gateway, pdp, boundary, approvals,
                                        budget=budget)
     attention = AttentionService(tree, context, pdp, boundary)
-    # S7-D5 / I-111. ONE registry, at the composition root, over the same
-    # boundary as everything else -- no privileged connection, no second
-    # authorization path. The read half of revocation does not go through it
-    # (see Seam), so this exists for the revoking surface, which does not yet
-    # exist. Composed rather than invented.
-    revocations = RevocationRegistry(boundary, context)
+    # The same registry the write path holds, handed to the seam so the
+    # revoking surface can PROPOSE. The read half does not go through it: the
+    # conversation reads `authority_revocation` on its own bound channel, in
+    # the same transaction as the rows it is checking.
     return Seam(context, pdp, boundary, auth, write_path=writes,
                 approvals=approvals, tree=tree, conversation=conversation,
                 attention=attention, revocations=revocations)

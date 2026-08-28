@@ -37,12 +37,13 @@ The routes are exercised over real HTTP too (`test_25`, `test_26`), because a
 `/stepup/options` path that fell through to another handler would disable the
 gate while every direct-call test above still passed.
 
-NO IRREVERSIBLE TOOL EXISTS YET, so the fixture promotes one approval's declared
-risk class to `IRREVERSIBLE` directly. That is honest rather than convenient:
-the column is the approval's own durable declaration, `plan_for_action` derives
-`Risk.EXECUTE` for every tool NOVA currently has, and `I-112`'s identity is
-re-derived from the arguments -- so promoting the column exercises the gate
-exactly as the first irreversible tool will, without inventing that tool here.
+THE IRREVERSIBLE APPROVAL IS NOW A REAL ONE. This fixture used to promote an
+`add_task` approval's `risk_class` column, because no IRREVERSIBLE tool existed
+and the gate needed something to fire on. `F-3` shipped one, so the suite gates
+an actual revocation: `required_rights` and `declared_risk` both come from
+`revoke_authority`'s own declaration (ADR 0052 element 8a/8b) rather than from a
+column edited behind the machinery's back. The reversible branch stays
+`add_task`, which is what `test_06` and the inversion in `test_27` need.
 
 Real PostgreSQL, and a real `py_webauthn` verification against a software
 authenticator. Skips without PostgreSQL -- never passes without its subject.
@@ -64,8 +65,10 @@ from ..approval_flow import ApprovalService, PENDING
 from ..auth import AuthenticationFailed
 from ..boundary import DataAccessBoundary
 from ..seam import APPROVER_IDENTITY, Seam, _requires_step_up
-from ..write_path import (ADD_TASK, PostgresItemIntegration, WritePath,
-                          add_task_tool, write_item_tool, TOOL)
+from ..revocation import RevocationRegistry
+from ..write_path import (ADD_TASK, REVOKE_AUTHORITY, PostgresItemIntegration,
+                          WritePath, add_task_tool, revoke_authority_tool,
+                          write_item_tool, TOOL)
 from ...core.audit import AuditWriter
 from ...core.broker import CredentialBinding, CredentialBroker, SecretsStore
 from ...core.context_service import ContextService
@@ -99,6 +102,9 @@ class StepUpTest(unittest.TestCase):
         tree.add_scope(A, "client")
         tree.james_grants("james", "read", "*", A, Risk.READ)
         tree.james_grants("james", "write", "*", A, Risk.EXECUTE)
+        # F-3 exists now, so the IRREVERSIBLE approval this suite gates is a
+        # REAL one. `revoke` confers IRREVERSIBLE (ADR 0052 element 8c).
+        tree.james_grants("james", "revoke", "*", A, Risk.IRREVERSIBLE)
 
         tmp = tempfile.mkdtemp(prefix="nova-stepup-")
         self.context = ContextService(tree, secret=b"stepup-suite-key")
@@ -110,15 +116,19 @@ class StepUpTest(unittest.TestCase):
         broker = CredentialBroker(tree, vault, audit)
         broker.register(
             CredentialBinding(binding_id="db-item-write", scope_path=A,
-                              permitted_operations=frozenset({TOOL, ADD_TASK})),
+                              permitted_operations=frozenset(
+                                  {TOOL, ADD_TASK, REVOKE_AUTHORITY})),
             secret="integration-credential-" + os.urandom(4).hex())
         registry = ToolRegistry()
         registry.register(write_item_tool())
         registry.register(add_task_tool())
+        registry.register(revoke_authority_tool())
         pep = ToolPEP(registry, broker, self.context, audit)
-        self.writes = WritePath(self.pdp, registry, pep, broker,
-                                PostgresItemIntegration(self.boundary),
-                                "db-item-write")
+        self.revocations = RevocationRegistry(self.boundary, self.context)
+        self.writes = WritePath(
+            self.pdp, registry, pep, broker,
+            PostgresItemIntegration(self.boundary, revocations=self.revocations),
+            "db-item-write")
         self.approvals = ApprovalService(self.boundary, self.writes)
 
         self.auth = authfixture.service()
@@ -148,23 +158,44 @@ class StepUpTest(unittest.TestCase):
             rights=frozenset({"write"}), ceiling=Risk.EXECUTE, ttl=60)
 
     def propose(self, ref: str = "t-1", irreversible: bool = True) -> str:
-        """One pending approval, optionally declared IRREVERSIBLE.
+        """One pending approval: a REAL revocation, or an ordinary task.
 
-        Promoting the column is what stands in for the tool that does not exist
-        yet. `plan_identity` is unaffected: `decide()` rebuilds the plan from
-        the stored ARGUMENTS, and `plan_for_action` declares `Risk.EXECUTE` for
-        every tool NOVA has -- so the approval still matches itself, and only
-        the gate's input changes.
+        This used to promote an `add_task` approval's `risk_class` column,
+        because no IRREVERSIBLE tool existed and the gate needed something to
+        fire on. `F-3` shipped one, so the fixture uses it: the suite now gates
+        a genuinely irreversible act rather than a fake, and `required_rights`
+        and `declared_risk` both come from the tool's own declaration
+        (ADR 0052 element 8a/8b) instead of a column edited behind the
+        machinery's back.
+
+        The reversible branch is unchanged and still `add_task` -- that is what
+        `test_06` and the inversion in `test_27` need.
         """
-        approval_id = self.approvals.propose_action(
-            self.token(), A, ADD_TASK,
-            {"task_ref": ref, "title": "Something consequential", "due_on": ""},
+        if not irreversible:
+            return self.approvals.propose_action(
+                self.token(), A, ADD_TASK,
+                {"task_ref": ref, "title": "Something consequential", "due_on": ""},
+                action_text="Do the ordinary thing.",
+                if_wrong_text="A task you did not want.")
+        return self.approvals.propose_action(
+            self.token(), A, REVOKE_AUTHORITY,
+            {"execution_identity": self.seed_authority(ref),
+             "target_ref": ref},
             action_text="Do the irreversible thing.",
             if_wrong_text="It cannot be undone.")
-        if irreversible:
-            self.sql("UPDATE approval SET risk_class=%s WHERE approval_id=%s",
-                     (Risk.IRREVERSIBLE.name, approval_id))
-        return approval_id
+
+    def seed_authority(self, ref: str) -> str:
+        """One row carrying a real `creating_authority`, so `F-9` can derive the
+        scope the authority executed in. Written directly: this suite is about
+        step-up, not about how the row got there."""
+        identity = "authority-" + ref
+        self.sql("INSERT INTO item (item_ref, scope_path, actor_ref, body,"
+                 " provenance, trust, classification, delegation_ancestry,"
+                 " creating_authority)"
+                 " VALUES (%s,%s,'james','seeded','{james.stated}',3,2,'{}',%s)"
+                 " ON CONFLICT (scope_path, item_ref) DO NOTHING",
+                 (ref, A, identity))
+        return identity
 
     def session(self):
         return self.auth.resolve(self.sid)
@@ -186,6 +217,15 @@ class StepUpTest(unittest.TestCase):
         return self.seam.decide_page(self.sid, A, approval_id, approve,
                                      ceremony_id=ceremony, assertion=assertion)
 
+    def revocations_in_db(self):
+        return self.sql("SELECT execution_identity FROM authority_revocation")
+
+    def assert_acted(self, ref: str = "t-1"):
+        """The irreversible act landed: one revocation, for THIS row's
+        authority. What `add_task` used to stand in for."""
+        self.assertEqual([r[0] for r in self.revocations_in_db()],
+                         ["authority-" + ref])
+
     # -- what must NOT have happened ----------------------------------------
 
     def assert_nothing_happened(self, approval_id: str, ref: str = "t-1"):
@@ -194,9 +234,9 @@ class StepUpTest(unittest.TestCase):
                           " WHERE approval_id=%s", (approval_id,))[0]
         self.assertEqual(status[0], PENDING, "the approval was consumed")
         self.assertIsNone(status[1], "the approval was claimed")
-        self.assertEqual(
-            self.sql("SELECT count(*) FROM task WHERE task_ref=%s", (ref,))[0][0], 0,
-            "the consequential action was written")
+        self.assertNotIn("authority-" + ref,
+                         [r[0] for r in self.revocations_in_db()],
+                         "the consequential action was performed")
         # Scoped to THIS ref: `test_08` legitimately decides another approval
         # first, so a global count would assert against that one's honest
         # record rather than against the refused one.
@@ -231,8 +271,7 @@ class StepUpTest(unittest.TestCase):
         ceremony, assertion = self.step_up(approval_id)
         status, page = self.decide(approval_id, True, ceremony, assertion)
         self.assertEqual(status, 200)
-        self.assertEqual(
-            self.sql("SELECT count(*) FROM task WHERE task_ref='t-1'")[0][0], 1)
+        self.assert_acted()
 
     def test_04_the_primitive_mints_no_session(self):
         """Step-up proves presence; it does not create authority. `I-13`."""
@@ -410,8 +449,7 @@ class StepUpTest(unittest.TestCase):
         self.assertEqual(self.decide(approval_id, True)[0], 401)
         ceremony, assertion = self.step_up(approval_id)
         self.assertEqual(self.decide(approval_id, True, ceremony, assertion)[0], 200)
-        self.assertEqual(
-            self.sql("SELECT count(*) FROM task WHERE task_ref='t-1'")[0][0], 1)
+        self.assert_acted()
 
     def test_22_declining_needs_no_step_up(self):
         """Declining writes a status and nothing else. Friction on the safe
@@ -484,8 +522,7 @@ class StepUpTest(unittest.TestCase):
                            f"nova_session={self.sid}; nova_ceremony={ceremony}")
             with urllib.request.urlopen(req, timeout=10) as r:
                 self.assertEqual(r.status, 200)
-            self.assertEqual(
-                self.sql("SELECT count(*) FROM task WHERE task_ref='t-1'")[0][0], 1)
+            self.assert_acted()
         finally:
             server.shutdown()
 
@@ -553,8 +590,7 @@ class StepUpTest(unittest.TestCase):
         again, again_assertion = self.step_up(approval_id)
         status, _ = self.decide(approval_id, True, again, again_assertion)
         self.assertEqual(status, 409)
-        self.assertEqual(
-            self.sql("SELECT count(*) FROM task WHERE task_ref='t-1'")[0][0], 1)
+        self.assert_acted()
 
 
 if __name__ == "__main__":

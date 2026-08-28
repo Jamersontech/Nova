@@ -40,7 +40,20 @@ from . import db
 
 # I-10: only James creates grants. Nothing in agent/, tools/ or integrations/
 # imports this module, and there is no route that writes to it.
-READ_RIGHTS = {"read": Risk.READ, "write": Risk.EXECUTE}
+#
+# THE RIGHT NAME IS HOW A CEILING IS CONFERRED. The `grant` table stores
+# (actor_ref, scope_path, right_name) and no ceiling column, so a grant's
+# `max_risk` is derived here and nowhere else. That is why `revoke` is a
+# separate right rather than a wider `write`: raising `write` would raise ONE
+# shared entry and with it every write grant on every scope (ADR 0052
+# element 8).
+#
+# `revoke` is the only IRREVERSIBLE right NOVA has. `I-67` keys on that class,
+# and after `36b4dee` `issue_root` refuses a token whose ceiling exceeds what
+# these grants confer -- so an `EXECUTE` write grant cannot reach an
+# irreversible act, which is precisely what element 8 requires.
+READ_RIGHTS = {"read": Risk.READ, "write": Risk.EXECUTE,
+               "revoke": Risk.IRREVERSIBLE}
 
 
 def load_tree(dsn: Optional[str] = None) -> ScopeTree:

@@ -53,6 +53,7 @@ TOOL_VERSION = "1.0.0"
 ADD_TASK = "add_task"
 COMPLETE_TASK = "complete_task"
 ADD_SCOPE = "add_scope"
+REVOKE_AUTHORITY = "revoke_authority"
 
 # One lowercase path segment. The conversation marker enforces this before a
 # proposal exists; the transport enforces it AGAIN because the tool can be
@@ -168,7 +169,67 @@ def add_scope_tool() -> ToolDefinition:
     )
 
 
-ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool, add_scope_tool)
+def revoke_authority_tool() -> ToolDefinition:
+    """Permanently revoke one execution authority (`F-3`, ADR 0052 element 8).
+
+    THE ONLY `IRREVERSIBLE` TOOL NOVA HAS, and the only one requiring the
+    `revoke` right. Both declarations are load-bearing and both are read from
+    HERE rather than assumed anywhere downstream:
+
+      * `risk_class` reaches the plan, the approval row and `seam`'s step-up
+        gate, so `I-67` engages (element 8b).
+      * `required_rights` reaches the plan, so the PDP's step 5 demands a
+        `revoke` grant and a `write` grant cannot stand in for one
+        (element 8a). Without this the separate right would gate nothing.
+
+    `ADR 0052` element 4 ships revocation WITHOUT supersession, so what this
+    writes cannot be undone -- which is what makes `IRREVERSIBLE` honest rather
+    than cautious.
+
+    `S7-D5` is what it does and all it does: a revoked authority's rows are
+    RETAINED and LABELLED at retrieval (`ADR 0051`). It deletes nothing,
+    downgrades nothing, and withdraws no access -- the execution identity it
+    names completed long ago (`I-107`: execution identities are ephemeral and
+    never reused). It is an epistemic act about stored content.
+
+    BOTH ARGUMENTS ARE CONSEQUENCE-DETERMINING, so `I-100`'s envelope pins each
+    to the exact approved value and `content_leaves` is empty -- no prose to
+    inspect, so no ADR 0048 elevation is possible, exactly as for
+    `complete_task` and `add_scope`.
+
+    `execution_identity` is pinned at PROPOSAL time from the row James pointed
+    at, never derived at execution: `I-109`/`I-112` bind the ARGUMENTS, so
+    deriving it later would let an intervening overwrite of that row point his
+    approval at a different authority than the one he was shown. `target_ref`
+    travels beside it so the card and the audit detail name something a human
+    recognises -- the opaque `trace_id` is never the human-facing identifier
+    (element 2).
+    """
+    return ToolDefinition(
+        name=REVOKE_AUTHORITY, version=TOOL_VERSION,
+        purpose="Permanently revoke one execution authority in this scope",
+        input_schema={"execution_identity": "str", "target_ref": "str"},
+        output_schema={"status": "str"},
+        # element 8a. NOT `write`: an EXECUTE grant must not authorize an
+        # irreversible act, and this is what makes that true at PDP step 5.
+        required_rights=frozenset({"revoke"}),
+        auth_requirements="datastore",
+        # element 8b. `I-67` engages here and nowhere else in this file.
+        risk_class=Risk.IRREVERSIBLE,
+        context_requirements=frozenset({"client"}),
+        error_behaviour="typed", audit_behaviour="reference-only",
+        # UNIQUE (execution_identity) + ON CONFLICT DO NOTHING: the provider
+        # enforces that a retry is one revocation, which is what this claims.
+        idempotent=True, cost_profile=1,
+        consequence_determining={
+            "execution_identity": CONSEQUENCE,   # names the authority revoked
+            "target_ref": CONSEQUENCE,           # names the row James pointed at
+        },
+    )
+
+
+ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool, add_scope_tool,
+             revoke_authority_tool)
 
 # Which argument addresses the record each tool writes. The transport reads it
 # to build the audit event identity; recovery reads it to REBUILD that identity
@@ -176,7 +237,12 @@ ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool, add_scope_tool)
 # recovery would look for evidence under an identity nothing ever wrote and
 # would conclude "did not execute" about an action that did.
 REF_ARGUMENT = {TOOL: "item_ref", ADD_TASK: "task_ref",
-                COMPLETE_TASK: "task_ref", ADD_SCOPE: "scope_name"}
+                COMPLETE_TASK: "task_ref", ADD_SCOPE: "scope_name",
+                # The registry row this writes IS addressed by the identity,
+                # not by the note or task James clicked -- `target_ref` is for
+                # humans, and two rows written by one authority would collide
+                # under it.
+                REVOKE_AUTHORITY: "execution_identity"}
 
 
 def execution_event_identity(trace_id: str, scope_path: str,
@@ -339,8 +405,13 @@ class PostgresItemIntegration:
     boundary's pool, never by this class and never by the tool.
     """
 
-    def __init__(self, boundary: DataAccessBoundary):
+    def __init__(self, boundary: DataAccessBoundary, revocations=None):
         self._boundary = boundary
+        # F-3. The EXISTING `RevocationRegistry` -- not a second revocation
+        # store and not a second authority representation. None everywhere
+        # revocation is not wired, and the transport denies rather than
+        # improvising if a revocation is somehow reached without it.
+        self._revocations = revocations
         self.side_effects = 0
         # Post-commit hook for ADD_SCOPE only: the composition root uses it to
         # teach the in-process tree about the new scope and register its
@@ -512,6 +583,41 @@ class PostgresItemIntegration:
                         " WHERE task_ref = %s AND scope_path = %s"
                         " AND done_at IS NULL", (ref, ch.scope_path))
                     detail, said = f"task_ref={ref}", f"completed task {ref}"
+                elif tool_name == REVOKE_AUTHORITY:
+                    # F-3 / `S7-D5`, and the ONLY place a revocation is created.
+                    # Reached only through the ordinary path: proposal ->
+                    # approval -> decision -> authorize_plan -> ToolPEP -> here.
+                    # There is no parallel authorization mechanism, and this
+                    # branch cannot be entered without one.
+                    #
+                    # ON THIS CHANNEL, deliberately (element 8d). `revoke_on`
+                    # takes the channel this transport already opened, so the
+                    # registry row and the `W-1` audit record below commit in
+                    # ONE transaction. Calling `revoke()` here instead would
+                    # open a SECOND connection and a second transaction --
+                    # `DataAccessBoundary.open` takes a fresh pooled connection
+                    # every time -- and `recover()` decides an interrupted
+                    # execution by whether that audit row exists, an answer
+                    # worth nothing if the row and the side effect can commit
+                    # apart.
+                    #
+                    # `F-9` is untouched and does the deciding: it derives the
+                    # authority's own scope from the rows that name it and
+                    # FAILS CLOSED where that scope cannot be established.
+                    # Nothing here supplies a scope, and RLS `WITH CHECK`
+                    # refuses one outside this channel's binding regardless.
+                    ref = payload["execution_identity"]
+                    if self._revocations is None:
+                        raise Denied("revocation.registry",
+                                     "no revocation registry is wired",
+                                     "I-111", True)
+                    self._revocations.revoke_on(ch, ref, token.actor)
+                    # The audit detail names what a HUMAN pointed at. The
+                    # identity addresses the row and is the audit IDENTITY
+                    # below; it is not what the record reads back as.
+                    target = payload.get("target_ref", "")
+                    detail = f"target_ref={target}"
+                    said = f"revoked the authority behind {target}"
                 else:
                     ref = payload["item_ref"]
                     # The row's scope is the CHANNEL's scope -- the transport
@@ -567,6 +673,11 @@ class PostgresItemIntegration:
             # durable -- does the composition root learn about a new scope.
             if tool_name == ADD_SCOPE and self.on_scope_created is not None:
                 self.on_scope_created(new_path, kind)
+            # Same reason, same moment: `I-74`'s in-memory cache is told only
+            # once the registry row is durable. A cache saying "revoked" for a
+            # row that rolled back is the one direction this must never fail in.
+            if tool_name == REVOKE_AUTHORITY:
+                self._revocations.note_revoked(payload["execution_identity"])
             self.side_effects += 1
             return Outcome("success_claimed", said, Taint.of("integration.supplied"))
         return transport
@@ -616,18 +727,56 @@ class WritePath:
         Absent taint is UNKNOWN, and unknown is `model.generated` at LOW --
         never `james.stated`. A caller that does not know where content came
         from does not get to say James said it.
+
+        THE RISK CLASS AND THE REQUIRED RIGHTS COME FROM THE TOOL'S OWN
+        DECLARATION, not from constants here (ADR 0052 element 8a/8b). Both
+        used to be hardcoded -- `Risk.EXECUTE` and `frozenset({"write"})` --
+        which was harmless only while every tool declared exactly those, and
+        stopped being harmless the moment one did not.
+
+        `revoke_authority` declares `IRREVERSIBLE` and `{"revoke"}`. With the
+        constants, its plan and its approval row would both have said EXECUTE
+        and `write`: `seam`'s step-up gate keys on IRREVERSIBLE so `I-67` would
+        never have engaged, and the PDP's step 5 would have looked up a `write`
+        grant so the separate `revoke` right would have gated nothing. Both
+        failures are silent -- every test passes and every page looks right.
+
+        This is the same shape `execute_action`'s envelope already uses one
+        method below: what a tool declares is READ FROM THE DECLARATION, so a
+        new tool cannot arrive under-specified by omission. The registry is the
+        authority on both, and a tool that is not registered mints no plan --
+        `get()` denies, which is the correct answer rather than a default.
+
+        EXISTING TOOLS ARE UNAFFECTED. All four declare `Risk.EXECUTE` and
+        `{"write"}`, exactly what the constants supplied, so their plans -- and
+        their `I-112` identities, which hash BOTH `declared_risk` and
+        `required_rights` -- are byte-for-byte what they were. Proven by test,
+        not assumed.
         """
+        definition = self._registry.get(tool_name, TOOL_VERSION)
+        rights = frozenset(definition.required_rights)
         return Plan(
             steps=(PlanStep(action=tool_name, resource=scope_path,
                             tool_name=tool_name,
-                            required_rights=frozenset({"write"}),
+                            required_rights=rights,
                             arguments=dict(arguments)),),
-            required_rights=frozenset({"write"}),
-            declared_risk=Risk.EXECUTE,
+            required_rights=rights,
+            declared_risk=definition.risk_class,
             scope_path=scope_path,
             taint=taint if taint is not None else Taint.of(UNKNOWN_ORIGIN),
             cost_estimate=1,
         )
+
+    def required_rights_for(self, tool_name: str) -> frozenset[str]:
+        """The rights a tool declares -- for the caller that must issue a token
+        capable of the plan it is about to authorize.
+
+        ONE SOURCE, like `content_leaves` beside it. The seam derives the
+        execution token's rights from this rather than assuming `write`, so
+        "what the plan requires" and "what the token carries" cannot drift into
+        an execution that is authorized to plan but not to act.
+        """
+        return frozenset(self._registry.get(tool_name, TOOL_VERSION).required_rights)
 
     def plan_for(self, scope_path: str, item_ref: str, body: str,
                  taint: Optional[Taint] = None) -> Plan:

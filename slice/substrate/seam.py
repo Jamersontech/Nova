@@ -58,6 +58,7 @@ from ..core.policy import PolicyDecisionPoint
 from ..core.types import Denied, Risk
 from .auth import AuthenticationFailed, AuthenticationService
 from .boundary import DataAccessBoundary
+from .write_path import REVOKE_AUTHORITY
 
 
 # I-09: only James approves. The identity that may decide, checked server-side.
@@ -77,12 +78,14 @@ def _requires_step_up(request) -> bool:
     approval's OWN declared class, stored on the durable row when it was
     proposed; nothing the browser sends reaches this.
 
-    NO TOOL DECLARES `IRREVERSIBLE` TODAY, so this returns False for every
-    approval NOVA can currently create, and no existing path changes behaviour.
-    That is the correct state, not dead code: the gate exists so that the first
-    tool to declare an irreversible action is gated on the day it lands rather
-    than needing this built underneath it. Which class any future tool declares
-    is that tool's decision (`MT-6`, a `C3` change) and is not settled here.
+    ONE TOOL DECLARES `IRREVERSIBLE`: `revoke_authority` (`F-3`, ADR 0052
+    element 8b). This gate was built before it existed and returned False for
+    every approval NOVA could then create; it now fires, and it fires because
+    the tool's declared class travelled -- declaration -> plan -> the approval
+    row's `risk_class` -> here. Nothing was special-cased for it, which is the
+    property that matters: the SECOND irreversible tool is gated on the day it
+    lands. Which class a tool declares remains that tool's decision (`MT-6`, a
+    `C3` change) and is not settled here.
     """
     return request.risk_class == Risk.IRREVERSIBLE.name
 
@@ -125,18 +128,24 @@ class Seam:
         # Optional: durable revocation of execution identities
         # (revocation.RevocationRegistry, S7-D5).
         #
-        # HELD, NOT YET CONSUMED, and deliberately so. The READ half of S7-D5
-        # needs nothing from this object: `_scope_context` reads
-        # `authority_revocation` on the SAME bound channel, in the SAME
-        # transaction as the items it is checking, which is what makes the
-        # check a consistent snapshot rather than a window. Routing that read
-        # through here would open a second channel and reintroduce exactly the
-        # gap between reading an item and checking its authority.
+        # HELD, AND STILL NOT CALLED FROM HERE -- by both halves, for two
+        # different reasons.
         #
-        # What is missing is a SURFACE that revokes -- James deciding an
-        # execution identity is no longer trusted. That is not wiring, so it
-        # is not invented here. The registry is composed in so the surface has
-        # something to call when it exists.
+        # THE READ half of `S7-D5` needs nothing from this object:
+        # `_scope_context` reads `authority_revocation` on the SAME bound
+        # channel, in the SAME transaction as the items it is checking, which
+        # is what makes the check a consistent snapshot rather than a window.
+        # Routing that read through here would open a second channel and
+        # reintroduce exactly the gap between reading an item and checking its
+        # authority.
+        #
+        # THE WRITE half now exists -- `propose_revocation` below is `F-3`'s
+        # surface -- and still does not touch this. It PROPOSES; the revocation
+        # happens at the approval, inside the write path's own transaction
+        # (ADR 0052 element 1 and 8d). A seam that could revoke directly would
+        # be the second consequence path element 1 forbids.
+        #
+        # So this stays composed in and unused, which is the honest state.
         self._revocations = revocations
         self._transcripts: dict[tuple[str, str], list[dict]] = {}
 
@@ -165,12 +174,28 @@ class Seam:
 
     # -- approvals ----------------------------------------------------------
 
-    def _execute_token(self, session, scope_path: str):
-        """An EXECUTE-ceiling token. Issuance enforces grants first (I-14)."""
+    def _execute_token(self, session, scope_path: str,
+                       rights=frozenset({"write"}), ceiling=Risk.EXECUTE):
+        """A token for one consequential act. Issuance enforces grants first
+        (`I-14`), and since `36b4dee` also refuses a ceiling above what those
+        grants confer (`I-07`, `I-106`).
+
+        RIGHTS AND CEILING ARE PARAMETERS, not constants (ADR 0052 element 8b).
+        They default to what every existing caller asks for, so nothing changes
+        for them; the approval decision derives both from the approval it is
+        about to execute, because a token that cannot reach the plan's risk
+        class -- or does not carry the right the plan requires -- would be
+        refused by the PDP after James had already decided.
+
+        Deriving rather than widening is the point: the ceiling comes from the
+        durable approval row, and `I-106` at issuance is still the final word on
+        whether James's grants permit it. Nothing here can hand out more than he
+        granted.
+        """
         return self._context.issue_root(
             identity=session.identity, actor=session.actor,
-            scope_path=scope_path, rights=frozenset({"write"}),
-            ceiling=Risk.EXECUTE, ttl=60,
+            scope_path=scope_path, rights=frozenset(rights),
+            ceiling=ceiling, ttl=60,
         )
 
     def approvals_page(self, session_id: Optional[str], scope_path: str) -> tuple[int, str]:
@@ -299,6 +324,25 @@ class Seam:
             # say "no" would put friction on the safe answer.
             if approve:
                 request = self._approvals.get(token, approval_id)
+
+                # ADR 0052 element 8b. The token that EXECUTES must be able to
+                # reach the approved plan's risk class and must carry the right
+                # that plan requires -- both read from the DURABLE approval row
+                # and its tool's declaration, never from the browser and never
+                # assumed to be `write`/EXECUTE.
+                #
+                # Re-issued rather than widened: the read above needed only a
+                # channel, and `I-106` at issuance is still the final word on
+                # whether James's grants confer this ceiling. A revocation
+                # therefore executes only where he holds a `revoke` grant, and
+                # is refused at issuance -- before `decide()` -- where he does
+                # not.
+                if request is not None and self._writes is not None:
+                    token = self._execute_token(
+                        session, scope_path,
+                        rights=self._writes.required_rights_for(request.tool_name),
+                        ceiling=Risk[request.risk_class])
+
                 if request is not None and _requires_step_up(request):
                     try:
                         self._auth.verify_step_up(ceremony_id, assertion,
@@ -429,8 +473,8 @@ class Seam:
             f"<p class=\"muted\">Active context: <code>{html.escape(scope_path)}</code></p>"
             + _talk_link(scope_path)
             + _decision_card(scope_path, pending)
-            + _tasks_card(tasks)
-            + _notes_card(notes)
+            + _tasks_card(tasks, scope_path)
+            + _notes_card(notes, scope_path)
             + _children_card(children)
             + _activity_card(activity, scope_path))
 
@@ -643,6 +687,89 @@ class Seam:
         return 200, _page(f"Items — {html.escape(scope_path)}", body)
 
 
+    def propose_revocation(self, session_id: Optional[str], scope_path: str,
+                           kind: str, ref: str) -> tuple[int, str]:
+        """F-3: James points at a note or task; NOVA proposes revoking the
+        authority that wrote it.
+
+        PROPOSES ONLY. This records a pending approval and has no path to
+        `RevocationRegistry` at all -- the revocation happens when James
+        approves, through the write path, and nowhere else.
+
+        THE IDENTITY IS DERIVED HERE, SERVER-SIDE, from the row itself through a
+        scope-bound channel. The browser sends a row kind and a ref, never an
+        execution identity: a caller naming the authority it wants revoked is
+        exactly the shape every write branch already refuses. It is then PINNED
+        into the approval's arguments, so `I-109`/`I-112` bind the authority
+        James was shown rather than whatever the row names at decision time.
+
+        `scope_path = %s` is bound from the CHANNEL, so the row must live in the
+        scope James is standing in -- RLS bounds reachability, and this pins the
+        statement to the one row he pointed at (`F-10`'s rule). A sibling's row
+        is not reachable from here.
+        """
+        if self._writes is None or self._approvals is None:
+            return 404, _page("Not found", "<p>Revocation is not enabled.</p>")
+        session, refusal = self._signed_in(session_id, execute=True)
+        if refusal:
+            return refusal
+        if session.identity != APPROVER_IDENTITY:
+            return 403, _page("Not permitted",
+                              "<p>Only James can propose a revocation.</p>")
+        if kind not in ("item", "task"):
+            return 400, _page("Bad request", "<p>Unknown row kind.</p>")
+
+        try:
+            # The ORDINARY write token -- `{"write"}` at `EXECUTE`, the same one
+            # every other proposing route holds. Proposing reads one row and
+            # writes a pending approval, so it needs `write`; it deliberately
+            # does NOT carry `revoke`, because nothing irreversible happens
+            # here and asking for that authority to propose would be asking for
+            # more than the act needs. The `revoke` token is minted once, at the
+            # decision, from the approval James actually decided.
+            token = self._execute_token(session, scope_path)
+            with self._boundary.open(token) as ch:
+                table = "item" if kind == "item" else "task"
+                column = "item_ref" if kind == "item" else "task_ref"
+                rows = ch.fetch(
+                    f"SELECT creating_authority FROM {table}"
+                    f" WHERE {column} = %s AND scope_path = %s",
+                    (ref, ch.scope_path))
+        except Denied:
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        # No row, or a row whose author was never recorded (`I-111` legacy).
+        # Nothing to revoke and nothing to guess: fail closed.
+        if not rows or rows[0][0] is None:
+            return 404, _page(
+                "Nothing to revoke",
+                "<p>That row does not name an execution authority, so there is "
+                "nothing here to revoke.</p>")
+        execution_identity = rows[0][0]
+
+        try:
+            approval_id = self._approvals.propose_action(
+                token, scope_path, REVOKE_AUTHORITY,
+                {"execution_identity": execution_identity, "target_ref": ref},
+                action_text=f"Permanently revoke the authority that wrote \u201c{ref}\u201d.",
+                why_text=("Revoking marks everything that authority wrote as "
+                          "impeached wherever it is read. It cannot be undone."),
+                cost_text=("One revocation recorded. No content is deleted, "
+                           "changed, or hidden."),
+                if_wrong_text=("Content you still trust is labelled as written "
+                               "by a revoked authority, and cannot be unmarked."))
+        except Denied:
+            return 403, _page("Not available", "<p>This scope is not available to you.</p>")
+
+        return 200, _page(
+            "Revocation proposed",
+            "<p>Nothing has been revoked yet. This is waiting for your "
+            "decision, and approving it will need your passkey.</p>"
+            f"<p class=\"muted\"><code>{html.escape(approval_id)}</code></p>"
+            f"<div class=\"actions\">"
+            f"<a href=\"/scope{html.escape(scope_path)}/approvals\">"
+            f"<button class=\"primary\" type=\"button\">Review it</button></a></div>")
+
     def write_item(self, session_id: Optional[str], scope_path: str,
                    item_ref: str, body: str) -> tuple[int, str]:
         """The write route. EXECUTE-class: the PDP's step 9 denies without
@@ -753,7 +880,24 @@ def _talk_link(scope_path: str) -> str:
             f"</a></div></article>")
 
 
-def _tasks_card(rows: list) -> str:
+def _revoke_control(scope_path: str, kind: str, ref: str) -> str:
+    """F-3's entry point: one control, on the row it concerns.
+
+    A plain form, deliberately. It PROPOSES -- the irreversible act happens at
+    the approval, behind a passkey -- so this button is no more dangerous than
+    any other proposal, and dressing it up as one would misrepresent both ends.
+
+    The browser sends the row KIND and REF it is looking at, never an execution
+    identity: the server reads that off the row itself.
+    """
+    return (f"<form method=\"post\" action=\"/scope{html.escape(scope_path)}/revoke\" "
+            f"style=\"display:inline\">"
+            f"<input type=\"hidden\" name=\"kind\" value=\"{html.escape(kind)}\">"
+            f"<input type=\"hidden\" name=\"ref\" value=\"{html.escape(ref)}\">"
+            f"<button type=\"submit\">Revoke author</button></form>")
+
+
+def _tasks_card(rows: list, scope_path: str) -> str:
     """The third of the three views USER_INTERFACE_ARCHITECTURE section 3
     names: what needs doing. Open tasks only, soonest first, overdue marked --
     a list James has to filter himself is a list he stops reading."""
@@ -770,18 +914,20 @@ def _tasks_card(rows: list) -> str:
         else:
             when = f"<span class=\"muted\">{due:%d %b}</span>"
         entries.append(f"<li>{html.escape(title)} {when} "
-                       f"<code>{html.escape(ref)}</code></li>")
+                       f"<code>{html.escape(ref)}</code> "
+                       f"{_revoke_control(scope_path, 'task', ref)}</li>")
     return (f"<article class=\"card\"><h2>What needs doing</h2>"
             f"<ul>{''.join(entries)}</ul></article>")
 
 
-def _notes_card(rows: list) -> str:
+def _notes_card(rows: list, scope_path: str) -> str:
     """What James asked NOVA to remember, in this scope. Absent entirely when
     empty -- an empty notes card is furniture, not information."""
     if not rows:
         return ""
     entries = "".join(
-        f"<li>{html.escape(body)} <code>{html.escape(ref)}</code></li>"
+        f"<li>{html.escape(body)} <code>{html.escape(ref)}</code> "
+        f"{_revoke_control(scope_path, 'item', ref)}</li>"
         for ref, body in rows)
     return (f"<article class=\"card\"><h2>Notes</h2><ul>{entries}</ul></article>")
 
@@ -1297,6 +1443,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             scope_path = "/" + self.path[len("/scope/"):-len("/talk")].strip("/")
             message = (form.get("message") or [""])[0]
             self._respond(*_Handler.seam.talk_post(self._session(), scope_path, message))
+            return
+
+        # /scope/<path>/revoke -- F-3. PROPOSES; it revokes nothing.
+        if self.path.startswith("/scope/") and self.path.endswith("/revoke"):
+            scope_path = "/" + self.path[len("/scope/"):-len("/revoke")].strip("/")
+            self._respond(*_Handler.seam.propose_revocation(
+                self._session(), scope_path,
+                (form.get("kind") or [""])[0], (form.get("ref") or [""])[0]))
             return
 
         # /scope/<path>/approvals/<approval_id>
