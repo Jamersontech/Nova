@@ -102,28 +102,73 @@ class RevocationRegistry:
         kept. Moving the timestamp forward on a re-revoke would let a later
         write quietly narrow the window in which an authority is considered
         revoked, which is a downgrade dressed as a no-op.
+
+        THIS OPENS ITS OWN CHANNEL. A caller that already holds one -- the
+        write path's transport does -- must use `revoke_on` instead, so the
+        registry row and that execution's audit record share ONE transaction.
+        See `revoke_on`.
         """
         with self._boundary.open(token) as ch:
-            scopes = ch.fetch(
-                "SELECT DISTINCT scope_path FROM item WHERE creating_authority = %s"
-                " UNION"
-                " SELECT DISTINCT scope_path FROM task WHERE creating_authority = %s",
-                (execution_identity, execution_identity))
-            if len(scopes) != 1:
-                raise Denied(
-                    "revocation.scope",
-                    "cannot establish the scope this authority executed in",
-                    "I-111", True)
-            authority_scope = scopes[0][0]
-            # WITH CHECK independently refuses a row outside this channel's
-            # binding, so the derived scope cannot be used to write somewhere
-            # the revoker could not already reach (I-03).
-            ch.execute(
-                "INSERT INTO authority_revocation"
-                " (execution_identity, scope_path, revoked_by)"
-                " VALUES (%s,%s,%s)"
-                " ON CONFLICT (execution_identity) DO NOTHING",
-                (execution_identity, authority_scope, revoked_by))
+            self.revoke_on(ch, execution_identity, revoked_by)
+        self.note_revoked(execution_identity)
+
+    def revoke_on(self, ch, execution_identity: str, revoked_by: str) -> None:
+        """The durable half, on a channel the CALLER already opened.
+
+        Everything `revoke()` documents above applies here unchanged -- this is
+        that method's body, MOVED rather than rewritten, so there is exactly one
+        derivation of an authority's scope and one place the registry row is
+        written. `F-9`'s guard and its fail-closed denial are byte-for-byte what
+        they were.
+
+        WHY IT EXISTS (ADR 0052 element 8d). `DataAccessBoundary.open` takes a
+        SEPARATE pooled connection and starts a SEPARATE transaction. So a
+        write-path transport that called `revoke()` from inside its own channel
+        would put the registry row in one transaction and that execution's `W-1`
+        audit record in another: a crash between them leaves a revocation
+        nothing recorded, or a record of a revocation that never landed.
+        `ApprovalService.recover()` decides an interrupted execution by whether
+        the audit row exists, and that answer is only worth something while the
+        row and the side effect commit together.
+
+        Takes no token: the channel IS the authorization, already established by
+        the caller from a verified token and already bound to one scope. It
+        cannot widen anything -- RLS `WITH CHECK` still refuses a row outside
+        that binding.
+        """
+        scopes = ch.fetch(
+            "SELECT DISTINCT scope_path FROM item WHERE creating_authority = %s"
+            " UNION"
+            " SELECT DISTINCT scope_path FROM task WHERE creating_authority = %s",
+            (execution_identity, execution_identity))
+        if len(scopes) != 1:
+            raise Denied(
+                "revocation.scope",
+                "cannot establish the scope this authority executed in",
+                "I-111", True)
+        authority_scope = scopes[0][0]
+        # WITH CHECK independently refuses a row outside this channel's
+        # binding, so the derived scope cannot be used to write somewhere
+        # the revoker could not already reach (I-03).
+        ch.execute(
+            "INSERT INTO authority_revocation"
+            " (execution_identity, scope_path, revoked_by)"
+            " VALUES (%s,%s,%s)"
+            " ON CONFLICT (execution_identity) DO NOTHING",
+            (execution_identity, authority_scope, revoked_by))
+
+    def note_revoked(self, execution_identity: str) -> None:
+        """The in-memory half (`I-74`), for AFTER the durable row commits.
+
+        Separate from `revoke_on` because it must not run until the transaction
+        that wrote the row has committed: a cache saying "revoked" for a row
+        that rolled back is the one direction this must never fail in.
+
+        Vacuous for the act `F-3` performs -- the execution identity James
+        revokes completed long ago, so there is no in-flight token to fail
+        closed -- and kept anyway so the registry and the sole issuer cannot
+        disagree inside one process.
+        """
         if self._context is not None:
             self._context.revoke(execution_identity)
 

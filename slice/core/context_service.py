@@ -112,10 +112,67 @@ class ContextService:
         if agent_risk_ceiling is not None and ceiling > agent_risk_ceiling:
             raise Denied("context.issue", "ceiling exceeds agent risk ceiling", "I-106", True)
 
-        # James-created grants must cover every requested right (I-10, I-14).
-        for right in rights:
-            if self._tree.find_grant(identity, right, "*", scope_path) is None:
+        # James-created grants must cover every requested right (I-10, I-14),
+        # AND must confer at least the ceiling being requested (I-07, I-106).
+        #
+        # THE CEILING HALF USED TO BE MISSING, and its absence was silent. A
+        # grant carries a maximum risk; nothing compared the requested ceiling
+        # against it, so a `write` grant conferring EXECUTE would issue a token
+        # at IRREVERSIBLE for the asking. Measured, not theorised. Every other
+        # axis was already checked -- the agent definition's context, rights and
+        # ceiling immediately above, and a grant's scope and rights here -- so
+        # this is the missing third of an existing triple rather than a new
+        # kind of control.
+        #
+        # `I-07`: an execution's authority is the INTERSECTION of agent
+        # definition, granting identity, token and risk ceiling, and "no
+        # mechanism produces a union". A token whose ceiling exceeds its grant
+        # is exactly such a union. `I-106` requires issuance to refuse any
+        # request whose resulting token would exceed James-created grants.
+        #
+        # DENY, NEVER CLAMP. Trimming the request to fit would hand back a
+        # token the caller did not ask for and did not check, and `AG-4` is
+        # explicit that refusal is total: "Nothing is trimmed to fit."
+        #
+        # `grant.max_risk` is the authority on this and is not recomputed here.
+        # The right-to-risk model lives where grants are loaded
+        # (`substrate/tree_store.py`), which `core` must not import; the ceiling
+        # it derives is already materialised onto the grant.
+        #
+        # THE BOUND IS THE HIGHEST CEILING ANY REQUESTED RIGHT CONFERS, and the
+        # reason is that a token's ceiling is a MAXIMUM over the acts it may
+        # authorize, not a per-right promise. A token carrying `read` and
+        # `write` legitimately reaches EXECUTE: the EXECUTE-class acts under it
+        # need `write`, which is granted at EXECUTE. Requiring EVERY right to
+        # confer the ceiling would refuse that token -- and it is the ordinary
+        # shape of an authorized execution, so the rule would deny the
+        # application rather than the escalation.
+        #
+        # What it still makes impossible is the thing that was possible before:
+        # a ceiling NO grant confers. `write` at EXECUTE cannot yield
+        # IRREVERSIBLE, and `read` alone at READ cannot yield EXECUTE, because
+        # in each case nothing James granted permits an act at that class.
+        #
+        # RESIDUAL, STATED. Because the PDP compares a plan's risk against the
+        # TOKEN's ceiling and does not correlate that plan's required RIGHT
+        # against the grant conferring it, a token holding both rights could
+        # carry an EXECUTE-class plan that declares only `read`. Closing that
+        # needs per-act right/risk correlation in the PDP, which is a different
+        # control at a different enforcement point -- not this one, and not
+        # silently widened into here.
+        permitted, source = None, None
+        for right in sorted(rights):
+            grant = self._tree.find_grant(identity, right, "*", scope_path)
+            if grant is None:
                 raise Denied("context.issue", f"no grant for right {right}", "I-14", True)
+            if permitted is None or grant.max_risk > permitted:
+                permitted, source = grant.max_risk, right
+        if permitted is not None and ceiling > permitted:
+            raise Denied(
+                "context.issue",
+                f"ceiling {ceiling.name} exceeds the {permitted.name} conferred"
+                f" by the grants for {sorted(rights)} (highest: {source})",
+                "I-106", True)
 
         now = time.time()
         expires = now + ttl
