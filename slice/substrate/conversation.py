@@ -135,6 +135,13 @@ an action. Never state or imply that an action has been performed, and never \
 emit a marker unless James asked for something to be recorded or changed."""
 
 
+# What James is told when NOVA has no conversation provider registered. Written
+# HERE, as prose for a human, rather than passed through from a `Denied` --
+# denial reasons are internal and some are security events.
+PROVIDER_UNCONFIGURED = ("No conversation provider is configured, so NOVA could "
+                         "not answer. Set ANTHROPIC_API_KEY and restart NOVA.")
+
+
 @dataclasses.dataclass(frozen=True)
 class Turn:
     """One exchange, as the server knows it. `state` is the SERVER's account
@@ -142,7 +149,8 @@ class Turn:
 
         answered     information only; nothing was proposed or done
         proposed     a pending approval now exists; approval_id says which
-        unavailable  the model could not be reached / outcome unknown
+        unavailable  the model could not be reached / outcome unknown, which
+                     includes NOT BEING CONFIGURED -- `detail` says which
         refused      authorization denied the turn
     """
     state: str
@@ -420,6 +428,29 @@ class ConversationService:
                                           self._provider, self._model,
                                           risk=Risk.ANALYZE)
         except Denied as d:
+            # A PROVIDER THAT IS NOT REGISTERED IS A CONFIGURATION FACT, NOT AN
+            # AUTHORIZATION DECISION ABOUT JAMES -- and saying otherwise sends
+            # him to check permissions he already holds. Measured on a real
+            # first run with no `ANTHROPIC_API_KEY`: the gateway denied at
+            # `gateway.binding`, this returned "refused", and the page told him
+            # "the request was not authorized", which was false.
+            #
+            # `gateway.binding` is the ONLY step keyed on, and it is raised in
+            # exactly two places, both of them about the binding table rather
+            # than about the caller: no provider registered at all, and a
+            # binding that does not serve the requested model. Every other
+            # denial -- routing, classification, emergency stop, one-scope,
+            # cost, and everything the PDP raises before the gateway -- still
+            # returns "refused", because those ARE decisions about this
+            # request.
+            #
+            # `unavailable` already means "the model did not answer and nothing
+            # was done", which is exactly true here; reusing it keeps the
+            # fail-closed shape and adds no new state. What changes is that the
+            # DETAIL is a sentence written here, never `d.reason`, so no
+            # internal denial text reaches the page.
+            if d.step == "gateway.binding":
+                return Turn("unavailable", "", detail=PROVIDER_UNCONFIGURED)
             return Turn("refused", "", detail=d.reason)
         if response.outcome != "success_claimed":
             return Turn("unavailable", "",
