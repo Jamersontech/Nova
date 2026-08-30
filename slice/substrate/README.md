@@ -138,11 +138,13 @@ have enrolled (ADR 0046, limitation 1).
 
 ### 6. The first useful thing
 
-Open **BUSINESS**, then **Talk**, and say something you want remembered:
+Open **BUSINESS**, then press **Open conversation** on the *Ask NOVA* card, and say something you
+want remembered:
 
 > *remember that the supplier changed their bank details*
 
-NOVA answers and **proposes** a note. Nothing has happened yet. Open **Approvals**, read the card
+NOVA answers and **proposes** a note. Nothing has happened yet. The scope page now offers
+*N actions need your decision* — press **Review**, read the card
 — it shows the exact text that will be stored — and approve. The note now appears on the scope
 page and survives restart. Tasks (`what needs doing`) and new client/area scopes work the same
 way: NOVA proposes, you decide.
