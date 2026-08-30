@@ -96,6 +96,23 @@ def wire(data_dir: str, rp_id: str, origin: str) -> Seam:
         tree_store.seed(DEFAULT_SCOPES, DEFAULT_GRANTS)
         tree = tree_store.load_tree()
 
+    # SEEDING IS FIRST-RUN ONLY, and deliberately stays that way.
+    #
+    # A tree that already exists is NOT converged onto `DEFAULT_GRANTS`. That
+    # was tried and reverted: `wire()` is handed whatever tree the caller
+    # seeded, so converging here would push THIS module's defaults onto trees
+    # that deliberately hold a different grant set, and would make startup a
+    # grant-CREATING path that runs every time rather than once. `I-10` keeps
+    # grant creation to `tree_store.seed`, called by James -- turning the
+    # composition root into a second writer is the wrong direction for one
+    # missing right.
+    #
+    # The consequence, stated rather than worked around: a database seeded
+    # before a right existed never receives it, and `F-3`'s revocation is then
+    # refused at issuance (`I-14`). The Alpha path is a FRESH database, where
+    # the seed above writes `read`, `write` and `revoke` together -- see
+    # README.md, "A database seeded before F-3".
+
     context = ContextService(tree, secret=os.urandom(32))
     audit = AuditWriter(StoreRegistry(os.path.join(data_dir, "audit")))
     pdp = PolicyDecisionPoint(tree, context, audit)
@@ -181,7 +198,11 @@ def main() -> int:
     pathlib.Path(data_dir).mkdir(parents=True, exist_ok=True)
 
     if not db.available():
-        print("NOVA: no PostgreSQL instance reachable -- see slice/substrate/db.py")
+        # The prerequisite that is MISSING, not merely that one is. See
+        # `db.diagnose()`: a missing database and a stopped server used to
+        # print the same sentence.
+        print(f"NOVA: {db.diagnose()}")
+        print("     See slice/substrate/README.md -- 'First run (local Alpha)'.")
         return 1
 
     seam = wire(data_dir, rp_id, origin)

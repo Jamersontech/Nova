@@ -26,8 +26,8 @@ PORT = os.environ.get("NOVA_PGPORT", "5433")
 DBNAME = os.environ.get("NOVA_PGDATABASE", "nova_substrate")
 
 
-def _dsn(user: str) -> str:
-    return f"host={HOST} port={PORT} dbname={DBNAME} user={user}"
+def _dsn(user: str, dbname: str = "") -> str:
+    return f"host={HOST} port={PORT} dbname={dbname or DBNAME} user={user}"
 
 
 def owner_dsn() -> str:
@@ -81,6 +81,45 @@ def available() -> bool:
         return True
     except Exception:
         return False
+
+
+def diagnose() -> str:
+    """WHY the cluster is not usable, in one actionable line. Startup only.
+
+    `available()` answers yes or no, and that was all the operator ever saw. The
+    two failures a first run actually hits -- no server running, and no
+    `nova_substrate` database -- were reported IDENTICALLY, because
+    `superuser_dsn()` names the database, so a missing database looks exactly
+    like a missing server. Measured, not assumed: both printed "no PostgreSQL
+    instance reachable", which sends someone to restart a server that is
+    already running.
+
+    So this asks the maintenance database as a second question. Nothing here
+    creates, migrates or connects on behalf of the application -- it is
+    diagnosis, and it returns a string.
+    """
+    try:
+        import psycopg2
+    except ImportError:
+        return "psycopg2 is not installed -- pip install psycopg2-binary"
+
+    superuser = os.environ.get("NOVA_PGSUPERUSER", "postgres")
+    try:
+        psycopg2.connect(superuser_dsn(), connect_timeout=3).close()
+        return ""
+    except Exception as exc:
+        detail = (str(exc).strip().splitlines() or [""])[0]
+
+    # The server answered for `postgres` but not for ours: the DATABASE is what
+    # is missing, and creating it is a different command from starting a server.
+    try:
+        psycopg2.connect(_dsn(superuser, "postgres"), connect_timeout=3).close()
+        return (f"the server is running, but database {DBNAME!r} does not exist"
+                f" -- create it:  createdb -h {HOST} -p {PORT} {DBNAME}")
+    except Exception:
+        pass
+
+    return f"no PostgreSQL server at host={HOST} port={PORT} -- {detail}"
 
 
 def apply_schema() -> None:

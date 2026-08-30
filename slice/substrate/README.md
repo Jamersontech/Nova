@@ -56,7 +56,139 @@ A table owner bypasses RLS unless `FORCE ROW LEVEL SECURITY` is set, and a super
 unconditionally. **Both are silent** — every application test would still pass while isolation was
 absent. Both are asserted by test, not assumed.
 
-## Running it
+## First run (local Alpha)
+
+**One user, one trusted machine, localhost only.** NOVA binds `127.0.0.1` and nothing else, and
+that bind is a security control, not a default — see *Why localhost is the perimeter* below.
+
+Every command here was run against a clean PostgreSQL 16.13 cluster before being written down.
+
+### 1. PostgreSQL
+
+**PostgreSQL 16.** `schema.sql` creates the four roles (`nova_owner`, `nova_app`, `nova_auth`,
+`nova_control`) itself, so there is no role setup to do. There is no password: the DSNs in
+`db.py` carry none, so the cluster must accept local connections (`trust` or `peer` in
+`pg_hba.conf`). On a single-user machine that is the same trust boundary as your OS account.
+
+If you do not already have a cluster, create one. NOVA's defaults expect **port 5433** and a
+socket in **`/tmp`** — unusual on purpose, so it never collides with a system PostgreSQL:
+
+```bash
+initdb -D ~/.nova/pg
+pg_ctl -D ~/.nova/pg -o '-p 5433 -k /tmp' -l ~/.nova/pg/pg.log start
+```
+
+If your `initdb`/`pg_ctl` are not on `PATH`, they live under the packaged bin directory —
+on Debian/Ubuntu, `/usr/lib/postgresql/16/bin/`.
+
+### 2. The database
+
+**NOVA does not create it.** This is the one step nothing in the code does for you:
+
+```bash
+createdb -h /tmp -p 5433 nova_substrate
+```
+
+The schema, the roles, the RLS policies, the three areas and James's grants are all applied
+automatically on first start.
+
+### 3. The conversation credential
+
+```bash
+export ANTHROPIC_API_KEY=...        # resolved only inside the provider transport, at send time
+```
+
+**Without it NOVA starts and refuses to converse, and refusing to converse means nothing can be
+recorded** — the only path that creates a note, a task or a scope is a proposal the model emits,
+which you then approve. NOVA will say so at startup rather than failing later.
+
+### 4. Start it
+
+```bash
+python3 -m slice.substrate.app
+```
+
+```
+NOVA listening on http://localhost:8080  (sign in at http://localhost:8080/auth/login)
+  conversation provider: anthropic
+```
+
+Everything is configured by environment variable; there is no config file.
+
+| Variable | Default | |
+| --- | --- | --- |
+| `NOVA_PORT` | `8080` | listen port |
+| `NOVA_DATA_DIR` | `~/.nova` | audit records and the secrets vault |
+| `NOVA_RP_ID` | `localhost` | WebAuthn relying party |
+| `NOVA_ORIGIN` | `http://localhost:$NOVA_PORT` | browser origin |
+| `NOVA_PGHOST` / `NOVA_PGPORT` / `NOVA_PGDATABASE` | `/tmp` / `5433` / `nova_substrate` | cluster |
+| `ANTHROPIC_API_KEY` | — | conversation provider (ADR 0047) |
+
+If the database cannot be reached, startup names the missing prerequisite and exits — a stopped
+server and an absent database are different messages, because they need different fixes.
+
+### 5. Register a passkey, then sign in
+
+Open **http://localhost:8080/auth/login** and press **Register a passkey**, then **Sign in**.
+
+**The first passkey is trust-on-first-use.** There is no session to authorize it against, because
+none can exist yet — so whoever reaches the enrolment route first becomes James. Every later
+passkey requires an existing strong session. Do not expose the port beyond localhost until you
+have enrolled (ADR 0046, limitation 1).
+
+### 6. The first useful thing
+
+Open **BUSINESS**, then press **Open conversation** on the *Ask NOVA* card, and say something you
+want remembered:
+
+> *remember that the supplier changed their bank details*
+
+NOVA answers and **proposes** a note. Nothing has happened yet. The scope page now offers
+*N actions need your decision* — press **Review**, read the card
+— it shows the exact text that will be stored — and approve. The note now appears on the scope
+page and survives restart. Tasks (`what needs doing`) and new client/area scopes work the same
+way: NOVA proposes, you decide.
+
+To distrust something later, press **Revoke author** on the note. That is an `IRREVERSIBLE` act,
+so approving it asks for your passkey again, and it cannot be undone.
+
+### A database seeded before F-3
+
+**Start Alpha on a fresh database.** The scope tree and James's grants are seeded **once**, when
+the tree is empty — `wire()` does not converge an existing tree onto the current defaults, because
+that would make startup a grant-*creating* path rather than a first-run one, and `I-10` keeps
+grant creation to `tree_store.seed` called by James.
+
+So a database seeded before the `revoke` right existed has `read` and `write` and nothing else.
+NOVA starts cleanly, and every revocation is then refused at issuance (`I-14`), which the interface
+renders as a plain *"this scope is not available to you"* — a **Revoke author** button that never
+works and does not say why. Measured, not theorised.
+
+If you have such a database and do not want to start over, add the missing grants once, as
+James, on the owner connection — the same call the first run makes:
+
+```bash
+python3 -c "
+from slice.substrate import tree_store
+tree = tree_store.load_tree()
+missing = [('james', p, 'revoke') for p in ('/life', '/business', '/wealth')
+           if tree.find_grant('james', 'revoke', '*', p) is None]
+tree_store.seed([], missing)
+print('added:', missing)"
+```
+
+Then restart NOVA — the tree is read once, at startup, so a grant added while it is running does
+not take effect until it restarts.
+
+### Why localhost is the perimeter
+
+`serve()` binds `127.0.0.1` with no option to widen it, and there is no TLS. WebAuthn needs a
+secure context, and `localhost` is the only origin that qualifies without a certificate. That
+bind is also what closes the trust-on-first-use enrolment window. Hosting is
+[ADR 0044](../../docs/decisions/0044-runtime-persistence-and-hosting.md)'s question and nothing
+here implements it — do not put this behind a proxy or on a shared machine.
+
+## Running the tests
 
 ```bash
 # a real PostgreSQL instance must be reachable (see db.py for connection settings)
@@ -64,7 +196,8 @@ python3 -m unittest slice.substrate.tests.test_isolation
 ```
 
 The suite **skips** when PostgreSQL is unavailable. It never passes without its subject: a green
-security suite that never ran is worse than a red one.
+security suite that never ran is worse than a red one — so check `db.available()` before reading
+a green result as a pass.
 
 ## The negative control
 
