@@ -81,13 +81,25 @@ pg_ctl -D ~/.nova/pg -o '-p 5433 -k /tmp' -l ~/.nova/pg/pg.log start
 If your `initdb`/`pg_ctl` are not on `PATH`, they live under the packaged bin directory —
 on Debian/Ubuntu, `/usr/lib/postgresql/16/bin/`.
 
-### 2. The database
+### 2. The database — **not `nova_substrate`**
 
 **NOVA does not create it.** This is the one step nothing in the code does for you:
 
 ```bash
-createdb -h /tmp -p 5433 nova_substrate
+createdb -h /tmp -p 5433 nova_alpha
+export NOVA_PGDATABASE=nova_alpha        # keep this exported for every command below
 ```
+
+> **The Alpha database must never be `nova_substrate`.** That is the database the test suite
+> uses, and `db.reset_data()` **TRUNCATEs** it — `item`, `task`, `approval`, `scope`, `grant`,
+> `auth_credential` and the rest — at the start of nearly every database-backed test. Measured on
+> a real installation: running the suite took it from 3 scopes, 9 grants and James's one passkey
+> to 0, 0, and two leftover test credentials. The passkey was gone, so he could not sign in; two
+> credentials existed, so trust-on-first-use was closed and he could not register a new one
+> either. The installation was unrecoverable, silently.
+>
+> `NOVA_PGDATABASE` is the whole fix. Nothing else needs to change, and the test suite keeps its
+> own default.
 
 The schema, the roles, the RLS policies, the three areas and James's grants are all applied
 automatically on first start.
@@ -100,11 +112,13 @@ export ANTHROPIC_API_KEY=...        # resolved only inside the provider transpor
 
 **Without it NOVA starts and refuses to converse, and refusing to converse means nothing can be
 recorded** — the only path that creates a note, a task or a scope is a proposal the model emits,
-which you then approve. NOVA will say so at startup rather than failing later.
+which you then approve. NOVA says so at startup, and says so again on the conversation page if
+you try anyway.
 
 ### 4. Start it
 
 ```bash
+export NOVA_PGDATABASE=nova_alpha        # if this shell has not already
 python3 -m slice.substrate.app
 ```
 
@@ -121,7 +135,8 @@ Everything is configured by environment variable; there is no config file.
 | `NOVA_DATA_DIR` | `~/.nova` | audit records and the secrets vault |
 | `NOVA_RP_ID` | `localhost` | WebAuthn relying party |
 | `NOVA_ORIGIN` | `http://localhost:$NOVA_PORT` | browser origin |
-| `NOVA_PGHOST` / `NOVA_PGPORT` / `NOVA_PGDATABASE` | `/tmp` / `5433` / `nova_substrate` | cluster |
+| `NOVA_PGHOST` / `NOVA_PGPORT` | `/tmp` / `5433` | cluster |
+| `NOVA_PGDATABASE` | `nova_substrate` | **set it to `nova_alpha`** — the default is the test database (see step 2) |
 | `ANTHROPIC_API_KEY` | — | conversation provider (ADR 0047) |
 
 If the database cannot be reached, startup names the missing prerequisite and exits — a stopped
@@ -165,9 +180,11 @@ renders as a plain *"this scope is not available to you"* — a **Revoke author*
 works and does not say why. Measured, not theorised.
 
 If you have such a database and do not want to start over, add the missing grants once, as
-James, on the owner connection — the same call the first run makes:
+James, on the owner connection — the same call the first run makes. It reads `NOVA_PGDATABASE`
+like everything else, so export it first or it will act on the test database:
 
 ```bash
+export NOVA_PGDATABASE=nova_alpha
 python3 -c "
 from slice.substrate import tree_store
 tree = tree_store.load_tree()
@@ -192,8 +209,13 @@ here implements it — do not put this behind a proxy or on a shared machine.
 
 ```bash
 # a real PostgreSQL instance must be reachable (see db.py for connection settings)
+unset NOVA_PGDATABASE                    # the suite owns `nova_substrate`
 python3 -m unittest slice.substrate.tests.test_isolation
 ```
+
+**The suite TRUNCATEs the database it runs against**, so run it against `nova_substrate` and
+never against your Alpha database. `unset NOVA_PGDATABASE` in any shell where you exported
+`nova_alpha`, or run the tests from a different shell.
 
 The suite **skips** when PostgreSQL is unavailable. It never passes without its subject: a green
 security suite that never ran is worse than a red one — so check `db.available()` before reading

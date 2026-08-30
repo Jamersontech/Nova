@@ -38,7 +38,7 @@ from .. import db, tree_store
 from ..approval_flow import PENDING, ApprovalService
 from ..boundary import DataAccessBoundary
 from ..conversation import (CONVERSATION_MODEL, CONVERSATION_PROFILE, PROVIDER,
-                            ConversationService)
+                            PROVIDER_UNCONFIGURED, ConversationService)
 from ..seam import Seam, serve
 from ..write_path import (PostgresItemIntegration, WritePath, write_item_tool,
                           TOOL)
@@ -75,12 +75,17 @@ class ScriptedTransport:
         self.replies: list[str] = []
         self.prompts: list[str] = []
         self.credential_refs: list[str] = []
+        # The provider's own claim about the call. Defaults to what this
+        # transport has always returned, so no existing test changes; `test_14f`
+        # sets it to distinguish an ordinary provider FAILURE from a provider
+        # that was never configured.
+        self.outcome: str = "success_claimed"
 
     def __call__(self, prompt: str, credential_ref: str) -> ModelResponse:
         self.prompts.append(prompt)
         self.credential_refs.append(credential_ref)
         text = self.replies.pop(0) if self.replies else "Nothing is pending here."
-        return ModelResponse(text=text,
+        return ModelResponse(text=text, outcome=self.outcome,
                              taint=Taint.of("model.generated", Classification.INTERNAL))
 
 
@@ -484,6 +489,102 @@ class ConversationTest(unittest.TestCase):
                     self.assertNotIn(marker, body)
         finally:
             server.shutdown()
+
+    # =======================================================================
+    # 14 -- an UNCONFIGURED provider is not an authorization failure
+    # =======================================================================
+    #
+    # Found by using NOVA, not by reading it. On a first run with no
+    # `ANTHROPIC_API_KEY`, saying the README's own opening sentence produced:
+    #
+    #     "I couldn't complete that: the request was not authorized."
+    #
+    # James holds every grant on the scope. The gateway had denied at
+    # `gateway.binding` -- no provider registered -- and `respond` mapped every
+    # `Denied` to "refused", so a missing environment variable was reported as a
+    # permissions problem and sent him to look in the wrong place entirely.
+
+    def _read_token(self):
+        """The READ-ceiling token the seam issues for a turn, for the tests that
+        call `respond` directly rather than through HTTP."""
+        return self.context.issue_root(
+            identity="james", actor="james", scope_path=A,
+            rights=frozenset({"read"}), ceiling=Risk.READ, ttl=60)
+
+    def _unregister_provider(self):
+        """Exactly the production shape of a missing `ANTHROPIC_API_KEY`:
+        `app.wire` registers the provider ONLY when the credential is present,
+        so absent credential means absent binding. Nothing else is changed --
+        the session, the grants, the scope and the PDP all stay valid, which is
+        what makes the old message false rather than merely unhelpful."""
+        self.gateway._providers.pop(PROVIDER, None)
+        self.gateway._transports.pop(PROVIDER, None)
+
+    def test_14_an_unconfigured_provider_does_not_read_as_unauthorized(self):
+        self._unregister_provider()
+        status, page = self.seam.talk_post(self.sid, A, "hello?")
+
+        self.assertNotIn("was not authorized", page,
+                         "a missing provider is still reported as an"
+                         " authorization failure")
+        self.assertIn("ANTHROPIC_API_KEY", page,
+                      "the page does not say what is actually missing")
+        self.assertIn("No conversation provider is configured", page)
+        # Fail-closed is unchanged: no answer, and not a success.
+        self.assertNotEqual(200, status)
+
+    def test_14b_the_turn_state_is_unavailable_not_refused(self):
+        """`unavailable` already means "the model did not answer and nothing was
+        done", which is exactly true here. No new state was invented."""
+        self._unregister_provider()
+        turn = self.conversation.respond(self._read_token(), A, "hello?")
+        self.assertEqual("unavailable", turn.state)
+        self.assertEqual(PROVIDER_UNCONFIGURED, turn.detail)
+
+    def test_14c_a_genuine_authorization_denial_still_reads_as_one(self):
+        """THE INVERSION, and the test this change would be worthless without.
+        The provider is registered and healthy; the DENIAL is real -- an
+        explicit denial on the scope (`I-15`). That must still say the request
+        was not authorized, and must NOT mention the credential."""
+        self.tree.james_denies("james", "read", A)
+        status, page = self.seam.talk_post(self.sid, A, "what is here?")
+
+        self.assertEqual(403, status)
+        self.assertIn("was not authorized", page)
+        self.assertNotIn("ANTHROPIC_API_KEY", page)
+        self.assertNotIn("No conversation provider is configured", page)
+
+    def test_14d_a_denial_reason_is_never_shown(self):
+        """`refused` still withholds its detail. A denial reason is internal --
+        some are security events -- and widening the rendering to `unavailable`
+        must not have widened it to `refused` as well."""
+        self.tree.james_denies("james", "read", A)
+        _, page = self.seam.talk_post(self.sid, A, "what is here?")
+        for internal in ("explicit denial", "I-15", "step4", "authorize_data_read"):
+            self.assertNotIn(internal, page)
+
+    def test_14e_an_unconfigured_provider_persists_nothing(self):
+        """Fail-closed by consequence, not by status code: no item, no task, no
+        approval, and the model was never reached."""
+        self._unregister_provider()
+        self.seam.talk_post(self.sid, A,
+                            "remember that the supplier changed their bank details")
+
+        self.assertEqual([], self.sql("SELECT 1 FROM item"))
+        self.assertEqual([], self.sql("SELECT 1 FROM task"))
+        self.assertEqual([], self.sql("SELECT 1 FROM approval"))
+        self.assertEqual([], self.transport.prompts,
+                         "the model was called with no provider registered")
+
+    def test_14f_the_ordinary_provider_failure_path_is_unchanged(self):
+        """The third case stays distinct: the provider IS registered and the
+        model itself did not succeed. Still `unavailable`, still its own
+        detail, and it does not claim the credential is missing."""
+        self.transport.outcome = "failure_claimed"
+        turn = self.conversation.respond(self._read_token(), A, "hello?")
+        self.assertEqual("unavailable", turn.state)
+        self.assertNotEqual(PROVIDER_UNCONFIGURED, turn.detail)
+        self.assertIn("failure_claimed", turn.detail)
 
 
 if __name__ == "__main__":

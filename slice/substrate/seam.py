@@ -1000,7 +1000,13 @@ def _talk_page(scope_path: str, log: list) -> str:
         elif state == "refused":
             block.append("<p class=\"pending\">I couldn\u2019t complete that: the "
                          "request was not authorized. Nothing was done.</p>")
-        if entry.get("detail") and state in ("answered",):
+        # `unavailable` joins `answered` in showing its detail, because the
+        # sentence above cannot distinguish a provider that is unreachable from
+        # one that was never configured -- and only the second is something
+        # James can act on. Both details are written by the server
+        # (`conversation.PROVIDER_UNCONFIGURED`, or the model's own outcome
+        # word); a `refused` detail is a denial reason and is still withheld.
+        if entry.get("detail") and state in ("answered", "unavailable"):
             block.append(f"<p class=\"muted\">{html.escape(entry['detail'])}</p>")
         block.append("</div>")
         turns.append("".join(block))
