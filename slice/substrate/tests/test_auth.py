@@ -352,6 +352,110 @@ class AuthenticationTest(unittest.TestCase):
             self.auth.enrolment_options("assistant", "assistant",
                                         authorized_by=james_session)
 
+    def test_18a_a_bootstrap_ceremony_cannot_be_spent_once_bootstrap_closes(self):
+        """`F-4`. Two callers reach the enrolment route while an actor has no
+        passkey, so BOTH are legitimately handed a ceremony -- that much is
+        limitation 1 working as written. The first completes, and
+        trust-on-first-use is over.
+
+        The second is now an unauthenticated request to add a passkey to an
+        established actor, which limitation 1 says must fail. It has to fail
+        HERE, when the ceremony is redeemed, and not merely at the moment it
+        was minted: `CEREMONY_LIFETIME` is five minutes, and the authorization
+        was a fact about the world that stopped being true in between.
+
+        Before the fix this call SUCCEEDED, and the resulting passkey was a
+        full peer of James's -- multi-factor, EXECUTE-capable, and sufficient
+        for the `I-67` step-up, whose binding compares the actor.
+        """
+        actor = "newcomer"
+        self.assertFalse(self.auth.has_credential(actor))
+
+        first_c, first_o = self.auth.enrolment_options(actor, actor)
+        second_c, second_o = self.auth.enrolment_options(actor, actor)
+
+        first_key = SoftAuthenticator()
+        self.auth.verify_enrolment(
+            first_c, first_key.register(authfixture._challenge(first_o),
+                                        RP_ID, ORIGIN),
+            actor, actor, "first")
+        self.assertTrue(self.auth.has_credential(actor))
+
+        second_key = SoftAuthenticator()
+        with self.assertRaises(AuthenticationFailed):
+            self.auth.verify_enrolment(
+                second_c, second_key.register(authfixture._challenge(second_o),
+                                              RP_ID, ORIGIN),
+                actor, actor, "held over")
+
+        # Refused, and nothing was written: one passkey, and the rejected
+        # authenticator cannot sign in.
+        self.assertEqual(
+            [(1,)], self.sql("SELECT count(*) FROM auth_credential"
+                             " WHERE actor_ref=%s", (actor,)))
+        with self.assertRaises(AuthenticationFailed):
+            authfixture.sign_in(self.auth, second_key)
+
+    def test_18b_the_bootstrap_guard_does_not_touch_the_add_a_device_path(self):
+        """The guard is scoped to the authorization that can perish. A ceremony
+        minted against a strong session was authorized by something no later
+        enrolment can retract, so it stays redeemable even though another
+        passkey appeared while it was in flight.
+
+        Without this, the fix for `F-4` would have broken the legitimate
+        add-a-device path instead -- refusing every enrolment after the first
+        is not a security property, it is an outage.
+        """
+        ceremony, options = self.auth.enrolment_options(
+            "james", "james", authorized_by=self.auth.resolve(self.sign_in()))
+
+        # A different device is enrolled while that ceremony is still open.
+        authfixture.enrol(self.auth, "james", "james", "tablet",
+                          authorized_by=self.auth.resolve(self.sign_in()))
+
+        phone = SoftAuthenticator()
+        self.auth.verify_enrolment(
+            ceremony, phone.register(authfixture._challenge(options),
+                                     RP_ID, ORIGIN),
+            "james", "james", "phone")
+        self.assertIsNotNone(
+            self.auth.resolve(authfixture.sign_in(self.auth, phone)))
+
+    def test_18c_a_registration_ceremony_carries_which_rule_authorized_it(self):
+        """The mechanism, asserted directly. A ceremony minted with no
+        credential present is a BOOTSTRAP ceremony; one minted against a strong
+        session is an ADDITIONAL ceremony. `verify_enrolment` re-checks only the
+        first, so the distinction has to be real and not incidental.
+
+        Deciding at mint time and never recording the decision is what made
+        `F-4` invisible: both ceremonies said `register`, so redemption had
+        nothing to re-check against.
+        """
+        from ..auth import ENROL_ADDITIONAL, ENROL_BOOTSTRAP
+
+        fresh, _ = self.auth.enrolment_options("newcomer", "newcomer")
+        added, _ = self.auth.enrolment_options(
+            "james", "james", authorized_by=self.auth.resolve(self.sign_in()))
+
+        self.assertEqual(ENROL_BOOTSTRAP,
+                         self.auth._ceremonies._open[fresh][1])
+        self.assertEqual(ENROL_ADDITIONAL,
+                         self.auth._ceremonies._open[added][1])
+
+        # Asserted against each other, not only against the constants. Mutation
+        # testing caught the two assertions above passing VACUOUSLY when the
+        # constants were collapsed to one string: a value compared to itself
+        # agrees no matter what it is. The property is that the two ceremonies
+        # are DISTINGUISHABLE.
+        self.assertNotEqual(ENROL_BOOTSTRAP, ENROL_ADDITIONAL)
+        self.assertNotEqual(self.auth._ceremonies._open[fresh][1],
+                            self.auth._ceremonies._open[added][1])
+
+        # And the namespaces do not interchange: a registration ceremony is
+        # not spendable as a login or a step-up, and never was.
+        with self.assertRaises(AuthenticationFailed):
+            self.auth._ceremonies.take(fresh, "authenticate")
+
     # =======================================================================
     # Privilege separation -- authentication cannot reach scoped data
     # =======================================================================
