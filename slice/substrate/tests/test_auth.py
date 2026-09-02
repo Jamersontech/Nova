@@ -33,7 +33,10 @@ import base64
 import datetime
 import json
 import os
+import subprocess
+import sys
 import tempfile
+import threading
 import unittest
 import urllib.error
 import urllib.parse
@@ -455,6 +458,121 @@ class AuthenticationTest(unittest.TestCase):
         # not spendable as a login or a step-up, and never was.
         with self.assertRaises(AuthenticationFailed):
             self.auth._ceremonies.take(fresh, "authenticate")
+
+    def test_18d_concurrent_bootstrap_redemptions_yield_exactly_one_credential(self):
+        """`F-4`, the half a sequential test cannot reach.
+
+        `WHERE NOT EXISTS` refuses a bootstrap ceremony redeemed AFTER a rival
+        committed. It does not refuse one redeemed AT THE SAME TIME: under
+        `READ COMMITTED` the subquery reads a snapshot that does not contain
+        the rival's uncommitted row, and `actor_ref` has no unique constraint
+        to fall back on. Measured before the advisory lock was added, 196 of
+        200 concurrent trials produced TWO credentials for one actor.
+
+        Each worker mints its own ceremony and generates its key BEFORE the
+        barrier, so the only work left inside the contended window is the
+        server-side verification and the write.
+
+        ON DETERMINISM, HONESTLY. With the lock in place this test is
+        deterministic: exactly one worker can win, every run. In the DETECTION
+        direction it is statistical, because the workers cannot be made to
+        arrive at the write in perfect lockstep from outside the API --
+        `verify_registration_response` runs inside `verify_enrolment` and takes
+        a few milliseconds that vary per worker. Measured with the advisory
+        lock removed, one round of eight caught the race in 18 of 20 runs. So
+        this runs several INDEPENDENT rounds and requires the invariant in
+        every one of them, which takes the chance of an unlocked build slipping
+        through from about one in ten to about one in a hundred thousand.
+
+        Exactly one may win, in every round. That is the invariant -- not
+        "usually one".
+        """
+        rounds, workers = 5, 8
+
+        for round_index in range(rounds):
+            actor = f"racer-{round_index}"
+            self.assertFalse(self.auth.has_credential(actor))
+
+            prepared = []
+            for _ in range(workers):
+                ceremony, options = self.auth.enrolment_options(actor, actor)
+                key = SoftAuthenticator()
+                # Keygen happens HERE, before the barrier. Left inside the
+                # contended window it would stagger the workers and quietly
+                # turn this back into a sequential test.
+                prepared.append((ceremony, key,
+                                 key.register(authfixture._challenge(options),
+                                              RP_ID, ORIGIN)))
+
+            barrier = threading.Barrier(workers)
+            outcomes: list = [None] * workers
+
+            def redeem(index: int, actor=actor, prepared=prepared,
+                       outcomes=outcomes, barrier=barrier) -> None:
+                ceremony, _, attestation = prepared[index]
+                barrier.wait()
+                try:
+                    self.auth.verify_enrolment(ceremony, attestation,
+                                               actor, actor, f"worker-{index}")
+                    outcomes[index] = "accepted"
+                except AuthenticationFailed:
+                    outcomes[index] = "refused"
+
+            threads = [threading.Thread(target=redeem, args=(i,))
+                       for i in range(workers)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=30)
+            self.assertFalse(
+                any(t.is_alive() for t in threads),
+                f"round {round_index}: a redemption never returned "
+                f"-- deadlock or lost lock")
+
+            where = f"round {round_index}, outcomes={outcomes}"
+
+            # 1. Exactly one succeeded, and every other failed CLOSED.
+            self.assertEqual(1, outcomes.count("accepted"), where)
+            self.assertEqual(workers - 1, outcomes.count("refused"), where)
+
+            # 2. The database agrees -- no rejected credential was persisted.
+            self.assertEqual(
+                [(1,)], self.sql("SELECT count(*) FROM auth_credential"
+                                 " WHERE actor_ref=%s", (actor,)), where)
+
+            # 3. And a loser's authenticator is worthless, not merely
+            #    unrecorded.
+            for index, outcome in enumerate(outcomes):
+                if outcome == "refused":
+                    with self.assertRaises(AuthenticationFailed):
+                        authfixture.sign_in(self.auth, prepared[index][1])
+
+    def test_18e_the_bootstrap_lock_key_is_stable_and_actor_scoped(self):
+        """The lock is only a control if two processes derive the SAME key for
+        the same actor and DIFFERENT keys for different actors.
+
+        `hash()` would satisfy neither: it is salted per process, so two
+        workers would take two different locks and serialize nothing at all.
+        """
+        from ..auth import _bootstrap_lock_key
+
+        self.assertEqual(_bootstrap_lock_key("james"),
+                         _bootstrap_lock_key("james"))
+        self.assertNotEqual(_bootstrap_lock_key("james"),
+                            _bootstrap_lock_key("assistant"))
+
+        # Stable across processes, not merely within this one.
+        out = subprocess.run(
+            [sys.executable, "-c",
+             "from slice.substrate.auth import _bootstrap_lock_key as k;"
+             "print(k('james'))"],
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))),
+            capture_output=True, text=True)
+        self.assertEqual(str(_bootstrap_lock_key("james")), out.stdout.strip())
+
+        # And it fits the bigint pg_advisory_xact_lock accepts.
+        self.assertTrue(-2**63 <= _bootstrap_lock_key("james") < 2**63)
 
     # =======================================================================
     # Privilege separation -- authentication cannot reach scoped data

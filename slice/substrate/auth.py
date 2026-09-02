@@ -148,6 +148,23 @@ def _ref(session_token: str) -> str:
     return hashlib.sha256(session_token.encode()).hexdigest()
 
 
+def _bootstrap_lock_key(actor: str) -> int:
+    """The advisory-lock key that serializes one actor's bootstrap claim.
+
+    SHA-256 rather than `hash()`: Python's string hashing is salted per
+    process, so two workers would derive DIFFERENT keys for the same actor and
+    would not serialize against each other at all -- a lock that silently locks
+    nothing. This is stable across processes, restarts and versions.
+
+    Two different actors colliding on the low 64 bits would make them wait for
+    each other; it could not admit either one wrongly, because the predicate
+    that actually decides is `WHERE actor_ref=%s`. A collision costs
+    contention, never authorization.
+    """
+    digest = hashlib.sha256(f"nova.enrolment.bootstrap:{actor}".encode()).digest()
+    return int.from_bytes(digest[:8], "big", signed=True)
+
+
 class _Ceremonies:
     """In-flight challenges. Single-use, expiring, server-side.
 
@@ -279,10 +296,29 @@ class AuthenticationService:
         second passkey to be added to James's actor with no session at all,
         which is precisely what limitation 1 promises cannot happen.
 
-        So the condition is re-checked at redemption, in the same statement
-        that writes. A ceremony minted for `ENROL_ADDITIONAL` needs no such
-        re-check: it was authorized by a strong session that already existed,
-        and no later enrolment can retract that.
+        So the condition is re-checked at redemption. Two mechanisms, because
+        one was measured to be insufficient:
+
+          * the re-check rides ON the INSERT (`WHERE NOT EXISTS`), which
+            settles the SEQUENTIAL case -- a ceremony redeemed after somebody
+            else's enrolment committed;
+          * a transaction-scoped advisory lock, keyed on the actor, serializes
+            CONCURRENT redemptions, which the first mechanism does not.
+
+        The second is not belt-and-braces. Under `READ COMMITTED` -- the
+        server's default and what this connection uses -- the `NOT EXISTS`
+        subquery reads a snapshot, and a competing transaction's uncommitted
+        row is not in it. `actor_ref` carries no unique constraint (only
+        `credential_id` does, and two authenticators produce two different
+        credential ids), so nothing else serializes them either. Measured on
+        this schema: 196 of 200 concurrent trials produced TWO credentials for
+        one actor. The lock is what makes "at most one bootstrap credential"
+        true rather than merely likely.
+
+        A ceremony minted for `ENROL_ADDITIONAL` takes neither the guard nor
+        the lock: it was authorized by a strong session that already existed,
+        no later enrolment can retract that, and several devices for one actor
+        is the intended outcome rather than a race to be resolved.
         """
         challenge, purpose = self._ceremonies.take_one_of(
             ceremony_id, (ENROL_BOOTSTRAP, ENROL_ADDITIONAL))
@@ -298,10 +334,10 @@ class AuthenticationService:
             raise AuthenticationFailed("registration rejected") from exc
 
         credential_id = base64.urlsafe_b64encode(verified.credential_id).decode().rstrip("=")
-        # The re-check rides ON the INSERT rather than preceding it, so there is
-        # no interval between deciding and writing for a second bootstrap to
-        # slip through. `rowcount` of 0 means the guard fired: somebody enrolled
-        # while this ceremony was in flight.
+        # The re-check rides ON the INSERT rather than preceding it. `rowcount`
+        # of 0 means the guard fired: somebody enrolled while this ceremony was
+        # in flight. This alone settles the sequential case; the lock below is
+        # what settles the concurrent one.
         sql = ("INSERT INTO auth_credential"
                " (credential_id, actor_ref, identity, public_key, sign_count, label)"
                " SELECT %s,%s,%s,%s,%s,%s")
@@ -314,12 +350,40 @@ class AuthenticationService:
 
         conn = self._connect()
         try:
-            with conn.cursor() as cur:
-                cur.execute(sql, args)
-                if cur.rowcount != 1:
-                    # Same opaque failure as every other rejection here.
-                    raise AuthenticationFailed("registration rejected")
+            if purpose == ENROL_BOOTSTRAP:
+                # THE ONE PLACE THIS MODULE LEAVES AUTOCOMMIT, and it has to.
+                # `pg_advisory_xact_lock` is released when its transaction
+                # ends, and under autocommit that is the end of its OWN
+                # statement -- measured: zero locks held by the time the next
+                # statement runs. Taking the lock without a transaction to
+                # hold it would look like a fix and serialize nothing.
+                #
+                # READ COMMITTED is pinned rather than inherited, because the
+                # INSERT must take its snapshot AFTER the lock is granted.
+                # Under REPEATABLE READ the snapshot is taken when the
+                # transaction begins, before the wait, so the winner's row
+                # would still be invisible to the loser and both would insert.
+                conn.set_session(isolation_level="READ COMMITTED",
+                                 autocommit=False)
+                with conn.cursor() as cur:
+                    cur.execute("SELECT pg_advisory_xact_lock(%s)",
+                                (_bootstrap_lock_key(actor),))
+                    cur.execute(sql, args)
+                    written = cur.rowcount
+                # Releases the lock. Committing a statement that inserted no
+                # rows writes nothing; the refusal is decided below.
+                conn.commit()
+            else:
+                with conn.cursor() as cur:
+                    cur.execute(sql, args)
+                    written = cur.rowcount
+
+            if written != 1:
+                # Same opaque failure as every other rejection here.
+                raise AuthenticationFailed("registration rejected")
         finally:
+            # Closing discards any transaction still open -- an exception
+            # between the lock and the commit rolls back and frees the lock.
             conn.close()
         return credential_id
 
