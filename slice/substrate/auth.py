@@ -53,10 +53,12 @@ STATED LIMITATIONS
 1. BOOTSTRAP IS TRUST-ON-FIRST-USE. The first passkey for an actor may be
    enrolled without an existing session, because otherwise no session could
    ever exist. Every subsequent passkey requires an authenticated multi-factor
-   session. Whoever reaches the enrolment route first, on a system with no
-   credential, becomes James. In deployment that window is closed by not
-   exposing the route until enrolment is done; that is an operational control,
-   and it is not claimed to be more than one.
+   session -- enforced when the ceremony is REDEEMED as well as when it is
+   minted, so a ceremony obtained during the bootstrap window cannot be spent
+   after that window has closed (`F-4`). Whoever reaches the enrolment route
+   first, on a system with no credential, becomes James. In deployment that
+   window is closed by not exposing the route until enrolment is done; that is
+   an operational control, and it is not claimed to be more than one.
 2. NO ATTESTATION IS VERIFIED. Registration accepts `none` attestation, so
    NOVA does not establish WHICH authenticator model holds the key. `A-2` is
    about replay resistance and does not require attestation; device allow-lists
@@ -105,6 +107,14 @@ SESSION_LIFETIME = datetime.timedelta(hours=12)
 # is a replay window.
 CEREMONY_LIFETIME = datetime.timedelta(minutes=5)
 
+# The two reasons an enrolment may be authorized. A registration ceremony
+# carries WHICH one applied, because the two are checked against different
+# facts and only one of them can stop being true while the ceremony is still
+# alive. Namespacing the purpose is the same device `_stepup_purpose` uses to
+# stop a login challenge being presented as a step-up.
+ENROL_BOOTSTRAP = "register:bootstrap"      # justified by: no credential exists
+ENROL_ADDITIONAL = "register:additional"    # justified by: a strong session
+
 
 class AuthenticationFailed(Exception):
     """One error for every failure mode. Which check failed is not the
@@ -138,6 +148,23 @@ def _ref(session_token: str) -> str:
     return hashlib.sha256(session_token.encode()).hexdigest()
 
 
+def _bootstrap_lock_key(actor: str) -> int:
+    """The advisory-lock key that serializes one actor's bootstrap claim.
+
+    SHA-256 rather than `hash()`: Python's string hashing is salted per
+    process, so two workers would derive DIFFERENT keys for the same actor and
+    would not serialize against each other at all -- a lock that silently locks
+    nothing. This is stable across processes, restarts and versions.
+
+    Two different actors colliding on the low 64 bits would make them wait for
+    each other; it could not admit either one wrongly, because the predicate
+    that actually decides is `WHERE actor_ref=%s`. A collision costs
+    contention, never authorization.
+    """
+    digest = hashlib.sha256(f"nova.enrolment.bootstrap:{actor}".encode()).digest()
+    return int.from_bytes(digest[:8], "big", signed=True)
+
+
 class _Ceremonies:
     """In-flight challenges. Single-use, expiring, server-side.
 
@@ -158,14 +185,29 @@ class _Ceremonies:
 
     def take(self, ceremony_id: Optional[str], purpose: str) -> bytes:
         """Consume. A challenge is valid exactly once, for one purpose."""
+        return self.take_one_of(ceremony_id, (purpose,))[0]
+
+    def take_one_of(self, ceremony_id: Optional[str],
+                    purposes: tuple[str, ...]) -> tuple[bytes, str]:
+        """Consume, accepting any of several purposes and reporting WHICH one
+        the ceremony was minted for.
+
+        Enrolment needs this because its two authorizations are established at
+        DIFFERENT times, and the redeeming code must know which it is holding
+        before it can re-check anything. Asking `take` twice is not an
+        alternative: it POPS before it checks, which is exactly what makes a
+        replay find nothing, so a speculative first call would destroy a valid
+        ceremony. One implementation, therefore, and `take` delegates to it --
+        the single-use, purpose-bound, expiring discipline is not duplicated.
+        """
         with self._lock:
             entry = self._open.pop(ceremony_id or "", None)
         if entry is None:
             raise AuthenticationFailed("no such ceremony")
         challenge, entry_purpose, expires = entry
-        if entry_purpose != purpose or _now() >= expires:
+        if entry_purpose not in purposes or _now() >= expires:
             raise AuthenticationFailed("ceremony expired")
-        return challenge
+        return challenge, entry_purpose
 
 
 def _now() -> datetime.datetime:
@@ -216,11 +258,18 @@ class AuthenticationService:
         there is no other way to bootstrap (limitation 1 in the module
         docstring). Every later one requires an authenticated multi-factor
         session, so adding a device is itself a consequential act.
+
+        The ceremony records WHICH of those two justified it, so that
+        `verify_enrolment` can re-check the perishable one. Deciding here and
+        not re-checking there is what `F-4` was.
         """
         if self.has_credential(actor):
             if authorized_by is None or not authorized_by.is_multi_factor \
                     or authorized_by.actor != actor:
                 raise AuthenticationFailed("enrolment requires a strong session")
+            purpose = ENROL_ADDITIONAL
+        else:
+            purpose = ENROL_BOOTSTRAP
 
         options = webauthn.generate_registration_options(
             rp_id=self.rp_id, rp_name=self.rp_name,
@@ -232,13 +281,47 @@ class AuthenticationService:
                 resident_key=ResidentKeyRequirement.REQUIRED,
             ),
         )
-        return self._ceremonies.start(options.challenge, "register"), \
+        return self._ceremonies.start(options.challenge, purpose), \
             options_to_json(options)
 
     def verify_enrolment(self, ceremony_id: Optional[str], credential_json: str,
                          identity: str, actor: str, label: str = "") -> str:
-        """Verify and store the passkey. Returns its credential id."""
-        challenge = self._ceremonies.take(ceremony_id, "register")
+        """Verify and store the passkey. Returns its credential id.
+
+        `F-4`. A bootstrap ceremony is authorized by a fact about the world --
+        "this actor has no passkey" -- and that fact can become false while the
+        ceremony is still alive. `CEREMONY_LIFETIME` is five minutes, so an
+        authorization granted during the trust-on-first-use window used to
+        remain spendable for five minutes AFTER the window closed: enough for a
+        second passkey to be added to James's actor with no session at all,
+        which is precisely what limitation 1 promises cannot happen.
+
+        So the condition is re-checked at redemption. Two mechanisms, because
+        one was measured to be insufficient:
+
+          * the re-check rides ON the INSERT (`WHERE NOT EXISTS`), which
+            settles the SEQUENTIAL case -- a ceremony redeemed after somebody
+            else's enrolment committed;
+          * a transaction-scoped advisory lock, keyed on the actor, serializes
+            CONCURRENT redemptions, which the first mechanism does not.
+
+        The second is not belt-and-braces. Under `READ COMMITTED` -- the
+        server's default and what this connection uses -- the `NOT EXISTS`
+        subquery reads a snapshot, and a competing transaction's uncommitted
+        row is not in it. `actor_ref` carries no unique constraint (only
+        `credential_id` does, and two authenticators produce two different
+        credential ids), so nothing else serializes them either. Measured on
+        this schema: 196 of 200 concurrent trials produced TWO credentials for
+        one actor. The lock is what makes "at most one bootstrap credential"
+        true rather than merely likely.
+
+        A ceremony minted for `ENROL_ADDITIONAL` takes neither the guard nor
+        the lock: it was authorized by a strong session that already existed,
+        no later enrolment can retract that, and several devices for one actor
+        is the intended outcome rather than a race to be resolved.
+        """
+        challenge, purpose = self._ceremonies.take_one_of(
+            ceremony_id, (ENROL_BOOTSTRAP, ENROL_ADDITIONAL))
         try:
             verified = webauthn.verify_registration_response(
                 credential=credential_json,
@@ -251,17 +334,56 @@ class AuthenticationService:
             raise AuthenticationFailed("registration rejected") from exc
 
         credential_id = base64.urlsafe_b64encode(verified.credential_id).decode().rstrip("=")
+        # The re-check rides ON the INSERT rather than preceding it. `rowcount`
+        # of 0 means the guard fired: somebody enrolled while this ceremony was
+        # in flight. This alone settles the sequential case; the lock below is
+        # what settles the concurrent one.
+        sql = ("INSERT INTO auth_credential"
+               " (credential_id, actor_ref, identity, public_key, sign_count, label)"
+               " SELECT %s,%s,%s,%s,%s,%s")
+        args = [credential_id, actor, identity,
+                memoryview(verified.credential_public_key),
+                verified.sign_count, label]
+        if purpose == ENROL_BOOTSTRAP:
+            sql += " WHERE NOT EXISTS (SELECT 1 FROM auth_credential WHERE actor_ref=%s)"
+            args.append(actor)
+
         conn = self._connect()
         try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO auth_credential"
-                    " (credential_id, actor_ref, identity, public_key, sign_count, label)"
-                    " VALUES (%s,%s,%s,%s,%s,%s)",
-                    (credential_id, actor, identity,
-                     memoryview(verified.credential_public_key),
-                     verified.sign_count, label))
+            if purpose == ENROL_BOOTSTRAP:
+                # THE ONE PLACE THIS MODULE LEAVES AUTOCOMMIT, and it has to.
+                # `pg_advisory_xact_lock` is released when its transaction
+                # ends, and under autocommit that is the end of its OWN
+                # statement -- measured: zero locks held by the time the next
+                # statement runs. Taking the lock without a transaction to
+                # hold it would look like a fix and serialize nothing.
+                #
+                # READ COMMITTED is pinned rather than inherited, because the
+                # INSERT must take its snapshot AFTER the lock is granted.
+                # Under REPEATABLE READ the snapshot is taken when the
+                # transaction begins, before the wait, so the winner's row
+                # would still be invisible to the loser and both would insert.
+                conn.set_session(isolation_level="READ COMMITTED",
+                                 autocommit=False)
+                with conn.cursor() as cur:
+                    cur.execute("SELECT pg_advisory_xact_lock(%s)",
+                                (_bootstrap_lock_key(actor),))
+                    cur.execute(sql, args)
+                    written = cur.rowcount
+                # Releases the lock. Committing a statement that inserted no
+                # rows writes nothing; the refusal is decided below.
+                conn.commit()
+            else:
+                with conn.cursor() as cur:
+                    cur.execute(sql, args)
+                    written = cur.rowcount
+
+            if written != 1:
+                # Same opaque failure as every other rejection here.
+                raise AuthenticationFailed("registration rejected")
         finally:
+            # Closing discards any transaction still open -- an exception
+            # between the lock and the commit rolls back and frees the lock.
             conn.close()
         return credential_id
 

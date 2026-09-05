@@ -33,7 +33,10 @@ import base64
 import datetime
 import json
 import os
+import subprocess
+import sys
 import tempfile
+import threading
 import unittest
 import urllib.error
 import urllib.parse
@@ -351,6 +354,225 @@ class AuthenticationTest(unittest.TestCase):
         with self.assertRaises(AuthenticationFailed):
             self.auth.enrolment_options("assistant", "assistant",
                                         authorized_by=james_session)
+
+    def test_18a_a_bootstrap_ceremony_cannot_be_spent_once_bootstrap_closes(self):
+        """`F-4`. Two callers reach the enrolment route while an actor has no
+        passkey, so BOTH are legitimately handed a ceremony -- that much is
+        limitation 1 working as written. The first completes, and
+        trust-on-first-use is over.
+
+        The second is now an unauthenticated request to add a passkey to an
+        established actor, which limitation 1 says must fail. It has to fail
+        HERE, when the ceremony is redeemed, and not merely at the moment it
+        was minted: `CEREMONY_LIFETIME` is five minutes, and the authorization
+        was a fact about the world that stopped being true in between.
+
+        Before the fix this call SUCCEEDED, and the resulting passkey was a
+        full peer of James's -- multi-factor, EXECUTE-capable, and sufficient
+        for the `I-67` step-up, whose binding compares the actor.
+        """
+        actor = "newcomer"
+        self.assertFalse(self.auth.has_credential(actor))
+
+        first_c, first_o = self.auth.enrolment_options(actor, actor)
+        second_c, second_o = self.auth.enrolment_options(actor, actor)
+
+        first_key = SoftAuthenticator()
+        self.auth.verify_enrolment(
+            first_c, first_key.register(authfixture._challenge(first_o),
+                                        RP_ID, ORIGIN),
+            actor, actor, "first")
+        self.assertTrue(self.auth.has_credential(actor))
+
+        second_key = SoftAuthenticator()
+        with self.assertRaises(AuthenticationFailed):
+            self.auth.verify_enrolment(
+                second_c, second_key.register(authfixture._challenge(second_o),
+                                              RP_ID, ORIGIN),
+                actor, actor, "held over")
+
+        # Refused, and nothing was written: one passkey, and the rejected
+        # authenticator cannot sign in.
+        self.assertEqual(
+            [(1,)], self.sql("SELECT count(*) FROM auth_credential"
+                             " WHERE actor_ref=%s", (actor,)))
+        with self.assertRaises(AuthenticationFailed):
+            authfixture.sign_in(self.auth, second_key)
+
+    def test_18b_the_bootstrap_guard_does_not_touch_the_add_a_device_path(self):
+        """The guard is scoped to the authorization that can perish. A ceremony
+        minted against a strong session was authorized by something no later
+        enrolment can retract, so it stays redeemable even though another
+        passkey appeared while it was in flight.
+
+        Without this, the fix for `F-4` would have broken the legitimate
+        add-a-device path instead -- refusing every enrolment after the first
+        is not a security property, it is an outage.
+        """
+        ceremony, options = self.auth.enrolment_options(
+            "james", "james", authorized_by=self.auth.resolve(self.sign_in()))
+
+        # A different device is enrolled while that ceremony is still open.
+        authfixture.enrol(self.auth, "james", "james", "tablet",
+                          authorized_by=self.auth.resolve(self.sign_in()))
+
+        phone = SoftAuthenticator()
+        self.auth.verify_enrolment(
+            ceremony, phone.register(authfixture._challenge(options),
+                                     RP_ID, ORIGIN),
+            "james", "james", "phone")
+        self.assertIsNotNone(
+            self.auth.resolve(authfixture.sign_in(self.auth, phone)))
+
+    def test_18c_a_registration_ceremony_carries_which_rule_authorized_it(self):
+        """The mechanism, asserted directly. A ceremony minted with no
+        credential present is a BOOTSTRAP ceremony; one minted against a strong
+        session is an ADDITIONAL ceremony. `verify_enrolment` re-checks only the
+        first, so the distinction has to be real and not incidental.
+
+        Deciding at mint time and never recording the decision is what made
+        `F-4` invisible: both ceremonies said `register`, so redemption had
+        nothing to re-check against.
+        """
+        from ..auth import ENROL_ADDITIONAL, ENROL_BOOTSTRAP
+
+        fresh, _ = self.auth.enrolment_options("newcomer", "newcomer")
+        added, _ = self.auth.enrolment_options(
+            "james", "james", authorized_by=self.auth.resolve(self.sign_in()))
+
+        self.assertEqual(ENROL_BOOTSTRAP,
+                         self.auth._ceremonies._open[fresh][1])
+        self.assertEqual(ENROL_ADDITIONAL,
+                         self.auth._ceremonies._open[added][1])
+
+        # Asserted against each other, not only against the constants. Mutation
+        # testing caught the two assertions above passing VACUOUSLY when the
+        # constants were collapsed to one string: a value compared to itself
+        # agrees no matter what it is. The property is that the two ceremonies
+        # are DISTINGUISHABLE.
+        self.assertNotEqual(ENROL_BOOTSTRAP, ENROL_ADDITIONAL)
+        self.assertNotEqual(self.auth._ceremonies._open[fresh][1],
+                            self.auth._ceremonies._open[added][1])
+
+        # And the namespaces do not interchange: a registration ceremony is
+        # not spendable as a login or a step-up, and never was.
+        with self.assertRaises(AuthenticationFailed):
+            self.auth._ceremonies.take(fresh, "authenticate")
+
+    def test_18d_concurrent_bootstrap_redemptions_yield_exactly_one_credential(self):
+        """`F-4`, the half a sequential test cannot reach.
+
+        `WHERE NOT EXISTS` refuses a bootstrap ceremony redeemed AFTER a rival
+        committed. It does not refuse one redeemed AT THE SAME TIME: under
+        `READ COMMITTED` the subquery reads a snapshot that does not contain
+        the rival's uncommitted row, and `actor_ref` has no unique constraint
+        to fall back on. Measured before the advisory lock was added, 196 of
+        200 concurrent trials produced TWO credentials for one actor.
+
+        Each worker mints its own ceremony and generates its key BEFORE the
+        barrier, so the only work left inside the contended window is the
+        server-side verification and the write.
+
+        ON DETERMINISM, HONESTLY. With the lock in place this test is
+        deterministic: exactly one worker can win, every run. In the DETECTION
+        direction it is statistical, because the workers cannot be made to
+        arrive at the write in perfect lockstep from outside the API --
+        `verify_registration_response` runs inside `verify_enrolment` and takes
+        a few milliseconds that vary per worker. Measured with the advisory
+        lock removed, one round of eight caught the race in 18 of 20 runs. So
+        this runs several INDEPENDENT rounds and requires the invariant in
+        every one of them, which takes the chance of an unlocked build slipping
+        through from about one in ten to about one in a hundred thousand.
+
+        Exactly one may win, in every round. That is the invariant -- not
+        "usually one".
+        """
+        rounds, workers = 5, 8
+
+        for round_index in range(rounds):
+            actor = f"racer-{round_index}"
+            self.assertFalse(self.auth.has_credential(actor))
+
+            prepared = []
+            for _ in range(workers):
+                ceremony, options = self.auth.enrolment_options(actor, actor)
+                key = SoftAuthenticator()
+                # Keygen happens HERE, before the barrier. Left inside the
+                # contended window it would stagger the workers and quietly
+                # turn this back into a sequential test.
+                prepared.append((ceremony, key,
+                                 key.register(authfixture._challenge(options),
+                                              RP_ID, ORIGIN)))
+
+            barrier = threading.Barrier(workers)
+            outcomes: list = [None] * workers
+
+            def redeem(index: int, actor=actor, prepared=prepared,
+                       outcomes=outcomes, barrier=barrier) -> None:
+                ceremony, _, attestation = prepared[index]
+                barrier.wait()
+                try:
+                    self.auth.verify_enrolment(ceremony, attestation,
+                                               actor, actor, f"worker-{index}")
+                    outcomes[index] = "accepted"
+                except AuthenticationFailed:
+                    outcomes[index] = "refused"
+
+            threads = [threading.Thread(target=redeem, args=(i,))
+                       for i in range(workers)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=30)
+            self.assertFalse(
+                any(t.is_alive() for t in threads),
+                f"round {round_index}: a redemption never returned "
+                f"-- deadlock or lost lock")
+
+            where = f"round {round_index}, outcomes={outcomes}"
+
+            # 1. Exactly one succeeded, and every other failed CLOSED.
+            self.assertEqual(1, outcomes.count("accepted"), where)
+            self.assertEqual(workers - 1, outcomes.count("refused"), where)
+
+            # 2. The database agrees -- no rejected credential was persisted.
+            self.assertEqual(
+                [(1,)], self.sql("SELECT count(*) FROM auth_credential"
+                                 " WHERE actor_ref=%s", (actor,)), where)
+
+            # 3. And a loser's authenticator is worthless, not merely
+            #    unrecorded.
+            for index, outcome in enumerate(outcomes):
+                if outcome == "refused":
+                    with self.assertRaises(AuthenticationFailed):
+                        authfixture.sign_in(self.auth, prepared[index][1])
+
+    def test_18e_the_bootstrap_lock_key_is_stable_and_actor_scoped(self):
+        """The lock is only a control if two processes derive the SAME key for
+        the same actor and DIFFERENT keys for different actors.
+
+        `hash()` would satisfy neither: it is salted per process, so two
+        workers would take two different locks and serialize nothing at all.
+        """
+        from ..auth import _bootstrap_lock_key
+
+        self.assertEqual(_bootstrap_lock_key("james"),
+                         _bootstrap_lock_key("james"))
+        self.assertNotEqual(_bootstrap_lock_key("james"),
+                            _bootstrap_lock_key("assistant"))
+
+        # Stable across processes, not merely within this one.
+        out = subprocess.run(
+            [sys.executable, "-c",
+             "from slice.substrate.auth import _bootstrap_lock_key as k;"
+             "print(k('james'))"],
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))),
+            capture_output=True, text=True)
+        self.assertEqual(str(_bootstrap_lock_key("james")), out.stdout.strip())
+
+        # And it fits the bigint pg_advisory_xact_lock accepts.
+        self.assertTrue(-2**63 <= _bootstrap_lock_key("james") < 2**63)
 
     # =======================================================================
     # Privilege separation -- authentication cannot reach scoped data
