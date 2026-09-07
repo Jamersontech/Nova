@@ -4,9 +4,20 @@
 No invariant was created, no ADR was accepted, no document in `docs/` was changed to make
 implementation easier.
 
-Two findings, **both now resolved**. The first from the architecture's own reasoning; the
-second by James on 2026-08-15. Both resolutions are documented in `docs/` as **Proposed**
-amendments under existing ADRs — no ADR was accepted and no invariant was created.
+Two lineages, in the order they were produced:
+
+1. **Findings 1–5, from the three vertical slices.** Numbered findings about the
+   architecture met in practice. Finding 1 resolved from the architecture's own reasoning;
+   Finding 4 resolved by James on 2026-08-15 and applied. Their resolutions are documented
+   in `docs/` as **Proposed** amendments under existing ADRs — no ADR was accepted and no
+   invariant was created.
+2. **The `F` series, from adversarial security audits of the substrate slice.** Its
+   disposition index, its **open residuals**, the deliberate test states that must not be
+   "fixed", and what remains unvalidated are in the final section of this document.
+
+The header of this file previously said *"Two findings, both now resolved"*, which stopped
+being true once the third slice and the `F` series were added. It is corrected here rather
+than left standing: a document about accuracy does not get to be inaccurate about itself.
 
 ---
 
@@ -495,3 +506,92 @@ correction is carried by the documents the ADR governs.
 invariant other than `I-107`'s cycle clause. `I-01`–`I-114` remain contiguous and unique.
 
 **Classification: CONTRADICTION (documentation) — RESOLVED.**
+
+---
+
+# Substrate security findings — the `F` series
+
+**Status:** the working record of the adversarial security audits run against the substrate
+slice. **Nothing here amends the architecture.** No invariant was created and no ADR was
+accepted to make any of these fixes possible; where a fix needed a decision, James made it
+and the decision is recorded in `docs/decisions/`.
+
+**Why this section exists.** The `F`-series findings were carried in pull-request bodies and
+commit messages, which is durable but scattered — a reader has to know which PR to open, and
+an agent starting fresh sees none of it. The **open residuals** below were in no file at all.
+Anything recorded here was verified against the code at the time of writing; nothing was
+reconstructed from memory.
+
+## Disposition
+
+Each finding's full record — reasoning, verification, mutation results — is in its pull
+request and merge commit. That is the authority; this table is the index.
+
+| Finding | Subject | PR | Branch |
+| --- | --- | --- | --- |
+| `F-7` | qualified migration guard | #15 | `fix/f7-qualified-migration-guard` |
+| `F-8` | elevation audit scope | #9 | `fix/f8-elevation-audit-scope` |
+| `F-9`, `F-10` | authority scope and completion scope | #11 | `fix/f9-f10-authority-and-completion-scope` |
+| `F-11` | scope names are control state | #13 | `fix/f11-scope-names-control-state` |
+| `F-12` | sibling scope isolation | #12 | `fix/f12-sibling-scope-isolation` |
+| `F-13` | revoked authority is labelled, not withheld | #14 | `fix/f13-revoked-authority-labelling` |
+| `I-106` | grant-side risk-ceiling enforcement | #18 | (with `F-3`) |
+| `F-3` | revoke an execution authority through the approval path | #18 | `feature/f3-revocation` |
+| `F-4` | passkey bootstrap enrolment race | #21 | `fix/f4-passkey-enrolment-race` |
+
+`F-2` predates this record; its disposition is in its own pull request and is not restated
+here, because restating it accurately would require reading that PR rather than recalling it.
+
+---
+
+## OPEN RESIDUALS
+
+**This is the part of this document with a claim on somebody's attention.** Every item below
+is present in `main` as merged. None is a regression; each was found, judged, and left
+deliberately. Each was re-verified against the code when this section was written.
+
+| # | Residual | Where | Severity | Why it was left |
+| --- | --- | --- | --- | --- |
+| R-1 | An additional-device enrolment ceremony stays redeemable for its full `CEREMONY_LIFETIME` (5 minutes) even if the session that authorized it is revoked | `auth.py` `verify_enrolment` — it receives no session to re-check | Significant | Same bug class as `F-4`, materially weaker: it still required a strong session belonging to that actor. Fixing it means passing the session in and widening the seam route |
+| R-2 | **No credential-management or revocation surface exists.** Nothing lists enrolled passkeys and nothing deletes one | `A-6` enumerates `auth_session` only; `schema.sql` grants `nova_auth` `SELECT, INSERT, UPDATE` on `auth_credential` — **no `DELETE`** | Significant | Removing a credential needs a `DELETE` grant, which is a schema change touching accepted privilege separation. That is governance review, not a fix to slip into a bug PR |
+| R-3 | The `F-4` bootstrap advisory lock waits without bound (`lock_timeout = 0`) | `auth.py` `verify_enrolment`, bootstrap branch | Residual | James's ruling, PR #21: the critical section is one `INSERT` and a commit, and it fails closed. A timeout introduces a new failure mode needing explicit error-translation and API-semantics decisions |
+| R-4 | The `F-4` concurrency test's **detection** power is statistical (~1 in 10^5 escape for an unlocked build); the fixed invariant itself is deterministic | `test_auth.py` `test_18d`, recorded in its own docstring | Residual | Workers cannot be made to reach the write in lockstep from outside the API |
+| R-5 | `binding_for` hardcodes `account="nova_substrate", endpoint="local:5433"`, so repointing `NOVA_PGDATABASE` yields the **same** execution-binding identity — `I-114(c)` says those fields are in the identity *"precisely so that repointing any of them produces a DIFFERENT binding"* | `write_path.py:817` | Residual | No functional or security effect today: `account` is never compared to the live connection, the constant is symmetric at propose and execute, and `approval.binding_identity` is written but never selected back (`_COLUMNS` omits it). A future one-line fix is safe |
+| R-6 | Expired ceremonies are never swept — `_Ceremonies._open` shrinks only via `take` | `auth.py` | Informational | `login_options` is therefore an unauthenticated unbounded allocator. Localhost-only, memory-only, no authorization consequence |
+| R-7 | The trust-on-first-use bootstrap window is closed by an **operational** control — not exposing the port until enrolment is done — and the perimeter is localhost, so a local process is inside it | `auth.py` module docstring, limitation 1; ADR 0046 | Stated limitation | Recorded in the ADR as a limitation rather than hidden. `F-4` narrowed it; it did not remove it |
+
+---
+
+## Deliberate test states — DO NOT "FIX" THESE
+
+A future reader will see a red suite and want to make it green. Two of these three are
+**expected**, and turning them green would destroy information.
+
+| State | Where | Why it stays |
+| --- | --- | --- |
+| `test_attention.test_04` FAILS | `tests/test_attention.py` | Date-dependent. Established baseline; not a regression |
+| `test_attention.test_18` FAILS | `tests/test_attention.py` | Date-dependent. Established baseline; not a regression |
+| One SKIP | `tests/test_isolation.py:405` | *"timing indistinguishability not tested"* — deliberate, and a skip that became a pass would be a false claim |
+
+**The expected result of the full suite is `FAILED (failures=2, skipped=1)`.** A run reporting
+`OK` has not run against PostgreSQL: the suites **skip rather than pass** without their
+subject, and `db.available()` must be checked before any result is interpreted. A skipped
+security suite is not a pass.
+
+---
+
+## What remains unvalidated
+
+**The real model path has never run.** `conversation → real Anthropic call → proposal →
+approval → persisted note → restart → `F-3` revocation` is the one Alpha path with no
+execution behind it. Everything downstream of the model call is proven; the call itself is
+not.
+
+It is blocked only on `ANTHROPIC_API_KEY` reaching the process environment. The procedure
+already exists and is capped — `slice/tests/real_preflight.py` (zero network calls) then
+`slice/tests/real_run.py` (5 attempts, 2 successes, `max_tokens=16`). Egress was verified
+independently: an uncredentialed request to `api.anthropic.com` returns a genuine
+`HTTP 401 … x-api-key header is required`, so the host is reachable and the endpoint is
+correct.
+
+**Do not fabricate this call, and do not substitute a mock and report it as validation.**
