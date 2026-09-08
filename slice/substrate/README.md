@@ -115,6 +115,20 @@ recorded** — the only path that creates a note, a task or a scope is a proposa
 which you then approve. NOVA says so at startup, and says so again on the conversation page if
 you try anyway.
 
+> **What to keep out of NOVA for now (`R-10`).** Setting this key turns on the one path by which
+> anything leaves NOVA. That path is guarded: the Model Gateway is the only egress, and `I-96`
+> refuses SECURITY-CRITICAL outright and SENSITIVE-PERSONAL without an explicit per-call
+> approval. **But nothing in NOVA can currently apply those two labels.** Everything you write is
+> stored as CONFIDENTIAL, and CONFIDENTIAL is permitted to the provider — so a note's content
+> joins the scope context of your next conversation in that scope and is sent.
+>
+> Until a classification-assignment path exists and is verified end to end, **treat every note
+> and task you store as eligible for the model context**, and do not rely on the
+> "SENSITIVE-PERSONAL is never transmitted" rule in `DATA_CLASSIFICATION.md` §2 to hold for
+> ordinary stored content. In practice: keep health, identity and credential material out of
+> NOVA for now. This is a gap in labelling, not in the gateway — see `R-10` in
+> [`../FINDINGS.md`](../FINDINGS.md).
+
 ### 4. Start it
 
 ```bash
