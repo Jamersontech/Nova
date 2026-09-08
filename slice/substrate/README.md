@@ -219,6 +219,35 @@ bind is also what closes the trust-on-first-use enrolment window. Hosting is
 [ADR 0044](../../docs/decisions/0044-runtime-persistence-and-hosting.md)'s question and nothing
 here implements it — do not put this behind a proxy or on a shared machine.
 
+### Three more Alpha limitations, so you are not surprised by them
+
+None of these is a way past a security control. Each is a surface NOVA does not yet offer, and
+each has a practical consequence worth knowing before you rely on it. The classification caveat
+in step 3 and the trust-on-first-use caveat in step 5 are separate from these and still apply.
+
+**There is no in-app emergency stop.** The gateway's `emergency_stop` and the authentication
+service's `revoke_all` both exist and both work — they are exercised by tests — but nothing in
+the running application sets either. No route, no button, no setter. So the emergency stop for
+this Alpha is **stopping the process**: `Ctrl-C` in the terminal running it. That is adequate for
+one operator sitting at the machine, which is the only configuration this Alpha supports; it is
+not the operator control `I-19` describes, and NOVA does not currently provide one.
+
+**Denials are recorded, but you will not see them in the UI.** Every authorization decision,
+allow and deny alike, is written under `W-2` — denials included, and security events among them.
+They go to the per-scope SQLite audit sink under `NOVA_DATA_DIR`. The pages NOVA renders read the
+PostgreSQL `audit_record` table instead, which carries the `data.read` and `data.write` execution
+records. The two sinks do not overlap for decisions. In practice: if an action is refused you
+will see it not happen, and the reason will be on disk rather than on screen. **Denials are
+audited; what is missing is a way to look at them from inside NOVA.**
+
+**You cannot manage passkeys from inside NOVA.** Nothing lists the credentials enrolled for your
+actor and nothing revokes one — `A-6` enumerates sessions only, and `nova_auth` holds no `DELETE`
+on `auth_credential` precisely so that "the application never deletes one" is structural rather
+than a convention. Combined with `A-4`, which deliberately offers no recovery flow, a lost or
+mistakenly enrolled passkey is not something the application can undo: it needs owner-level
+access to the database. This is recorded as `R-2` in [`../FINDINGS.md`](../FINDINGS.md) and is
+deferred, not forgotten. Enrol deliberately, and keep the authenticator you enrol.
+
 ## Running the tests
 
 ```bash
