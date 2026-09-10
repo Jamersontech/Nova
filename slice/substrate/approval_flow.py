@@ -51,8 +51,8 @@ from typing import Any, Optional
 
 from ..core.types import ContextToken, Denied, Outcome, Risk, Taint
 from .boundary import DataAccessBoundary
-from .write_path import (ApprovalEvidence, REF_ARGUMENT, TOOL, WritePath,
-                         execution_event_identity)
+from .write_path import (ApprovalEvidence, TOOL, WritePath,
+                         execution_event_identity, reference_for)
 
 PENDING, APPROVED, DENIED = "pending", "approved", "denied"
 # Execution lifecycle (Phase 2). `EXECUTING` is written by the claim itself,
@@ -345,8 +345,26 @@ class ApprovalService:
                     settled.append((request.approval_id, "unresolved"))
                     continue
 
-                ref = request.plan_arguments().get(
-                    REF_ARGUMENT.get(request.tool_name, ""), "")
+                try:
+                    ref = reference_for(request.tool_name,
+                                        request.plan_arguments())
+                except Denied:
+                    # R-9. The reference cannot be derived, so the execution
+                    # identity cannot be rebuilt honestly -- which is exactly
+                    # the position the tampered-plan branch above is in, and it
+                    # gets the same answer. UNRESOLVED leaves the row EXECUTING
+                    # and demands a human.
+                    #
+                    # WHAT THIS REPLACES: an empty-string default that did not
+                    # raise. It produced the reference "", hashed a DIFFERENT
+                    # but perfectly well-formed identity, found no audit row
+                    # under it, and settled FAILED -- "did not happen, decide
+                    # again" -- about an execution that may well have happened.
+                    # `add_scope` and `add_task` are not deduplicated by the
+                    # provider, so a second approval could then run the action
+                    # a second time.
+                    settled.append((request.approval_id, "unresolved"))
+                    continue
                 evidence = ch.fetch(
                     "SELECT 1 FROM audit_record WHERE event_identity = %s",
                     (execution_event_identity(trace_id, request.scope_path,

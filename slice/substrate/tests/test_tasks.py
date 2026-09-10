@@ -35,7 +35,8 @@ import urllib.parse
 import urllib.request
 
 from .. import db, tree_store
-from ..approval_flow import APPROVED, PENDING, ApprovalService
+from ..approval_flow import (APPROVED, EXECUTED, EXECUTING, FAILED, PENDING,
+                             ApprovalService)
 from ..boundary import DataAccessBoundary
 from ..conversation import CONVERSATION_MODEL, PROVIDER, ConversationService
 from ..seam import Seam, serve
@@ -440,6 +441,108 @@ class TaskTest(unittest.TestCase):
             self.assertIn("complete_task", scope)
         finally:
             server.shutdown()
+
+    # =======================================================================
+    # 19-21 -- R-9: recovery, for the tools that are not `write_item`
+    #
+    # `test_approval_recovery.py` proves recovery's behaviour, but it proves
+    # it entirely through `write_item` -- every case there uses `it-1`/`hello`.
+    # That was the coverage gap R-9 named, and it is why deleting an entry
+    # from `REF_ARGUMENT` used to leave the whole suite green: no test ever
+    # rebuilt an execution identity for a tool with a different reference
+    # argument, so no test could notice the two derivations disagreeing.
+    #
+    # These run the real crash boundaries -- claim, then stop -- for the two
+    # tools whose reference is NOT `item_ref`, and this file is where they
+    # belong because it is the fixture that registers every tool.
+    # =======================================================================
+
+    def strand(self, tool_name, arguments, action_text, wrote):
+        """A crash reproduced at the real boundaries, for any tool.
+
+        The approval is proposed and CLAIMED with the same statement `decide`
+        uses -- same columns, same trace -- and then we stop, which is exactly
+        the state a process that dies after the claim leaves behind.
+        `wrote=True` additionally commits the action and its audit row through
+        the real transport, reproducing a crash AFTER the execution landed.
+        """
+        token = self.token()
+        approval_id = self.approvals.propose_action(
+            token, A, tool_name, arguments, action_text=action_text,
+            if_wrong_text="Recorded for the recovery test.")
+        with self.boundary.open(token) as ch:
+            ch.execute(
+                "UPDATE approval SET status=%s, decided_at=now(), decided_by=%s,"
+                " consumed_at=now(), execution_trace_id=%s"
+                " WHERE approval_id=%s AND status=%s AND consumed_at IS NULL",
+                (EXECUTING, "james", token.trace_id, approval_id, PENDING))
+        if wrote:
+            self.integration.transport_for(token, tool_name)(
+                arguments, "unused-secret")
+        return approval_id, token
+
+    def test_19_an_interrupted_add_task_is_resolved_from_its_own_evidence(self):
+        """`add_task` addresses its record by `task_ref`, not `item_ref`. Both
+        crash outcomes are asserted: with the reference derived from one table
+        the identity the writer recorded is the identity the reader looks for.
+        """
+        wrote_id, _ = self.strand(
+            ADD_TASK, {"task_ref": "tk-1", "title": "Ring the client",
+                       "due_on": "2026-08-21"},
+            "Add task “Ring the client”.", wrote=True)
+        self.assertEqual([(wrote_id, EXECUTED)], self.approvals.recover(self.token()))
+        self.assertEqual(1, self.sql("SELECT count(*) FROM task")[0][0],
+                         "recovery executed the action a second time")
+
+        crashed_id, _ = self.strand(
+            ADD_TASK, {"task_ref": "tk-2", "title": "Never landed",
+                       "due_on": "2026-08-22"},
+            "Add task “Never landed”.", wrote=False)
+        self.assertEqual([(crashed_id, FAILED)], self.approvals.recover(self.token()))
+        self.assertEqual(
+            [], self.sql("SELECT 1 FROM task WHERE task_ref='tk-2'"),
+            "recovery executed an action it had just called failed")
+
+    def test_20_an_interrupted_complete_task_is_resolved_from_its_own_evidence(self):
+        """`complete_task` shares `task_ref` with `add_task` but is a distinct
+        tool, and the identity contains the TOOL NAME as well as the reference
+        -- so its evidence is its own and cannot be satisfied by the add."""
+        self.add_task(ref="tk-1", title="Ring the client")
+        approval_id, _ = self.strand(
+            COMPLETE_TASK, {"task_ref": "tk-1"},
+            "Mark “Ring the client” done.", wrote=True)
+
+        self.assertEqual([(approval_id, EXECUTED)], self.approvals.recover(self.token()))
+        self.assertIsNotNone(
+            self.sql("SELECT done_at FROM task WHERE task_ref='tk-1'")[0][0],
+            "the completion did not actually land, so the test proved nothing")
+
+    def test_21_a_writer_reader_disagreement_is_caught_here(self):
+        """The regression guard, and the point of putting these in this file.
+
+        R-9 recorded that deleting `COMPLETE_TASK` from `REF_ARGUMENT` left all
+        656 tests green. Deleting it now makes the writer refuse rather than
+        write under an identity the reader could not rebuild -- so the drift
+        surfaces as a failure instead of as a wrong recovery verdict.
+        """
+        from .. import write_path
+
+        self.add_task(ref="tk-1", title="Ring the client")
+        original = dict(write_path.REF_ARGUMENT)
+        try:
+            del write_path.REF_ARGUMENT[COMPLETE_TASK]
+            with self.assertRaises(Denied) as cm:
+                self.strand(COMPLETE_TASK, {"task_ref": "tk-1"},
+                            "Mark “Ring the client” done.", wrote=True)
+            self.assertEqual("I-93", cm.exception.invariant)
+        finally:
+            write_path.REF_ARGUMENT.clear()
+            write_path.REF_ARGUMENT.update(original)
+
+        self.assertIsNone(
+            self.sql("SELECT done_at FROM task WHERE task_ref='tk-1'")[0][0],
+            "the write landed anyway, under an identity recovery could not "
+            "have rebuilt")
 
 
 if __name__ == "__main__":

@@ -236,6 +236,17 @@ ALL_TOOLS = (write_item_tool, add_task_tool, complete_task_tool, add_scope_tool,
 # from the stored arguments. One table, so the two cannot drift -- if they did,
 # recovery would look for evidence under an identity nothing ever wrote and
 # would conclude "did not execute" about an action that did.
+#
+# R-9. THAT CLAIM USED TO BE UNTRUE OF THE WRITER. Only recovery consulted this
+# table; the transport hardcoded the argument name separately in each of its
+# five branches, so "one table" described an intention rather than a mechanism
+# and the two sides were coupled by nothing but somebody remembering. Both
+# sides now derive the reference through `reference_for` below, and
+# `_verify_reference_totality` refuses to let the module load if a tool in
+# `ALL_TOOLS` is missing from this table or names an argument its own schema
+# does not expose. Omission is no longer possible rather than merely unlikely
+# -- the same shape ADR 0036 rule 1 gives tool declarations, and the same shape
+# ADR 0052 element 8a gives declared rights.
 REF_ARGUMENT = {TOOL: "item_ref", ADD_TASK: "task_ref",
                 COMPLETE_TASK: "task_ref", ADD_SCOPE: "scope_name",
                 # The registry row this writes IS addressed by the identity,
@@ -243,6 +254,79 @@ REF_ARGUMENT = {TOOL: "item_ref", ADD_TASK: "task_ref",
                 # humans, and two rows written by one authority would collide
                 # under it.
                 REVOKE_AUTHORITY: "execution_identity"}
+
+
+def reference_for(tool_name: str, arguments: dict[str, Any]) -> str:
+    """THE derivation of the reference that addresses the record a tool writes.
+
+    Called by BOTH the writer (`PostgresItemIntegration.transport_for`) and the
+    reader (`ApprovalService.recover`). One function over one table is what
+    makes the identity the writer records and the identity the reader looks for
+    the same identity by construction rather than by coincidence.
+
+    IT FAILS CLOSED, and that is the point of R-9. What it replaces on the
+    reading side was `REF_ARGUMENT.get(tool_name, "")` -- an empty-string
+    default. A tool absent from the table did not raise there: it produced the
+    reference `""`, which hashes perfectly well into a DIFFERENT and entirely
+    valid-looking execution identity. Recovery then found no audit row under
+    that identity and settled a SUCCESSFUL execution as `FAILED`. `FAILED`
+    means "did not happen, decide again" by its own contract, so for a tool
+    the provider does not deduplicate (`add_scope`, `add_task`) a later
+    approval could permit a SECOND execution of an action that already ran.
+    A wrong answer arrived at confidently is worse here than no answer, and
+    `recover` already has a third state -- `unresolved` -- for exactly that.
+
+    The absent-argument case raises for the same reason. An empty reference is
+    not an address, and silently accepting one recreates the defect one layer
+    down.
+    """
+    argument = REF_ARGUMENT.get(tool_name)
+    if argument is None:
+        raise Denied("tool.reference",
+                     f"{tool_name} declares no argument addressing the record "
+                     "it writes; the execution identity cannot be built",
+                     "I-93", True)
+    value = arguments.get(argument, "")
+    if not value:
+        raise Denied("tool.reference",
+                     f"{tool_name}: {argument} is absent or empty, so the "
+                     "record this writes has no address", "I-93", True)
+    return value
+
+
+def _verify_reference_totality() -> None:
+    """MT-6's refusal, applied to the reference table: an incomplete build does
+    not load.
+
+    ADR 0036 rule 1 makes an unclassified argument a registration failure
+    rather than a warning, because the alternative -- carry on and hope -- is
+    how silent omissions ship. The same reasoning applies here, and it is why
+    this runs at IMPORT rather than at first use: a build whose writer and
+    reader could disagree about an execution identity must not reach the point
+    where an approval is executing and the answer matters.
+
+    Two failures, both refusals:
+
+      * a tool in `ALL_TOOLS` with no entry -- the omission R-9 describes;
+      * an entry naming an argument the tool's own `input_schema` does not
+        expose. That one is the subtler half: the table would be complete,
+        `reference_for` would find a name, and every call would then fail the
+        absent-argument check at execution time instead of here.
+    """
+    for factory in ALL_TOOLS:
+        tool = factory()
+        argument = REF_ARGUMENT.get(tool.name)
+        if argument is None:
+            raise Denied("tool.reference.totality",
+                         f"{tool.name} is registered but declares no argument "
+                         "addressing the record it writes", "I-93", True)
+        if argument not in tool.leaves():
+            raise Denied("tool.reference.totality",
+                         f"{tool.name} addresses its record by {argument!r}, "
+                         "which its input schema does not expose", "I-93", True)
+
+
+_verify_reference_totality()
 
 
 def execution_event_identity(trace_id: str, scope_path: str,
@@ -502,8 +586,12 @@ class PostgresItemIntegration:
                          f" inspected={sorted(evidence.content_leaves)}"),
                     )
 
+                # R-9: ONE derivation for every branch, from the same table
+                # recovery reads, rather than five hardcoded argument names
+                # that recovery had no way to be checked against.
+                ref = reference_for(tool_name, payload)
+
                 if tool_name == ADD_TASK:
-                    ref = payload["task_ref"]
                     # ADR 0049: the title is CONTENT, so its security state is
                     # written WITH it, from the plan the PDP authorized and the
                     # token -- never from the payload, exactly as `write_item`
@@ -540,7 +628,6 @@ class PostgresItemIntegration:
                     detail, said = f"task_ref={ref}", f"added task {ref}"
                     record_elevation(ref, detail)
                 elif tool_name == ADD_SCOPE:
-                    ref = payload["scope_name"]
                     kind = payload.get("kind", "place")
                     if not _SCOPE_NAME.fullmatch(ref):
                         raise Denied("tool.add_scope",
@@ -557,7 +644,6 @@ class PostgresItemIntegration:
                         (new_path, kind, ch.scope_path))
                     detail, said = f"scope={new_path}", f"created {new_path}"
                 elif tool_name == COMPLETE_TASK:
-                    ref = payload["task_ref"]
                     # Conditional on done_at IS NULL: a retry is a no-op at the
                     # provider, which is what `idempotent=True` claims.
                     #
@@ -606,7 +692,6 @@ class PostgresItemIntegration:
                     # FAILS CLOSED where that scope cannot be established.
                     # Nothing here supplies a scope, and RLS `WITH CHECK`
                     # refuses one outside this channel's binding regardless.
-                    ref = payload["execution_identity"]
                     if self._revocations is None:
                         raise Denied("revocation.registry",
                                      "no revocation registry is wired",
@@ -619,7 +704,6 @@ class PostgresItemIntegration:
                     detail = f"target_ref={target}"
                     said = f"revoked the authority behind {target}"
                 else:
-                    ref = payload["item_ref"]
                     # The row's scope is the CHANNEL's scope -- the transport
                     # cannot name another one, and WITH CHECK would refuse it.
                     # I-111: the security state is written WITH the row, from

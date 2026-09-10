@@ -486,6 +486,177 @@ class ApprovalRecoveryTest(unittest.TestCase):
         self.assertEqual(PENDING, self.status_of(approval_id),
                          "recovery touched a pending approval")
 
+    # =======================================================================
+    # 20-24 -- R-9: the writer and the reader derive ONE reference
+    #
+    # Recovery decides an interrupted execution by whether an audit row exists
+    # under a rebuilt execution identity. That identity contains a REFERENCE
+    # naming the record the tool wrote. Before this, the writer hardcoded that
+    # reference per branch while the reader looked it up in `REF_ARGUMENT`
+    # with an EMPTY-STRING DEFAULT -- two derivations, coupled by nothing.
+    #
+    # The recorded consequence, and why these tests are not cosmetic: a tool
+    # the writer gained and the table did not would make the reader compute
+    # `""`, hash a different but perfectly well-formed identity, find no
+    # evidence under it, and settle a SUCCESSFUL execution as FAILED. FAILED
+    # means "did not happen, decide again", so for a tool the provider does
+    # not deduplicate that is a route to a SECOND execution.
+    #
+    # R-9 also recorded that THE SUITE DID NOT CATCH THIS CLASS: deleting an
+    # entry from `REF_ARGUMENT` left the whole run green. These tests exist so
+    # that is no longer true, and each was confirmed to fail against the code
+    # as it stood before the fix.
+    # =======================================================================
+
+    def test_20_an_unmapped_tool_raises_instead_of_addressing_nothing(self):
+        """The exact defect: `.get(tool_name, "")` did not raise.
+
+        The second assertion is the one that matters. It is not enough to show
+        that the old default produced SOME identity -- it has to be shown that
+        it produced a DIFFERENT one from the real write, because an identity
+        that happened to collide with the truth would have been harmless. They
+        differ, so evidence written by the real execution was unfindable.
+        """
+        from ..write_path import reference_for
+
+        with self.assertRaises(Denied) as caught:
+            reference_for("a_tool_added_later", {"whatever_ref": "x-1"})
+        self.assertEqual("I-93", caught.exception.invariant)
+
+        honest = execution_event_identity("tr-1", LIFE, "a_tool_added_later", "x-1")
+        old_default = execution_event_identity("tr-1", LIFE, "a_tool_added_later", "")
+        self.assertNotEqual(
+            honest, old_default,
+            "the old empty-string default would have been harmless; if these "
+            "two identities were equal this whole finding would be moot")
+
+    def test_20a_an_argument_that_is_absent_or_empty_is_not_an_address(self):
+        """The same defect one layer down, and it survived a mutation until
+        this test existed.
+
+        Guarding only the unmapped-TOOL case leaves the unmapped-ARGUMENT case
+        producing `""` by the identical route -- `arguments.get(name, "")` --
+        with the identical consequence: a well-formed identity addressing
+        nothing. Both spellings of "no value" are refused, because an empty
+        string is what an absent column reads back as.
+        """
+        from ..write_path import reference_for
+
+        for arguments, why in (({}, "absent"), ({"item_ref": ""}, "empty")):
+            with self.subTest(case=why):
+                with self.assertRaises(Denied) as caught:
+                    reference_for(TOOL, arguments)
+                self.assertEqual("I-93", caught.exception.invariant)
+
+    def test_21_an_incomplete_reference_table_refuses_to_load(self):
+        """MT-6's shape: the omission is refused, not tolerated.
+
+        Both directions are checked. A missing entry is R-9 itself. An entry
+        naming an argument the schema does not expose is the subtler half --
+        the table would LOOK complete, and every execution would fail later
+        instead, at the moment an approval was in flight.
+        """
+        from .. import write_path
+
+        original = dict(write_path.REF_ARGUMENT)
+        try:
+            del write_path.REF_ARGUMENT[TOOL]
+            with self.assertRaises(Denied) as missing:
+                write_path._verify_reference_totality()
+            self.assertEqual("I-93", missing.exception.invariant)
+
+            write_path.REF_ARGUMENT[TOOL] = "an_argument_write_item_has_never_had"
+            with self.assertRaises(Denied) as unexposed:
+                write_path._verify_reference_totality()
+            self.assertIn("input schema", unexposed.exception.reason)
+        finally:
+            write_path.REF_ARGUMENT.clear()
+            write_path.REF_ARGUMENT.update(original)
+
+        # The table as shipped passes -- otherwise the two failures above
+        # would prove nothing about this check being satisfiable.
+        write_path._verify_reference_totality()
+
+    def test_22_every_registered_tool_addresses_a_record_it_declares(self):
+        """Declarative, so a tool added later is covered without anyone
+        remembering to extend this test. That is the whole remedy: the set
+        under test is derived from `ALL_TOOLS`, not maintained beside it."""
+        from ..write_path import ALL_TOOLS, REF_ARGUMENT
+
+        for factory in ALL_TOOLS:
+            tool = factory()
+            with self.subTest(tool=tool.name):
+                self.assertIn(tool.name, REF_ARGUMENT,
+                              "a registered tool addresses no record")
+                self.assertIn(REF_ARGUMENT[tool.name], tool.leaves(),
+                              "a tool addresses its record by an argument its "
+                              "own input schema does not expose")
+
+    def test_23_recovery_settles_unresolved_when_it_cannot_derive_a_reference(self):
+        """The behavioural half, and the one that changed.
+
+        The execution DID happen -- `wrote=True` commits the row and its audit
+        record through the real transport. Then the reference becomes underivable.
+        Old behaviour: FAILED, which by its own contract invites a fresh
+        approval for an action that already ran. New behaviour: `unresolved`,
+        the state recovery already has for "we do not know", with the row left
+        EXECUTING for a human.
+        """
+        from .. import write_path
+
+        approval_id, _ = self.strand(wrote=True)
+        original = dict(write_path.REF_ARGUMENT)
+        try:
+            del write_path.REF_ARGUMENT[TOOL]
+            settled = self.approvals.recover(self.token())
+        finally:
+            write_path.REF_ARGUMENT.clear()
+            write_path.REF_ARGUMENT.update(original)
+
+        self.assertEqual([(approval_id, "unresolved")], settled)
+        self.assertNotEqual(FAILED, self.status_of(approval_id),
+                            "an execution that HAPPENED was declared failed, "
+                            "which invites a second one")
+        self.assertEqual(EXECUTING, self.status_of(approval_id),
+                         "an undecidable row must be left for a human")
+
+    def test_24_the_totality_check_runs_at_import(self):
+        """Asserted STRUCTURALLY, because behaviour cannot reach it.
+
+        `_verify_reference_totality` is only load-bearing if it is CALLED when
+        the module loads. Test 21 proves the function refuses an incomplete
+        table; nothing in it proves anything ever asks. A reload cannot show
+        this either -- reloading re-executes the source, which restores the
+        very table a test would have broken.
+
+        So this reads the module's own syntax tree and asserts the call sits at
+        module scope, after the table it checks. Deleting the call is then a
+        test failure rather than a silent return to "the table is correct
+        because someone maintained it".
+        """
+        import ast
+        import inspect
+        from .. import write_path
+
+        tree = ast.parse(inspect.getsource(write_path))
+        called_at_module_scope = [
+            node for node in tree.body
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "_verify_reference_totality"]
+        self.assertEqual(
+            1, len(called_at_module_scope),
+            "the reference table's totality check is defined but never run at "
+            "import, so an incomplete table would load happily")
+
+    def test_25_a_derivable_reference_still_settles_normally(self):
+        """The counterpart to 23. A guard that made everything unresolved
+        would pass 23 and destroy recovery, so the ordinary path is asserted
+        in the same breath."""
+        approval_id, _ = self.strand(wrote=True)
+        self.assertEqual([(approval_id, EXECUTED)],
+                         self.approvals.recover(self.token()))
+
 
 if __name__ == "__main__":
     unittest.main()
