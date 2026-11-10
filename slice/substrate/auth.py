@@ -55,7 +55,9 @@ STATED LIMITATIONS
    ever exist. Every subsequent passkey requires an authenticated multi-factor
    session -- enforced when the ceremony is REDEEMED as well as when it is
    minted, so a ceremony obtained during the bootstrap window cannot be spent
-   after that window has closed (`F-4`). Whoever reaches the enrolment route
+   after that window has closed (`F-4`), and a ceremony authorized by a
+   session that is since revoked, signed out or expired cannot be spent at all
+   (`R-1`). Whoever reaches the enrolment route
    first, on a system with no credential, becomes James. In deployment that
    window is closed by not exposing the route until enrolment is done; that is
    an operational control, and it is not claimed to be more than one.
@@ -174,12 +176,23 @@ class _Ceremonies:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._open: dict[str, tuple[bytes, str, datetime.datetime]] = {}
+        self._open: dict[str, tuple[bytes, str, Optional[str],
+                                    datetime.datetime]] = {}
 
-    def start(self, challenge: bytes, purpose: str) -> str:
+    def start(self, challenge: bytes, purpose: str,
+              authorized_by_ref: Optional[str] = None) -> str:
+        """`authorized_by_ref` NAMES the session that justified this ceremony,
+        for the one purpose whose justification IS a session (`R-1`).
+
+        It is a `session_ref` -- the SHA-256 the database stores -- never the
+        cookie value the browser holds. A ceremony therefore carries a POINTER
+        to an authorization, not a bearer of one: it cannot be presented as a
+        session even if the ceremony table were read, and following the pointer
+        asks the database the question fresh rather than trusting a cached yes.
+        """
         ceremony_id = secrets.token_urlsafe(24)
         with self._lock:
-            self._open[ceremony_id] = (challenge, purpose,
+            self._open[ceremony_id] = (challenge, purpose, authorized_by_ref,
                                        _now() + CEREMONY_LIFETIME)
         return ceremony_id
 
@@ -188,9 +201,10 @@ class _Ceremonies:
         return self.take_one_of(ceremony_id, (purpose,))[0]
 
     def take_one_of(self, ceremony_id: Optional[str],
-                    purposes: tuple[str, ...]) -> tuple[bytes, str]:
+                    purposes: tuple[str, ...]
+                    ) -> tuple[bytes, str, Optional[str]]:
         """Consume, accepting any of several purposes and reporting WHICH one
-        the ceremony was minted for.
+        the ceremony was minted for, and WHAT authorized it.
 
         Enrolment needs this because its two authorizations are established at
         DIFFERENT times, and the redeeming code must know which it is holding
@@ -204,10 +218,10 @@ class _Ceremonies:
             entry = self._open.pop(ceremony_id or "", None)
         if entry is None:
             raise AuthenticationFailed("no such ceremony")
-        challenge, entry_purpose, expires = entry
+        challenge, entry_purpose, authorized_by_ref, expires = entry
         if entry_purpose not in purposes or _now() >= expires:
             raise AuthenticationFailed("ceremony expired")
-        return challenge, entry_purpose
+        return challenge, entry_purpose, authorized_by_ref
 
 
 def _now() -> datetime.datetime:
@@ -262,14 +276,25 @@ class AuthenticationService:
         The ceremony records WHICH of those two justified it, so that
         `verify_enrolment` can re-check the perishable one. Deciding here and
         not re-checking there is what `F-4` was.
+
+        `R-1`. BOTH justifications are perishable, and only one of them used to
+        be re-checked. A session can be revoked, signed out, or reach its
+        absolute expiry during the five minutes a ceremony stays alive, so an
+        ADDITIONAL ceremony records the `session_ref` that authorized it and
+        redemption asks the database whether that session is still good.
         """
         if self.has_credential(actor):
             if authorized_by is None or not authorized_by.is_multi_factor \
                     or authorized_by.actor != actor:
                 raise AuthenticationFailed("enrolment requires a strong session")
             purpose = ENROL_ADDITIONAL
+            authorizer_ref = authorized_by.session_ref
         else:
             purpose = ENROL_BOOTSTRAP
+            # A bootstrap ceremony is authorized by a FACT, not a session, and
+            # carries no pointer to one. Recording a session here would invite a
+            # later reader to believe one had been checked.
+            authorizer_ref = None
 
         options = webauthn.generate_registration_options(
             rp_id=self.rp_id, rp_name=self.rp_name,
@@ -281,7 +306,8 @@ class AuthenticationService:
                 resident_key=ResidentKeyRequirement.REQUIRED,
             ),
         )
-        return self._ceremonies.start(options.challenge, purpose), \
+        return self._ceremonies.start(options.challenge, purpose,
+                                      authorizer_ref), \
             options_to_json(options)
 
     def verify_enrolment(self, ceremony_id: Optional[str], credential_json: str,
@@ -316,12 +342,41 @@ class AuthenticationService:
         true rather than merely likely.
 
         A ceremony minted for `ENROL_ADDITIONAL` takes neither the guard nor
-        the lock: it was authorized by a strong session that already existed,
-        no later enrolment can retract that, and several devices for one actor
-        is the intended outcome rather than a race to be resolved.
+        the lock: several devices for one actor is the intended outcome rather
+        than a race to be resolved, and no LATER ENROLMENT can retract the
+        session that authorized it.
+
+        `R-1`. But something else can. `F-4` closed the bootstrap half of this
+        and left the additional half open, on the reasoning that a strong
+        session had already existed -- which is true, and is the wrong tense.
+        A session can be revoked (`A-6`), signed out, or reach its absolute
+        `SESSION_LIFETIME` while the ceremony is still alive, and `I-74` says a
+        revocation takes effect at the NEXT DECISION rather than only at the
+        next login. Redeeming an enrolment is a decision, and a permanent one:
+        it adds a second way to authenticate as this actor forever. So the
+        authorizing session is re-checked here, against the database, exactly
+        as the bootstrap fact is.
+
+        WHY THE CEREMONY CARRIES THE AUTHORIZER rather than the caller
+        presenting a session at redemption: the ceremony names THE session that
+        authorized it, so a DIFFERENT session -- valid, but never the one this
+        enrolment was granted under -- cannot redeem it. Re-checking whatever
+        session the caller happens to hold would verify something WEAKER than
+        what was decided, and would widen the seam's route for no benefit;
+        `auth_enrol` is unchanged.
         """
-        challenge, purpose = self._ceremonies.take_one_of(
+        challenge, purpose, authorized_by_ref = self._ceremonies.take_one_of(
             ceremony_id, (ENROL_BOOTSTRAP, ENROL_ADDITIONAL))
+
+        if purpose == ENROL_ADDITIONAL:
+            # Asked of the DATABASE, not of anything the ceremony carries: the
+            # ceremony holds a reference, and the answer to "is this session
+            # still good" is only ever current at the moment it is asked.
+            # `None` covers absent, unknown, expired and revoked alike.
+            authorizer = self._session_by_ref(authorized_by_ref)
+            if authorizer is None or not authorizer.is_multi_factor \
+                    or authorizer.actor != actor:
+                raise AuthenticationFailed("registration rejected")
         try:
             verified = webauthn.verify_registration_response(
                 credential=credential_json,
@@ -607,6 +662,23 @@ class AuthenticationService:
         expired or revoked -- all four are the same answer to the caller."""
         if not session_token:
             return None
+        return self._session_by_ref(_ref(session_token))
+
+    def _session_by_ref(self, session_ref: Optional[str]
+                        ) -> Optional[AuthenticatedSession]:
+        """A live session, by the reference the database stores.
+
+        ONE definition of "still good", used by `resolve` for the browser's
+        token and by `verify_enrolment` for the session a ceremony names
+        (`R-1`). Two spellings of that predicate could disagree about
+        revocation, which is the kind of divergence `I-74` cannot afford --
+        and it is the same drift `R-9` closed on the write path.
+
+        `None` in, `None` out: a ceremony carrying no authorizer is not a
+        ceremony authorized by one.
+        """
+        if not session_ref:
+            return None
         conn = self._connect()
         try:
             with conn.cursor() as cur:
@@ -614,7 +686,7 @@ class AuthenticationService:
                     "SELECT session_ref, identity, actor_ref, strength, surface,"
                     " established_at, expires_at FROM auth_session"
                     " WHERE session_ref=%s AND revoked_at IS NULL AND expires_at > now()",
-                    (_ref(session_token),))
+                    (session_ref,))
                 row = cur.fetchone()
         finally:
             conn.close()

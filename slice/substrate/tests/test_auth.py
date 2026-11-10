@@ -400,14 +400,20 @@ class AuthenticationTest(unittest.TestCase):
             authfixture.sign_in(self.auth, second_key)
 
     def test_18b_the_bootstrap_guard_does_not_touch_the_add_a_device_path(self):
-        """The guard is scoped to the authorization that can perish. A ceremony
+        """The bootstrap guard is scoped to the fact it re-checks. A ceremony
         minted against a strong session was authorized by something no later
-        enrolment can retract, so it stays redeemable even though another
+        ENROLMENT can retract, so it stays redeemable even though another
         passkey appeared while it was in flight.
 
         Without this, the fix for `F-4` would have broken the legitimate
         add-a-device path instead -- refusing every enrolment after the first
         is not a security property, it is an outage.
+
+        READ THE SCOPE OF THAT CLAIM PRECISELY, because `R-1` was the cost of
+        reading it loosely: "no later enrolment can retract it" is not "nothing
+        can retract it". A revocation, a sign-out or expiry can, and does --
+        `test_18f` through `test_18i`. This test says the BOOTSTRAP guard does
+        not fire here; it says nothing about the session still being good.
         """
         ceremony, options = self.auth.enrolment_options(
             "james", "james", authorized_by=self.auth.resolve(self.sign_in()))
@@ -573,6 +579,197 @@ class AuthenticationTest(unittest.TestCase):
 
         # And it fits the bigint pg_advisory_xact_lock accepts.
         self.assertTrue(-2**63 <= _bootstrap_lock_key("james") < 2**63)
+
+    # =======================================================================
+    # R-1 -- the OTHER perishable enrolment authorization
+    #
+    # `F-4` closed the bootstrap half: a ceremony authorized by the fact "this
+    # actor has no passkey" re-checks that fact at redemption. The additional
+    # half was left open, on the reasoning that a strong session had already
+    # existed and no later ENROLMENT could retract it. True, and the wrong
+    # tense -- a session can be revoked (`A-6`), signed out, or hit its
+    # absolute `SESSION_LIFETIME` during the five minutes a ceremony lives.
+    #
+    # Redeeming an enrolment is a decision, and a permanent one: it adds a
+    # second way to authenticate as this actor forever. `I-74` says revocation
+    # takes effect at the NEXT decision. So it takes effect here.
+    # =======================================================================
+
+    def _open_add_device_ceremony(self, actor="james"):
+        """A live add-a-device ceremony, and the session that authorized it."""
+        session = self.auth.resolve(self.sign_in())
+        ceremony, options = self.auth.enrolment_options(
+            actor, actor, authorized_by=session)
+        return ceremony, options, session
+
+    def _redeem(self, ceremony, options, label="phone", actor="james"):
+        device = SoftAuthenticator()
+        self.auth.verify_enrolment(
+            ceremony, device.register(authfixture._challenge(options),
+                                      RP_ID, ORIGIN),
+            actor, actor, label)
+        return device
+
+    def test_18f_revoking_the_authorizing_session_kills_its_open_ceremony(self):
+        """The residual itself. The ceremony is minted, the session is revoked,
+        and the enrolment must not complete -- an authorization withdrawn is
+        withdrawn from work already in flight, not only from work not yet
+        begun."""
+        ceremony, options, session = self._open_add_device_ceremony()
+        before = self.sql("SELECT count(*) FROM auth_credential")[0][0]
+
+        self.auth.revoke(session.session_ref)
+
+        with self.assertRaises(AuthenticationFailed):
+            self._redeem(ceremony, options)
+        self.assertEqual(
+            before, self.sql("SELECT count(*) FROM auth_credential")[0][0],
+            "a passkey was added under an authorization that had been revoked")
+
+    def test_18g_signing_out_everywhere_kills_open_ceremonies_too(self):
+        """`revoke_all` is what "sign me out everywhere" means, and it is the
+        control someone reaches for when they believe a session is
+        compromised. It would be a poor answer if a ceremony minted moments
+        earlier still enrolled a permanent new key."""
+        ceremony, options, _ = self._open_add_device_ceremony()
+
+        self.auth.revoke_all("james")
+
+        with self.assertRaises(AuthenticationFailed):
+            self._redeem(ceremony, options)
+
+    def test_18h_an_expired_session_cannot_redeem_its_ceremony(self):
+        """Expiry, not revocation -- a different column and a different reason,
+        and the residual named it separately. `SESSION_LIFETIME` is absolute
+        and not extended by activity, so a session can reach it mid-ceremony
+        without anyone acting at all."""
+        ceremony, options, session = self._open_add_device_ceremony()
+
+        self.sql("UPDATE auth_session SET expires_at = now() - interval '1 second'"
+                 " WHERE session_ref=%s", (session.session_ref,))
+        self.assertIsNone(self.auth._session_by_ref(session.session_ref),
+                          "the session did not actually expire, so this test "
+                          "would have proved nothing")
+
+        with self.assertRaises(AuthenticationFailed):
+            self._redeem(ceremony, options)
+
+    def test_18i_a_different_session_cannot_redeem_another_s_ceremony(self):
+        """Stronger than re-checking whatever session the caller happens to
+        hold, and the reason the ceremony carries the authorizer rather than
+        the seam passing one in.
+
+        A second, entirely valid, multi-factor session for the same actor
+        exists here. It still cannot redeem a ceremony granted under the first
+        one: the enrolment was authorized under THAT session, and that session
+        is gone. Checking "some strong session exists" would pass this, and
+        would be checking something weaker than what was decided.
+        """
+        ceremony, options, first = self._open_add_device_ceremony()
+        second = self.auth.resolve(self.sign_in())
+        self.assertIsNotNone(second)
+        self.assertNotEqual(first.session_ref, second.session_ref)
+        self.assertTrue(second.is_multi_factor,
+                        "the second session is not strong, so this test would "
+                        "pass for the wrong reason")
+
+        self.auth.revoke(first.session_ref)
+
+        with self.assertRaises(AuthenticationFailed):
+            self._redeem(ceremony, options)
+
+    def test_18j_a_ceremony_names_a_session_and_never_carries_one(self):
+        """What the ceremony holds is the SHA-256 the database stores, not the
+        cookie value the browser holds. A ceremony is a pointer to an
+        authorization, not a bearer of one -- so reading the in-memory ceremony
+        table yields nothing that could be presented as a session.
+
+        The bootstrap case is asserted beside it: it is authorized by a FACT
+        and carries no pointer at all, which is what stops `verify_enrolment`
+        appearing to check something it was never given.
+        """
+        token = self.sign_in()
+        session = self.auth.resolve(token)
+        added, _ = self.auth.enrolment_options("james", "james",
+                                               authorized_by=session)
+        fresh, _ = self.auth.enrolment_options("newcomer", "newcomer")
+
+        stored = self.auth._ceremonies._open[added][2]
+        self.assertEqual(session.session_ref, stored)
+        self.assertNotEqual(token, stored,
+                            "the ceremony holds the session VALUE, which makes "
+                            "the ceremony table a credential store")
+        self.assertNotIn(token, str(self.auth._ceremonies._open))
+        self.assertIsNone(self.auth._ceremonies._open[fresh][2],
+                          "a bootstrap ceremony recorded an authorizing "
+                          "session it was never given")
+
+    def test_18l_redemption_cannot_name_a_different_actor_than_it_was_granted_for(self):
+        """`test_18` proves a session cannot ASK for another actor's enrolment.
+        This proves it cannot REDEEM one either -- a separate check at a
+        separate moment, and untested until a mutation said so.
+
+        `actor` is an argument to `verify_enrolment`, supplied at redemption,
+        so a caller holding a ceremony minted honestly for itself could name
+        somebody else when spending it and enrol its own authenticator as that
+        actor. A session would become an identity factory by the back door.
+        """
+        authfixture.enrol(self.auth, "assistant", "assistant")
+        ceremony, options, session = self._open_add_device_ceremony()
+        self.assertEqual("james", session.actor)
+
+        with self.assertRaises(AuthenticationFailed):
+            self._redeem(ceremony, options, label="stolen", actor="assistant")
+        self.assertEqual(
+            [], self.sql("SELECT 1 FROM auth_credential"
+                         " WHERE actor_ref='assistant' AND label='stolen'"),
+            "a key was enrolled for an actor whose session never authorized it")
+
+    def test_18m_a_single_factor_session_cannot_authorize_an_enrolment(self):
+        """Asserted against `verify_enrolment` DIRECTLY, past its caller.
+
+        `enrolment_options` refuses a weak session, so no ordinary path can
+        mint this ceremony -- which is exactly why the strength check at
+        redemption needs proving on its own. `F-4`'s whole lesson was that a
+        decision made in one place and not re-checked in the other stops being
+        true. A check that is only correct because its caller was correct is
+        the same shape, and mutation testing found this one indistinguishable
+        from no check at all.
+
+        A-1: a passkey is a permanent authentication factor. Adding one is not
+        something a single-factor session may do, whichever door it arrives at.
+        """
+        from ..auth import ENROL_ADDITIONAL
+
+        weak = self.auth.resolve(self.sign_in(user_verified=False))
+        self.assertEqual(SINGLE_FACTOR, weak.strength)
+
+        options = json.loads(self.auth.enrolment_options(
+            "james", "james",
+            authorized_by=self.auth.resolve(self.sign_in()))[1])
+        raw = options["challenge"]
+        challenge = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4))
+        forced = self.auth._ceremonies.start(challenge, ENROL_ADDITIONAL,
+                                             weak.session_ref)
+
+        device = SoftAuthenticator()
+        with self.assertRaises(AuthenticationFailed):
+            self.auth.verify_enrolment(
+                forced, device.register(challenge, RP_ID, ORIGIN),
+                "james", "james", "weakly authorized")
+        self.assertEqual(
+            [], self.sql("SELECT 1 FROM auth_credential"
+                         " WHERE label='weakly authorized'"))
+
+    def test_18n_a_live_session_still_enrols_a_second_device(self):
+        """The outage counterpart, and it is not optional. A guard that
+        rejected every add-a-device redemption would pass all six tests above
+        and would have removed the capability instead of securing it."""
+        ceremony, options, _ = self._open_add_device_ceremony()
+        phone = self._redeem(ceremony, options)
+        self.assertIsNotNone(
+            self.auth.resolve(authfixture.sign_in(self.auth, phone)),
+            "the legitimate add-a-device path stopped working")
 
     # =======================================================================
     # Privilege separation -- authentication cannot reach scoped data

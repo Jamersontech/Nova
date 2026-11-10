@@ -349,9 +349,11 @@ class StepUpTest(unittest.TestCase):
         approval_id = self.propose()
         ceremony, assertion = self.step_up(approval_id)
         # Reach into the in-memory store and age the entry past its lifetime.
-        challenge, purpose, _ = self.auth._ceremonies._open[ceremony]
+        # The entry gained an authorizing-session reference with R-1; a step-up
+        # ceremony carries None there, and expiry is unaffected by it.
+        challenge, purpose, authorizer, _ = self.auth._ceremonies._open[ceremony]
         self.auth._ceremonies._open[ceremony] = (
-            challenge, purpose,
+            challenge, purpose, authorizer,
             datetime.datetime.now(datetime.timezone.utc)
             - datetime.timedelta(seconds=1))
         status, _ = self.decide(approval_id, True, ceremony, assertion)

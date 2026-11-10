@@ -553,7 +553,7 @@ deliberately. Each was re-verified against the code when this section was writte
 
 | # | Residual | Where | Severity | Why it was left |
 | --- | --- | --- | --- | --- |
-| R-1 | An additional-device enrolment ceremony stays redeemable for its full `CEREMONY_LIFETIME` (5 minutes) even if the session that authorized it is revoked | `auth.py` `verify_enrolment` — it receives no session to re-check | Significant | Same bug class as `F-4`, materially weaker: it still required a strong session belonging to that actor. Fixing it means passing the session in and widening the seam route |
+| ~~R-1~~ | An additional-device enrolment ceremony stays redeemable for its full `CEREMONY_LIFETIME` (5 minutes) even if the session that authorized it is revoked | `auth.py` `verify_enrolment` — it receives no session to re-check | **CLOSED** | Same bug class as `F-4`, materially weaker: it still required a strong session belonging to that actor. Fixing it means passing the session in and widening the seam route. **SUPERSEDED 2026-11-10 — implemented and closed; the sentences above describe the code as it stood when the residual was recorded, not as it stands now. See *Residuals closed* below.** |
 | R-2 | **No credential-management or revocation surface exists.** Nothing lists enrolled passkeys and nothing deletes one | `A-6` enumerates `auth_session` only; `schema.sql` grants `nova_auth` `SELECT, INSERT, UPDATE` on `auth_credential` — **no `DELETE`** | Significant | Removing a credential needs a `DELETE` grant, which is a schema change touching accepted privilege separation. That is governance review, not a fix to slip into a bug PR |
 | R-3 | The `F-4` bootstrap advisory lock waits without bound (`lock_timeout = 0`) | `auth.py` `verify_enrolment`, bootstrap branch | Residual | James's ruling, PR #21: the critical section is one `INSERT` and a commit, and it fails closed. A timeout introduces a new failure mode needing explicit error-translation and API-semantics decisions |
 | R-4 | The `F-4` concurrency test's **detection** power is statistical (~1 in 10^5 escape for an unlocked build); the fixed invariant itself is deterministic | `test_auth.py` `test_18d`, recorded in its own docstring | Residual | Workers cannot be made to reach the write in lockstep from outside the API |
@@ -572,6 +572,73 @@ Closing a residual does not delete it. The row above keeps its original wording 
 through, with its disposition changed — because the record of what was wrong is the part
 worth keeping, and rewriting it after the fact would make this document a description of
 the current code rather than a history of it. Numbers are never reused.
+
+### `R-1` — an enrolment ceremony outlived the session that authorized it
+
+**What was actually wrong.** Enrolment has two justifications, and both are perishable.
+`F-4` closed the bootstrap one: a ceremony authorized by the fact *"this actor has no
+passkey"* re-checks that fact at redemption. The additional-device one was left open on the
+reasoning that a strong session had already existed and no later *enrolment* could retract
+it. That is true, and it is the wrong tense. A session can be revoked (`A-6`), signed out,
+or reach its absolute `SESSION_LIFETIME` during the five minutes a ceremony stays alive —
+and `I-74` says a revocation takes effect at the **next decision**, not merely at the next
+login. Redeeming an enrolment is a decision, and a permanent one: it adds a second way to
+authenticate as that actor forever. So for up to five minutes, revoking a session did not
+stop it from adding a passkey.
+
+**What was fixed.**
+
+1. `enrolment_options` records the `session_ref` that authorized an `ENROL_ADDITIONAL`
+   ceremony. A `ENROL_BOOTSTRAP` ceremony records `None` — it is authorized by a fact, and
+   recording a session there would invite a later reader to believe one had been checked.
+2. `verify_enrolment` re-checks that session against the database before verifying the
+   attestation: still present, still unrevoked, still unexpired, still multi-factor, still
+   this actor. Failure raises `AuthenticationFailed` and no credential is written.
+3. `AuthenticationService._session_by_ref` is now the single definition of "a live
+   session", used by `resolve` for the browser's token and by `verify_enrolment` for the
+   session a ceremony names. Two spellings of that predicate could disagree about
+   revocation, which is the divergence `I-74` cannot afford — the same drift `R-9` closed
+   on the write path.
+
+**Where this differs from the remedy the residual sketched, deliberately.** The residual
+said the fix *"means passing the session in and widening the seam route"*. It does not, and
+should not. The ceremony names **the** session that authorized it, so the check is made
+against that session rather than against whatever session the caller happens to present at
+redemption. A second, entirely valid, strong session for the same actor cannot redeem a
+ceremony granted under the first — which "re-check the caller's session" would have allowed,
+verifying something *weaker* than what was decided. `seam.auth_enrol` is unchanged, so the
+route was not widened and no new argument crosses the HTTP boundary. What the ceremony holds
+is the SHA-256 the database stores, never the cookie value: a pointer to an authorization,
+not a bearer of one.
+
+**Verification.** Real PostgreSQL throughout; nothing mocked.
+
+- Regression **666 → 674 tests**, with only the two known date-dependent `test_attention`
+  failures and the one deliberate timing skip. No other test changed behaviour.
+- Eight new tests in `test_auth.py`: `test_18f` (revocation), `test_18g` (sign out
+  everywhere), `test_18h` (absolute expiry), `test_18i` (a different valid strong session
+  still cannot redeem), `test_18j` (the ceremony names a session and never carries one, and
+  a bootstrap ceremony carries no authorizer), `test_18l` (redemption cannot name a
+  different actor than it was granted for), `test_18m` (a single-factor session cannot
+  authorize an enrolment, asserted against `verify_enrolment` past its caller), `test_18n`
+  (the legitimate add-a-device path still works — the outage counterpart).
+- **Seven mutations, seven detected, no survivors**, the source restored byte-identically
+  under SHA-256: the re-check removed entirely, i.e. the pre-fix state (M1); the re-check
+  accepting any live session rather than the authorizing one (M2); strength ignored (M3);
+  actor ignored (M4); `_session_by_ref` ignoring revocation and expiry (M5); the ceremony
+  recording something other than the session reference (M6); a bootstrap ceremony recording
+  an authorizer it was never given (M7).
+- **Two of those mutations survived a first round, and the gaps they exposed were real.**
+  M3 and M4 were initially indistinguishable from no check at all, because every test had
+  an authorizing session that was both strong and the right actor. `test_18m` and
+  `test_18l` were written in response. `test_18l` matters most: `actor` is an argument
+  supplied at redemption, so without that check a caller holding a ceremony minted honestly
+  for itself could name somebody else when spending it and enrol its own authenticator as
+  that actor. `test_18m` reaches past `enrolment_options` on purpose — a check that is only
+  correct because its caller was correct is exactly the shape `F-4` was.
+
+**`R-6` is unaffected and still open.** Expired ceremonies are still never swept; this
+change adds a field to the ceremony entry and does not alter its lifecycle.
 
 ### `R-9` — the writer and the reader derived the execution reference separately
 
